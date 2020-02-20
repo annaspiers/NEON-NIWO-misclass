@@ -1,0 +1,77 @@
+---
+title: "carabids_EDA"
+author: "Anna Spiers"
+date: "1/28/2020"
+output: rmarkdown::github_document
+---
+
+```{r}
+library(dplyr)
+```
+
+Load carabid data
+```{r}
+load(file="data_raw/carabids_NIWO.Rdata")
+list2env(carabids_NIWO, .GlobalEnv)  
+
+load(file="data_raw/carabids_barcode_NIWO.Rdata")
+list2env(carabids_barcode_NIWO, .GlobalEnv) 
+rm(carabids_barcode_NIWO)
+```
+
+paraTaxononmistid vs expertTaxonomistID vs barcode
+
+In barcode data, bet_BOLDvoucherInfo df has two variables, sampleID and fieldID, that could match the taxonomist's individualID variable
+```{r}
+# First, check to see that sampleID and fieldID match each other
+identical(bet_BOLDvoucherInfo$sampleID, bet_BOLDvoucherInfo$fieldID)
+
+# Join all barcode df's
+all_barcode_df <- Reduce(function(x, y) merge(x, y, all=TRUE,by="sampleID"), 
+                         list(bet_BOLDcollectionData, bet_BOLDspecimenDetails, 
+                               bet_BOLDtaxonomy, bet_BOLDvoucherInfo))
+rm(bet_BOLDtaxonomy, bet_BOLDvoucherInfo, bet_BOLDcollectionData, bet_BOLDspecimenDetails,)
+
+# Remove columns that are only NAs
+all_barcode_df <- all_barcode_df[, colSums(is.na(all_barcode_df)) != nrow(all_barcode_df)]
+
+# Remove duplicate columns
+identical(all_barcode_df$publicationDate.x,all_barcode_df$publicationDate.x.1)
+identical(all_barcode_df$publicationDate.y,all_barcode_df$publicationDate.y.1)
+identical(all_barcode_df$publicationDate.x,all_barcode_df$publicationDate.y)
+
+all_barcode_df <- all_barcode_df %>%
+                    select(-c(publicationDate.x.1,
+                        publicationDate.y,publicationDate.y.1)) 
+
+
+# Then join by barcode sampleID and taxonomist individualID fields
+
+
+# Remove columns that are only NAs
+bet_parataxonomistID <- bet_parataxonomistID[, colSums(is.na(bet_parataxonomistID)) != nrow(bet_parataxonomistID)] #26->24 col
+bet_expertTaxonomistIDProcessed <- bet_expertTaxonomistIDProcessed[, colSums(is.na(bet_expertTaxonomistIDProcessed)) != nrow(bet_expertTaxonomistIDProcessed)] #35->34 col
+bet_BOLDtaxonomy <- bet_BOLDtaxonomy[, colSums(is.na(bet_BOLDtaxonomy)) != nrow(bet_BOLDtaxonomy)] #15->13 col
+
+#save(all_barcode_df, "data_derived/all_barcode_df.Rdata")
+```
+
+
+```{r}
+colnames(bet_parataxonomistID)
+
+unique(bet_parataxonomistID$taxonID)
+unique(bet_parataxonomistID$taxonRank)
+unique(bet_parataxonomistID$morphospeciesID)
+unique(bet_parataxonomistID$scientificName)
+# important columns: morphospecies, taxonID, taxonRank
+# only have morphospecies if they didn't get the taxonID down to species level
+
+
+colnames(bet_expertTaxonomistIDProcessed)
+# important columns: 
+
+# Join by individualID
+# first join barcode with expert tax ID and reconcile ID's
+# then join expert-barcode dataset with paratax and reconcile ID's
+```
