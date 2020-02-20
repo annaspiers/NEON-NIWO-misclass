@@ -24,34 +24,9 @@ This is a centralized location to organize our thoughts and resources for this p
 
 ##### Data products we could use
 * Response variable: carabid community abundance and composition  
-    * Source: NEON carabid data at NIWO 2015-19  
+    * Source: NEON carabid data at NIWO 2015-18  
 
-| Predictor variable  | source | dpID | spatial distribution | temporal distribution | literature |
-| ------------- | ----- | -------- | --------------------- | ---------- | ------------ |
-| carabid richness & abundance | NEON | DP1.10022.001 | 4 traps per plot (10) at each terrestrial site, arrayed 20m from the center of the plot in each cardinal direction | 2015-2019, biweekly sampling during growing season | [NEON carabid data user guide](https://github.com/EBIO6100Spring2020/Data-sandbox/blob/master/docs/NEON_beetle_userGuide_vA.pdf) [Hoekman et al. 2017](https://esajournals.onlinelibrary.wiley.com/doi/full/10.1002/ecs2.1744) |
-| carabid DNA barcode | NEON | DP1.10020.001 |  |  |  |
-| slope/aspect | NEON | DP3.30025.001 | same as elevation | same as elevation | [data page](https://data.neonscience.org/data-products/DP3.30025.001) |
-| elevation | NEON | DP3.30024.001 | full extent of site, well beyond pitfalls, 1mx1m resolution | 2017-2019 (Sept, Aug, Aug) | [data page](https://data.neonscience.org/data-products/DP3.30024.001) | 
-| precipitation | NEON | DP1.00006.001 | looks like a couple of sensors per NEON site - CHECK | (almost) every month 2017-current | [neon data page](https://data.neonscience.org/data-products/DP1.00006.001) | 
-| relative humidity | NEON | DP1.00098.001 | sensors on flux tower and in soil array - CHECK | 1min and 30min time series, 2017-current | [data page](https://data.neonscience.org/data-products/DP1.00098.001) | 
-| IR biological temp | NEON | DP1.00005.001 | a couple sensors near tower | 1min and 30min series, every month 2017-current | [data page](https://data.neonscience.org/data-products/DP1.00005.001) | 
-| Shortwave radiation (direct and diffuse pyranometer) | NEON | DP1.00014.001 |  |  |  | 
-| Shortwave and longwave radiation (net radiometer) | NEON | DP1.00023.001 |  |  |  | 
-| LAI - spectrometer - flightline | NEON | DP2.30012.001 |  |  |  | 
-| soil temp | NEON | DP1.00041.001 | a couple sensors near tower | 1min, 30min series, mid2017-current | [data page](https://data.neonscience.org/data-products/DP1.00041.001) |
-| Soil water content and water salinity | NEON | DP1.00094.001 | many base plots, including pitfall locations |  |  | 
-| Woody plant vegetation structure | NEON | DP1.10098.001 | 38 base plots, including pitfall locations (24 base plots in 2019) | annual samples, 2015-16, 2019. Not all plots were sampled each year. | [TOS Science Design for Plant Biomass and Productivity](https://data.neonscience.org/documents/10179/1723439/NEON.DOC.000914vA/b21f8a50-2f1e-4261-8890-3f922fd78141)| 
-| Litterfall and fine woody debris sampling | NEON | DP1.10033.001 | 12 base plots, including pitfall locations | monthly samples (some gaps by location), June or July through November, 2016-2019 |  | 
-| Plant presence and percent cover | NEON | DP1.10058.001 | | |[data page](https://data.neonscience.org/data-products/DP1.10058.001) |
-| [Permanent forest plot data](https://portal.lternet.edu/nis/mapbrowse?packageid=knb-lter-nwt.207.3) | NiwotLTER | NA |  | 1982-2016 | [Chai et al. 2019](https://www.nrcresearchpress.com/doi/pdfplus/10.1139/cjfr-2019-0023) | 
-| canopy gaps |  |  |  |  |  | 
-| hydrology |  |  |  |  |  | 
-| % canopy cover |  |  |  |  |  | 
-| litterfall/woody debris |  |  |  |  |  | 
-| surface temp |  |  |  |  |  | 
-| microtopography |  |  |  |  |  | 
-| time to snowmelt |  |  |  |  |  | 
-| max. snowpack |  |  |  |  |  | 
+See [data organization](https://github.com/EBIO6100Spring2020/niwot_NEON_carabids/blob/master/data_organization.csv) for more details on what predictors we're considering and how we'll summarize them for our analyses.
 
 | Miscellaneous data  | source | spatial distribution | temporal distribution |
 | ------- | ----------------- | --------- | ---------- | 
