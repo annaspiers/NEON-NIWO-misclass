@@ -1,83 +1,52 @@
 # This script compiles carabid abundance and richness data with variables
-# describing layers of data aggregation as well as environmental variables. Each
-# row is a species at a trap on a collection date
+# describing layers of data aggregation as well as environmental variables. 
 
 library(dplyr)
 library(stringr) #word()
+library(geoNEON)
 library(ggplot2)
 library(forcats) #fct_reorder
 
 ### Load data ####
 load("data_derived/carabids_NIWO.Rdata")
+list2env(carabid_abund, .GlobalEnv)
 #load("data_derived/soil_wc_NIWO.Rdata")
-load("data_derived/woody_veg_NIWO.Rdata")
-load("data_derived/litter_woodfall_NIWO.Rdata")
-load("data_derived/ir_bio_temp_NIWO.Rdata")
+#load("data_derived/woody_veg_NIWO.Rdata")
+#load("data_derived/litter_woodfall_NIWO.Rdata")
+#load("data_derived/ir_bio_temp_NIWO.Rdata")
 #load("data_derived/soil_temp_NIWO.Rdata")
-load("data_derived/precip_NIWO.Rdata")
-load("data_derived/rad_net_NIWO.Rdata")
-load("data_derived/rad_short_dir_diff_NIWO.Rdata")
+#load("data_derived/precip_NIWO.Rdata")
+#load("data_derived/rad_net_NIWO.Rdata")
+#load("data_derived/rad_short_dir_diff_NIWO.Rdata")
 
 ### Combine into one df ###
+select_spp <- c("Amara alpina", "Amara quenseli", "Calathus advena", "Carabus taedatus", "Cymindis unicolor", "Harpalus nigritarsis", "Pterostichus restrictus")
 
-model_df <- 
-    
+# each row is individual beetle
+model_df_by_ind <- bet_parataxonomistID %>%
+    filter(scientificName %in% select_spp) %>% #filter to selected 7 species
+    dplyr::select(individualID, siteID, plotID, trapID, collectDate, taxonRank, morphospeciesID, "para_sciname" = scientificName) %>% #select desired columns
+    mutate(col_year = lubridate::year(collectDate), 
+           col_month = lubridate::month(collectDate), 
+           col_day = lubridate::day(collectDate),
+           dayofyear = as.numeric(strftime(collectDate, format = "%j"))) %>%
+    left_join(distinct(bet_expertTaxonomistIDProcessed %>% 
+            mutate(expert_sciname = paste(genus, specificEpithet)) %>%
+            dplyr::select(individualID, expert_sciname, taxonID, sex))) %>%
+    left_join(distinct(bet_fielddata %>% #join carabid field data columns: nlcdClass, lat, long, elev
+            dplyr::select(sampleID, plotID, trapID, collectDate, trappingDays, decimalLatitude, decimalLongitude, elevation, nlcdClass))) %>%
+    left_join(def.extr.geo.os(data = carabid_abund$bet_fielddata, 'namedLocation', locOnly=T) %>% #join plot soil type
+            dplyr::select("plotID" = Value.for.Plot.ID, "soilOrder" = api.soilTypeOrder))
 
-bet_parataxonomistID %>%
-    as_tibble %>% 
-    select(individualID, siteID, plotID, trapID, setDate, collectDate, taxonID, taxonRank, morphospeciesID, scientificName) %>%
-    mutate(para_sciname = scientificName)
-
-    
-
-    
-utate(para_sciname = scientificName) %>%
-            select(individualID, morphospeciesID, taxonRank, para_sciname) %>%
-            as_tibble
-
-
-# site-level variables to include: 
-# plot-level variables to include: nlcdcover, soil type
-# trap-level variables to include: 
-
-# Plot spatial arrangement of plots, labeled with habitat
-# add lat and long poitns
-bet_fielddata %>% 
-  select(plotID, nlcdClass, decimalLatitude, decimalLongitude) %>%
-  ggplot() +
-  geom_point(aes(x = decimalLongitude, y = decimalLatitude, colour = nlcdClass))
-
-# cool variables to look at: bet_fielddata$nativestatuscode
-bet_parataxonomistID %>% 
-  filter(scientificName %in% select_spp) %>%
-  select(scientificName, nativeStatusCode) %>%
-  summarize(mean(nativeStatusCode == "N") )
-# All species are classified as native
-
-taxon_df %>% 
-  full_join(bet_parataxonomistID %>% 
-    select(individualID, plotID , trapID , collectDate)) %>% 
-  filter(para_sciname %in% select_spp) %>%
-  mutate(year = lubridate::year(collectDate), 
-         month = lubridate::month(collectDate), 
-         day = lubridate::day(collectDate)) %>% 
-  group_by(para_sciname, year, month, day) %>%
-  summarize(n=n()) 
-
-
-
-#get soil type order
-carabid_spat <- def.extr.geo.os(data = carabid_abund$bet_fielddata, 'namedLocation', locOnly=T) %>%
-  dplyr::select(api.decimalLatitude, api.decimalLongitude, Value.for.Plot.ID, api.soilTypeOrder) %>%
-  cbind('data_type' = rep('carabid'))
-#########
+# each row is a para_sciname in a sample
+model_df_by_sample <- model_df_by_ind %>%
+    group_by(siteID, plotID, trapID, sampleID, collectDate, col_year, col_month, col_day, dayofyear, trappingDays, decimalLatitude, decimalLongitude, elevation, nlcdClass, soilOrder, para_sciname) %>%
+    summarize(sp_abund=n())
 
 
 ### Save df ###
-
-
-
-
-
+  
+write.csv(model_df_by_ind, file="data_derived/model_df_by_individual_beetle.csv") #df by individuals
+write.csv(model_df_by_sample, file="data_derived/model_df_by_species_in_sample.csv") #df by para_sciname in sample
 
 
