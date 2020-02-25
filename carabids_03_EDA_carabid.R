@@ -14,6 +14,12 @@ list2env(carabids_NIWO, .GlobalEnv)
 load(file="data_raw/beetles/carabids_barcode_NIWO.Rdata")
 list2env(carabids_barcode_NIWO, .GlobalEnv)  
 
+#### SCRATCH WORK TO UPDATE
+#get soil type order
+carabid_spat <- def.extr.geo.os(data = carabid_abund$bet_fielddata, 'namedLocation', locOnly=T) %>%
+  dplyr::select(api.decimalLatitude, api.decimalLongitude, Value.for.Plot.ID, api.soilTypeOrder) %>%
+  cbind('data_type' = rep('carabid'))
+#########
 
 ### First compare barcode and expert taxonomist
 
