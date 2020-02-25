@@ -9,6 +9,7 @@
 # Ignore files matching the following patterns:
 # e.g. uncomment the following to ignore tif files
 # *.tif
+rad_short_dir_diff_NIWO.Rdata
 
 
 # Ignore the following subdirectories
