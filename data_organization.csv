@@ -1,5 +1,5 @@
 Predictor variable,source,dpID,spatial distribution,temporal distribution,literature
-carabid richness & abundance,NEON,DP1.10022.001,"4 traps per plot (10) at each terrestrial site, arrayed 20m from the center of the plot in each cardinal direction","2015-2019, biweekly sampling during growing season",NEON carabid data user guide Hoekman et al. 2017
+carabid richness & abundance,NEON,DP1.10022.001,"4 traps per plot (10) at each terrestrial site, arrayed 20m from the center of the plot in each cardinal direction","2015-2018, biweekly sampling during growing season",NEON carabid data user guide Hoekman et al. 2017
 carabid DNA barcode,NEON,DP1.10020.001,,,
 slope/aspect,NEON,DP3.30025.001,same as elevation,same as elevation,data page
 elevation,NEON,DP3.30024.001,"full extent of site, well beyond pitfalls, 1mx1m resolution","2017-2019 (Sept, Aug, Aug)",data page
