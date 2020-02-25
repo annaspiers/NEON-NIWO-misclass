@@ -1,32 +1,24 @@
 # This script explores the differences in species ED between the parataxonomist, expert taxonomist, and barcode datasets on NEON ground beetles, then visualizes the data
 # Para vs expert comparison written by Max
 
-library(neonUtilities)
 library(dplyr)
-library(stringr)
+library(stringr) #word()
 library(ggplot2)
 library(forcats) #fct_reorder
 library(arm) #display
 
 # Load carabid data
-load(file="data_raw/beetles/carabids_NIWO.Rdata")
-list2env(carabids_NIWO, .GlobalEnv)  
-load(file="data_raw/beetles/carabids_barcode_NIWO.Rdata")
-list2env(carabids_barcode_NIWO, .GlobalEnv)  
+load(file="data_derived/carabids_NIWO.Rdata")
+list2env(carabid_abund, .GlobalEnv)  
+list2env(carabid_barcode, .GlobalEnv)  
 
-#### SCRATCH WORK TO UPDATE
-#get soil type order
-carabid_spat <- def.extr.geo.os(data = carabid_abund$bet_fielddata, 'namedLocation', locOnly=T) %>%
-  dplyr::select(api.decimalLatitude, api.decimalLongitude, Value.for.Plot.ID, api.soilTypeOrder) %>%
-  cbind('data_type' = rep('carabid'))
-#########
 
 ### First compare barcode and expert taxonomist
 
-# pull out barcode and expert taxonomist data
 barcode <- bet_BOLDtaxonomy %>%
             mutate(individualID = sampleID, bc_sciname = NA) %>%
             as_tibble
+
 expert <- bet_expertTaxonomistIDProcessed %>%
             mutate(expert_sciname = paste(genus, specificEpithet)) %>%
             as_tibble
@@ -60,7 +52,7 @@ bc_exp_taxon_df %>%
 
 
 ### Now compare barcode/expert to parataxonomist
-# pull out parataxonomist data
+
 para <- bet_parataxonomistID %>%
             mutate(para_sciname = scientificName) %>%
             select(individualID, morphospeciesID, taxonRank, para_sciname) %>%
@@ -96,7 +88,6 @@ taxon_df %>%
   data.frame
 # Three mismatches checked with taxize pckg had different taxon serial numbers
 
-
 # Plot discrepancies for samples identified to the species level
 taxon_df %>%
   filter(taxonRank == "species", !is.na(expert_sciname)) %>%
@@ -114,8 +105,6 @@ taxon_df %>%
 
 
 # Plot morphospecies IDs with expert IDs: 
-# all but one morphospecies map to one expert species ID.
-# the D13.2016.MorphBU morphospecies is a mixture of two species
 taxon_df %>%
   filter(!is.na(morphospeciesID), !is.na(expert_sciname)) %>% #samples where morphospeciesID and expert ID exists,
   count(morphospeciesID, expert_sciname) %>%
@@ -125,6 +114,8 @@ taxon_df %>%
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
   xlab("Morphospecies from parataxonomist") + 
   ylab("Species ID from expert taxonomist")
+# all but one morphospecies map to one expert species ID.
+# the D13.2016.MorphBU morphospecies is a mixture of two species
 
 # How many morphospecies occur with each parataxonomist ID?
 # note: if the parataxonomist IDed to species, then no morphospecies was assigned
@@ -234,6 +225,7 @@ bet_parataxonomistID %>%
   filter(scientificName %in% select_spp) %>%
   select(scientificName, nativeStatusCode) %>%
   summarize(mean(nativeStatusCode == "N") )
+# All species are classified as native
 
 
 ### Modeling EDA
@@ -273,12 +265,13 @@ fit_abund_0 <- glm(formula = sp_abund ~ 1,
 fit_abund_1 <- glm(formula = sp_abund ~ nlcdClass, 
     family = poisson(link="log"),
       data = model_test_abund)
-fit_abund_1 <- glmer(formula = sp_abund ~ nlcdClass + para_sciname + (1|plotID) , 
+fit_abund_2 <- glmer(formula = sp_abund ~ nlcdClass + para_sciname + (1|plotID) , 
     family = poisson(link="log"),
       data = model_test_abund)
 display(fit_abund_0)
 display(fit_abund_1)
-anova(fit_abund_0, fit_abund_1)
+display(fit_abund_2)
+anova(fit_abund_0, fit_abund_1, fit_abund_2)
 
 # Is habitat type a good predictor for species composition?
 # Constant
@@ -294,50 +287,38 @@ display(fit_comp_1)
 
 
 
-# Classwork exploring woody veg structure
-carabid_plotIDs <- unique(carabid_df$plotID)
-vst_shrubgroup %>% filter(plotID %in% carabid_plotIDs)
-
-
-
-
 
 
 
 ### SCRATCH ###
-# How to decide on the final species ID to use?
-
-# Class notes
-# exclude species that are intermittent
-
-# Pseudocode
-# for individuals that have expertID,
-  # If paraID matches expertID
-    # then assign expertID to all individuals in para with that paraID (supported by 100% match of expert and barcode ID)
-  # else if expertID does NOT match paraID
-    # then still take expertID?
-# for individuals that do not have expertID
-  # if their paraID was matched to an expertID elsewhere in the df, take the expertID
-  # if their paraID has no expert match, then assign NA to final_sciname and don't get analyzed?
-
-matched_species <- taxon_df %>%
-  filter(!is.na(expert_sciname)) %>%
-  select(para_sciname, expert_sciname) %>%
-  distinct() %>%
-  arrange(expert_sciname) %>%
-  data.frame
-
-taxon_df <- taxon_df %>% 
-  mutate(same_species = para_sciname == expert_sciname, 
-         final_sciname = NA) 
-# for each row where same_species is T, use expertID on all other rows with matching paraIDs
-for (i in 1:nrow(taxon_df)) { 
-    if (!is.na(taxon_df$expert_sciname[i])) {
-        taxon_df$final_sciname[i] <- taxon_df$expert_sciname[i]
-    } else {
-        if (taxon_df$para_sciname[i] %in% matched_species$para_sciname) {
-            # if their paraID was matched to an expertID elsewhere in the df, take the expertID. Here we risk the chance that the parataxonomist identified two different species as one (e.g. para ID for Amara sp. matches 6 expert IDs)
-        }
-    }
-}
-# AIS how to make this tidy?
+# # How to decide on the final species ID to use?
+# # Pseudocode
+# # for individuals that have expertID,
+#   # If paraID matches expertID
+#     # then assign expertID to all individuals in para with that paraID (supported by 100% match of expert and barcode ID)
+#   # else if expertID does NOT match paraID
+#     # then still take expertID?
+# # for individuals that do not have expertID
+#   # if their paraID was matched to an expertID elsewhere in the df, take the expertID
+#   # if their paraID has no expert match, then assign NA to final_sciname and don't get analyzed?
+# 
+# matched_species <- taxon_df %>%
+#   filter(!is.na(expert_sciname)) %>%
+#   select(para_sciname, expert_sciname) %>%
+#   distinct() %>%
+#   arrange(expert_sciname) %>%
+#   data.frame
+# 
+# taxon_df <- taxon_df %>% 
+#   mutate(same_species = para_sciname == expert_sciname, 
+#          final_sciname = NA) 
+# # for each row where same_species is T, use expertID on all other rows with matching paraIDs
+# for (i in 1:nrow(taxon_df)) { 
+#     if (!is.na(taxon_df$expert_sciname[i])) {
+#         taxon_df$final_sciname[i] <- taxon_df$expert_sciname[i]
+#     } else {
+#         if (taxon_df$para_sciname[i] %in% matched_species$para_sciname) {
+#             # if their paraID was matched to an expertID elsewhere in the df, take the expertID. Here we risk the chance that the parataxonomist identified two different species as one (e.g. para ID for Amara sp. matches 6 expert IDs)
+#         }
+#     }
+# }
