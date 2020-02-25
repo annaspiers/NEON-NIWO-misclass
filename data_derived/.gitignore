@@ -10,6 +10,7 @@
 # e.g. uncomment the following to ignore tif files
 # *.tif
 rad_short_dir_diff_NIWO.Rdata
+ir_bio_temp_NIWO.Rdata
 
 
 # Ignore the following subdirectories
