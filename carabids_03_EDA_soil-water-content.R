@@ -9,10 +9,9 @@ library(ggplot2)
 library(forcats) #fct_reorder
 library(arm) #display
 
-# Load carabid data
-# AIS load soil water content data
-#load(file="data_raw/beetles/carabids_NIWO.Rdata")
-#list2env(carabids_NIWO, .GlobalEnv)  
+# Load soil water content data
+#load(file="data_derived/_NIWO.Rdata")
+list2env(carabid_abund, .GlobalEnv)  
 
 
 # visualize sensor positions (five locations across Niwot)
