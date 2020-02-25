@@ -79,7 +79,8 @@ with higher elevation
    * hydrology - Female carabid beetles preferred steep slopes with high flow accumulation, [Work et al. 2011](https://zookeys.pensoft.net/articles.php?id=2927)
    * aspect - Female carabid beetles preferred cooler (north-facing) slopes, [Work et al. 2011](https://zookeys.pensoft.net/articles.php?id=2927)
    * From the eight studies available for review, variability in the canopy profile (both vertical and horizontal), or ‘structural variability’ (Box 3), rather than a single structural metric, was most important for invertebrate assemblages
-   * make species distribution models phylogenetically-informed? [Smith et al. 2018](https://reader.elsevier.com/reader/sd/pii/S0169534718302696?token=75E2391C9E4901CA70BFE3188EE133719E1BD8CDBBEB7C0465F3156ECE20664743F44B95A73CB1DDD932089501F2BA27)
+ * make species distribution models phylogenetically-informed? [Smith et al. 2018](https://reader.elsevier.com/reader/sd/pii/S0169534718302696?token=75E2391C9E4901CA70BFE3188EE133719E1BD8CDBBEB7C0465F3156ECE20664743F44B95A73CB1DDD932089501F2BA27)
+ * [Lovei & Sunderland 1996](https://www.ncbi.nlm.nih.gov/pubmed/15012329) coomprehensively describe carabid life history and environmental preferences
 
 ##### Resources
 * [taxize](https://ropensci.org/tutorials/taxize_tutorial/) package for taxon nomenclature
