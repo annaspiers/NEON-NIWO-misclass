@@ -81,6 +81,13 @@ with higher elevation
    * From the eight studies available for review, variability in the canopy profile (both vertical and horizontal), or ‘structural variability’ (Box 3), rather than a single structural metric, was most important for invertebrate assemblages
  * make species distribution models phylogenetically-informed? [Smith et al. 2018](https://reader.elsevier.com/reader/sd/pii/S0169534718302696?token=75E2391C9E4901CA70BFE3188EE133719E1BD8CDBBEB7C0465F3156ECE20664743F44B95A73CB1DDD932089501F2BA27)
  * [Lovei & Sunderland 1996](https://www.ncbi.nlm.nih.gov/pubmed/15012329) coomprehensively describe carabid life history and environmental preferences
+ * Environmental predictors for carabid composition or abundance
+   * Vanbergen et al. 2005: canopy density, soil type, depth of organic horizon, soil pH, soil moisture, plant species richness
+   * Adlam et al. 2017: wet vs mesic, forested vs open/ecotonal areas
+   * Work et al. 2011: aspect (females found on steep, cool slopes), hydrology (females found in area of high flow accumulation)
+   * Muller et al. 2014: (*describes lidar-derived variables*) canopy structural variability, canopy density, vertical heterogeneity variables (max sd, mean sd, etc.) as surrogate for habitat heterogeneity, average height values as surrogate for resource availability
+   * Hiramatsu and Usio 2018: soil water content, ground surface temp
+   * Muller and Brandl 2009: Altitude, SD of canopy height (in .25x.25 m2 gird around each sampling station), Max tree height (in .25x.25 m2 gird around each sampling station) used as surrogate for habitat continuity, Penetration rate as proxy for microclimatic conditions…
 
 ##### Resources
 * [taxize](https://ropensci.org/tutorials/taxize_tutorial/) package for taxon nomenclature
