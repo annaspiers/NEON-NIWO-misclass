@@ -28,6 +28,8 @@ This is a centralized location to organize our thoughts and resources for this p
 
 See [data organization](https://github.com/EBIO6100Spring2020/niwot_NEON_carabids/blob/master/data_organization.csv) for more details on what predictors we're considering and how we'll summarize them for our analyses.
 
+* ![NEON Niwot carabid data structure](docs/carabid_data_structure.jpg)
+
 | Miscellaneous data  | source | spatial distribution | temporal distribution |
 | ------- | ----------------- | --------- | ---------- | 
 | carabids | [carabids.org](https://www.carabids.org/portal/en-us/explore) | Europe, Africa, Asia |  |  
