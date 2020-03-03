@@ -88,7 +88,7 @@ with higher elevation
    * Muller et al. 2014: (*describes lidar-derived variables*) canopy structural variability, canopy density, vertical heterogeneity variables (max sd, mean sd, etc.) as surrogate for habitat heterogeneity, average height values as surrogate for resource availability
    * Hiramatsu and Usio 2018: soil water content, ground surface temp
    * Muller and Brandl 2009: Altitude, SD of canopy height (in .25x.25 m2 gird around each sampling station), Max tree height (in .25x.25 m2 gird around each sampling station) used as surrogate for habitat continuity, Penetration rate as proxy for microclimatic conditions…
-   * [Day and Carthy (1988)] (http://www.sciencedirect.com/science/article/pii/016788098890120X): Found changes in carabid beetle populations (AND spp richness and abundance) as plant community shifted from moor to forest. Small carabid spp. (3-11 mm) absent from forested plots. Canopy closure seemed to restrict the most spp – linked to drier understory due to canopy interception. Notes that soil water content, vegetation height and temperature are key habitat qualities for carabids.
+   * [Day and Carthy (1988)](http://www.sciencedirect.com/science/article/pii/016788098890120X): Found changes in carabid beetle populations (AND spp richness and abundance) as plant community shifted from moor to forest. Small carabid spp. (3-11 mm) absent from forested plots. Canopy closure seemed to restrict the most spp – linked to drier understory due to canopy interception. Notes that soil water content, vegetation height and temperature are key habitat qualities for carabids.
 
 ##### Resources
 * [taxize](https://ropensci.org/tutorials/taxize_tutorial/) package for taxon nomenclature
