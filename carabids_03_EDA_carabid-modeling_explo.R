@@ -3,7 +3,7 @@
 
 library(dplyr)
 #library(stringr) #word()
-#library(ggplot2)
+library(ggplot2)
 #library(forcats) #fct_reorder
 #library(arm) #display
 
@@ -12,17 +12,16 @@ load(file="data_derived/carabids_NIWO.Rdata")
 list2env(carabid_abund, .GlobalEnv)  
 
 
-# Join para and expert data
+# Join dfs
 expert <- bet_expertTaxonomistIDProcessed %>%
-            mutate(expert_sciname = paste(genus, specificEpithet)) %>%
-            as_tibble
+  mutate(expert_sciname = paste(genus, specificEpithet)) %>%
+  select(plotID, collectDate, individualID, expert_sciname, sex, nativeStatusCode, exp_sampleCondition = sampleCondition) 
 para <- bet_parataxonomistID %>%
-            mutate(para_sciname = scientificName) %>%
-            select(individualID, plotID, trapID, collectDate, morphospeciesID, taxonRank, para_sciname) %>%
-            as_tibble
-taxon_df <- left_join(para, expert)
+  mutate(para_sciname = scientificName) %>%
+  select(individualID, plotID, trapID,  collectDate, morphospeciesID, taxonRank, para_sciname) 
+taxon_df <- left_join(para, expert) 
 
-# Visualize those species with 100% match between para and expert IDs and with n>20
+# Specify species with 100% match between para and expert IDs and with n>20
 select_spp <- taxon_df %>%
   mutate(same_species = para_sciname == expert_sciname) %>%
   group_by(para_sciname) %>%
@@ -32,19 +31,32 @@ select_spp <- taxon_df %>%
   filter(pct_correct == 1, n > 20) %>%
   pull(para_sciname)
 
+carabid_df <- taxon_df %>% 
+  filter(para_sciname %in% select_spp) %>%
+  left_join(bet_fielddata %>%
+              select(plotID, trapID, collectDate, nlcdClass, decimalLatitude, decimalLongitude, elevation, sampleID, sampleCollected, cupStatus, lidStatus, fluidLevel)) %>%
+  mutate_at(c("morphospeciesID", "taxonRank", "para_sciname", "expert_sciname", "plotID", "trapID", "nlcdClass"), funs(factor(.))) %>%
+  mutate(year = lubridate::year(collectDate), 
+         month = lubridate::month(collectDate), 
+         day = lubridate::day(collectDate))
 
+# Why are there 11 plots instead of 10?
+unique(carabid_df$plotID)
+carabid_df %>%
+  ggplot() +
+  geom_point(aes(x= year, y = plotID))
+# In 2015-2017, plots 1-10 were sampled. In 2018, plot 4 was replaced by plot 13
+
+# What traps couldn't be sampled and when?
+unique(carabid_df$sampleCollected) # All samples were collected - that's almost hard to believe
+unique(carabid_df$cupStatus)
+nrow(carabid_df %>% filter(cupStatus == "Disturbed")) # Only 39 rows marked distrubed cups
+unique(carabid_df$lidStatus)
+unique(carabid_df$fluidLevel)
+nrow(carabid_df %>% filter(fluidLevel == "None")) # Only 14 rows marked fluid level as "none"
 
 ### Modeling EDA
 # What variables might be related to carabid abundance?
-
-carabid_df <- taxon_df %>% 
-  filter(para_sciname %in% select_spp) %>%
-  left_join(distinct(bet_fielddata %>%
-              select(plotID, nlcdClass, decimalLatitude, decimalLongitude, elevation))) %>%
-  mutate(year = lubridate::year(collectDate), 
-         month = lubridate::month(collectDate), 
-         day = lubridate::day(collectDate)) %>%
-       mutate_at(c("morphospeciesID", "taxonRank", "para_sciname", "expert_sciname", "plotID", "trapID", "nlcdClass"), funs(factor(.)))
 
 # Group data by plot and species and summarize by species abundance
 model_test_abund <- carabid_df %>%
