@@ -228,67 +228,6 @@ bet_parataxonomistID %>%
 # All species are classified as native
 
 
-### Modeling EDA
-# What variables might be related to carabid abundance?
-
-carabid_df <- taxon_df %>% 
-  full_join(bet_parataxonomistID %>% 
-    select(individualID, plotID , trapID , collectDate)) %>% 
-  filter(para_sciname %in% select_spp) %>%
-  left_join(distinct(bet_fielddata %>%
-              select(plotID, nlcdClass, decimalLatitude, decimalLongitude, elevation))) %>%
-  mutate(year = lubridate::year(collectDate), 
-         month = lubridate::month(collectDate), 
-         day = lubridate::day(collectDate)) %>%
-       mutate_at(c("morphospeciesID", "taxonRank", "para_sciname", "expert_sciname", "bc_sciname", "plotID", "trapID", "nlcdClass"), funs(factor(.)))
-
-# Group data by plot and species and summarize by species abundance
-model_test_abund <- carabid_df %>%
-  group_by(plotID, trapID, para_sciname, nlcdClass) %>% #para_sciname
-  summarize(sp_abund = n() ) %>%
-  arrange(plotID) %>%
-  data.frame()
-
-model_test_comp <- carabid_df %>%
-  group_by(plotID, nlcdClass) %>%
-  summarize(sp_comp = n_distinct(para_sciname, na.rm = TRUE) ) %>%
-  arrange(plotID) %>%
-  data.frame()
-# AIS later, try grouping by collection date and trapID
-
-# Is habitat type a good predictor for species abundance?
-# Constant
-fit_abund_0 <- glm(formula = sp_abund ~ 1, 
-    family = poisson(link="log"),
-      data = model_test_abund)
-# With habitat type
-fit_abund_1 <- glm(formula = sp_abund ~ nlcdClass, 
-    family = poisson(link="log"),
-      data = model_test_abund)
-fit_abund_2 <- glmer(formula = sp_abund ~ nlcdClass + para_sciname + (1|plotID) , 
-    family = poisson(link="log"),
-      data = model_test_abund)
-display(fit_abund_0)
-display(fit_abund_1)
-display(fit_abund_2)
-anova(fit_abund_0, fit_abund_1, fit_abund_2)
-
-# Is habitat type a good predictor for species composition?
-# Constant
-fit_comp_0 <- glm(formula = sp_comp ~ 1, 
-    family = poisson(link="log"),
-      data = model_test_comp)
-# With habitat type
-fit_comp_1 <- glm(formula = sp_comp ~ nlcdClass, 
-    family = poisson(link="log"),
-      data = model_test_comp)
-display(fit_comp_0)
-display(fit_comp_1)
-
-
-
-
-
 
 ### SCRATCH ###
 # # How to decide on the final species ID to use?
