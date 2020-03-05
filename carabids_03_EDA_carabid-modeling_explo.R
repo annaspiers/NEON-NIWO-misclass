@@ -15,10 +15,10 @@ list2env(carabid_abund, .GlobalEnv)
 # Join dfs
 expert <- bet_expertTaxonomistIDProcessed %>%
   mutate(expert_sciname = paste(genus, specificEpithet)) %>%
-  select(plotID, collectDate, individualID, expert_sciname, sex, nativeStatusCode, exp_sampleCondition = sampleCondition) 
+  dplyr::select(plotID, collectDate, individualID, expert_sciname, sex, nativeStatusCode, exp_sampleCondition = sampleCondition) 
 para <- bet_parataxonomistID %>%
   mutate(para_sciname = scientificName) %>%
-  select(individualID, plotID, trapID,  collectDate, morphospeciesID, taxonRank, para_sciname) 
+  dplyr::select(individualID, plotID, trapID,  collectDate, morphospeciesID, taxonRank, para_sciname) 
 taxon_df <- left_join(para, expert) 
 
 # Specify species with 100% match between para and expert IDs and with n>20
@@ -34,7 +34,7 @@ select_spp <- taxon_df %>%
 carabid_df <- taxon_df %>% 
   filter(para_sciname %in% select_spp) %>%
   left_join(bet_fielddata %>%
-              select(plotID, trapID, collectDate, nlcdClass, decimalLatitude, decimalLongitude, elevation, sampleID, sampleCollected, cupStatus, lidStatus, fluidLevel)) %>%
+              dplyr::select(plotID, trapID, collectDate, nlcdClass, decimalLatitude, decimalLongitude, elevation, sampleID, sampleCollected, cupStatus, lidStatus, fluidLevel)) %>%
   mutate_at(c("morphospeciesID", "taxonRank", "para_sciname", "expert_sciname", "plotID", "trapID", "nlcdClass"), funs(factor(.))) %>%
   mutate(year = lubridate::year(collectDate), 
          month = lubridate::month(collectDate), 
@@ -42,9 +42,11 @@ carabid_df <- taxon_df %>%
 
 # Why are there 11 plots instead of 10?
 unique(carabid_df$plotID)
+png("output/plots_by_year.png")
 carabid_df %>%
   ggplot() +
   geom_point(aes(x= year, y = plotID))
+dev.off()
 # In 2015-2017, plots 1-10 were sampled. In 2018, plot 4 was replaced by plot 13
 
 # What traps couldn't be sampled and when?
