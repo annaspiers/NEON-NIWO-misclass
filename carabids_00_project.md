@@ -95,3 +95,6 @@ with higher elevation
 ##### Resources
 * [taxize](https://ropensci.org/tutorials/taxize_tutorial/) package for taxon nomenclature
 * Could use McCain Lab carabids from Niwot Ridge: collected along elevational gradient, have veg data associated
+
+#### Carabid sampling periods (2015-2017)
+1: late June (27th-28th); 2: mid-July (11th-14th); 3: late July (25th-28th); 4: mid-August (8th-11th); 5: late August (22nd-25th); 6: early September (5th-8th)
