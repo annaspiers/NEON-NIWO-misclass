@@ -29,21 +29,26 @@ CAAD_dat_2015 <- dat %>%
 y <- CAAD_dat_2015 %>%
     select(plot_trap, collectDate, occ) %>%
     pivot_wider(names_from=collectDate, values_from=occ) %>% 
-    arrange(plot_trap)
+    arrange(plot_trap) %>%
+    select(-plot_trap) #remove plot_trap IDs so they are not part of the analysis
 
 # Grab covariates
-nlcdClass <- CAAD_dat_2015  %>%
+nlcd <- CAAD_dat_2015  %>%
     select(plot_trap, nlcdClass) %>%
     distinct() %>% 
-    arrange(plot_trap)
+    arrange(plot_trap) %>%
+    mutate(nlcdCat = ifelse(nlcdClass == "evergreenForest",1,0)) %>%
+    select(-c(plot_trap,nlcdClass)) #remove plot_trap IDs so they are not part of the analysis
+#AIS nlcdClass would not work if nlcdClass was a factor, had to convert to 0/1. Is this a rule of thumbs with JAGS (no factors, only numeric)?
 sc_doy <- CAAD_dat_2015 %>% 
     select(plot_trap, collectDate, scaled_doy) %>%
     pivot_wider(names_from=collectDate, values_from=scaled_doy) %>% 
-    arrange(plot_trap)
+    arrange(plot_trap) %>%
+    select(-plot_trap) #remove plot_trap IDs so they are not part of the analysis
 
 
 # Run JAGS model
-str(JAGSdata <- list(y=y, T=ncol(y), R=nrow(y), nlcdClass=nlcdClass, sc_doy=sc_doy)) #bundle data
+str(JAGSdata <- list(y=y, T=ncol(y), R=nrow(y), nlcd=nlcd, sc_doy=sc_doy)) #bundle data
 zst <- apply(y, 1, max) # Good starting values crucial
 JAGSinits <- function(){
     list(z = zst, 
@@ -52,14 +57,14 @@ JAGSinits <- function(){
 JAGSparams <- c("alpha.psi", "beta.psi", "mean.p", "occ.fs", "alpha.p", "beta1.p", "beta2.p")
 nc <- 3 #MCMC chains        #AIS, jags required the same number of chains as init values. only one init variable
 ni <- 3000 #MCMC iterations
-nb <- 20000 #MCMC burnin
+nb <- 2000 #MCMC burnin #AIS (ni=3000, nb=20000) got an error message saying that number of iterations must be larger than burnin - why?
 nt <- 10  #MCMC thin
 
 # JAGS model
 jags_out <- jags(data = JAGSdata,
                  inits = JAGSinits,
                  parameters.to.save = JAGSparams,
-                 model.file = "neon_single_sp_JAGS.txt", 
+                 model.file = "occupancy/neon_single_sp_JAGS.txt", 
                  n.chains = nc,
                  n.iter = ni,
                  n.burnin = nb,
