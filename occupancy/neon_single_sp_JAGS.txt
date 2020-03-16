@@ -1,0 +1,32 @@
+model { 
+
+# Priors 
+alpha.psi ~ dnorm(0, 0.01) 
+beta.psi ~ dnorm(0, 0.01) 
+alpha.p ~ dnorm(0, 0.01) 
+beta1.p ~ dnorm(0, 0.01) 
+beta2.p ~ dnorm(0, 0.01) #AIS why such a narrow normal distribution for all of these?
+
+# Likelihood 
+# Ecological model for true occurrence 
+for (i in 1:R) { 
+    z[i] ~ dbern(psi[i]) # True occurrence z at plot i 
+    psi[i] <- 1 / (1 + exp(−lpsi.lim[i])) 
+    lpsi.lim[i] <- min(999, max(−999, lpsi[i]))  #AIS what does this line do?
+    lpsi[i] <- alpha.psi + beta.psi * nlcdClass[i]
+    # Observation model for replicated detection/nondetection observations
+    for (j in 1:T) { 
+        y[i,j] ~ dbern(mu.p[i,j]) # Detection-nondetection at plot i and survey j 
+        mu.p[i,j] <- z[i] * p[i,j] 
+        p[i,j] <- 1 / (1 + exp(−lp.lim[i,j])) 
+        lp.lim[i,j] <- min(999, max(−999, lp[i,j])) 
+        lp[i,j] <- alpha.p + 
+            beta1.p * sc_doy[i,j] + beta2.p * pow(sc_doy[i,j], 2)
+    } #j 
+} #i
+
+# Derived quantities 
+occ.fs <- sum(z[]) #Number of occupied sites
+mean.p <- exp(alpha.p) / (1 + exp(alpha.p)) # Average detection 
+
+} #model
