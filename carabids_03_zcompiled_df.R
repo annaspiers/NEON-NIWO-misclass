@@ -143,6 +143,6 @@ unique(model_df_by_sample$sp_abund) #no NAs
 ### Save df ###
   
 write.csv(model_df_by_ind, file="data_derived/model_df_by_individual_beetle.csv", row.names = FALSE) #df by individuals
-write.csv(model_df_by_sample, file="data_derived/model_df_by_species_in_sample.csv", row.names = FALSE) #df by para_sciname in sample
+write.csv(model_df_by_sample, file="data_derived/model_df_by_species_in_sample.csv") #df by para_sciname in sample
 
 
