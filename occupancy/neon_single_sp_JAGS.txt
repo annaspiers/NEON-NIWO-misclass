@@ -13,7 +13,7 @@ for (i in 1:R) {
     z[i] ~ dbern(psi[i]) # True occurrence z at plot i 
     psi[i] <- 1 / (1 + exp(−lpsi.lim[i])) 
     lpsi.lim[i] <- min(999, max(−999, lpsi[i]))  #AIS what does this line do?
-    lpsi[i] <- alpha.psi + beta.psi * nlcdClass[i]
+    lpsi[i] <- alpha.psi + beta.psi * nlcd[i]
     # Observation model for replicated detection/nondetection observations
     for (j in 1:T) { 
         y[i,j] ~ dbern(mu.p[i,j]) # Detection-nondetection at plot i and survey j 
