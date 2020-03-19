@@ -28,9 +28,9 @@ sum(apply(y, 1, max)) # Observed occupancy
 # Run JAGS model
 str(JAGSdata <- list(y=y, T=T, R=R)) #bundle data
 zst <- apply(y, 1, max) #observed occurrence as starting values for z
-JAGSinits <- list(z=zst) 
+JAGSinits <- function(){list(z=zst) } #rep(JAGSinits, nc) too
 JAGSparams <- c("psi", "p", "occ.fs") #params monitored
-nc <- 1 #MCMC chains        #AIS, jags required the same number of chains as init values. only one init variable
+nc <- 3 #MCMC chains
 ni <- 1200 #MCMC iterations
 nb <- 200 #MCMC burnin
 nt <- 2  #MCMC thin
@@ -39,7 +39,7 @@ nt <- 2  #MCMC thin
 jags_out <- jags(data = JAGSdata,
                  inits = JAGSinits,
                  parameters.to.save = JAGSparams,
-                 model.file = "jags_model.txt", 
+                 model.file = "occupancy/bpa_jags_model.txt", 
                  n.chains = nc,
                  n.iter = ni,
                  n.burnin = nb,
@@ -48,6 +48,8 @@ jags_out <- jags(data = JAGSdata,
 print(jags_out, dig=2)
 names(jags_out)
 plot(jags_out) #AIS why is plot of density of occ.fs not a smooth line?
+
+#Rhat is a summary measure of how well the chains have converged
 
 # Resources
 # http://www.mikemeredith.net/blog/2017/Occupancy_RNmodel.htm
