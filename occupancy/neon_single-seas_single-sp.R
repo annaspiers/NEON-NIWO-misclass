@@ -69,7 +69,7 @@ nt <- 5  #MCMC thin
 jags_out <- jags(data = JAGSdata,
                  inits = JAGSinits,
                  parameters.to.save = JAGSparams,
-                 model.file = "occupancy/neon_single_sp_w_covariates_JAGS.txt", 
+                 model.file = "occupancy/neon_single-season_single-sp_JAGS.txt", 
                  n.chains = nc,
                  n.iter = ni,
                  n.burnin = nb,
