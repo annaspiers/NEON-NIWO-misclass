@@ -39,7 +39,7 @@ nt <- 2  #MCMC thin
 jags_out <- jags(data = JAGSdata,
                  inits = JAGSinits,
                  parameters.to.save = JAGSparams,
-                 model.file = "occupancy/bpa_jags_model.txt", 
+                 model.file = "occupancy/01_bpa_jags_model.txt", 
                  n.chains = nc,
                  n.iter = ni,
                  n.burnin = nb,
