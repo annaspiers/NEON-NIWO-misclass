@@ -16,17 +16,17 @@ CAAD_dat <- dat %>%
     mutate(plot_trap = paste(plotID,trapID, sep=""))
 
 # Generate detection data for each season
-y <- array(NA, dim = c(40, 7, 4) ) # 40 sites per year, max of 7 reps per year, 4 years
-# First try 7 surveys per season
-for (k in 1:4) {
-    year_subset <- CAAD_dat %>%
-        filter(col_year == c(2015, 2016, 2017, 2018)[k]) %>%
-        select(plot_trap, collectDate, occ) %>%
-        pivot_wider(names_from=collectDate, values_from=occ) %>% 
-        arrange(plot_trap) %>% 
-        select(-plot_trap) 
-    y[,,k] <- as.matrix(year_subset)
-}
+# y <- array(NA, dim = c(40, 7, 4) ) # 40 sites per year, max of 7 reps per year, 4 years
+# # First try 7 surveys per season
+# for (k in 1:4) {
+#     year_subset <- CAAD_dat %>%
+#         filter(col_year == c(2015, 2016, 2017, 2018)[k]) %>%
+#         select(plot_trap, collectDate, occ) %>%
+#         pivot_wider(names_from=collectDate, values_from=occ) %>% 
+#         arrange(plot_trap) %>% 
+#         select(-plot_trap) 
+#     y[,,k] <- as.matrix(year_subset)
+# }
 
 # Next, try the accurate number of surveys per season
 y <- list(NA, dim = 4 ) 
@@ -43,14 +43,14 @@ for (k in 1:4) {
 names(y) <- c("2015", "2016", "2017", "2018")
 str(y)
 
-df <- tibble(
-  group = c(1:2, 1),
-  item_id = c(1:2, 2),
-  item_name = c("a", "b", "b"),
-  value1 = 1:3,
-  value2 = 4:6
-)
-df %>% complete(group, nesting(item_id, item_name))
+
+
+
+
+
+
+
+
 
 
 
