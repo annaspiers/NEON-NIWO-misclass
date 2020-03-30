@@ -1,0 +1,70 @@
+model { 
+
+# Priors 
+#AIS assuming occupancy and detection closure across surveys at this site, otherwise would use for-loop for each survey
+psi_A ~ dunif(0, 1) 
+psi_B ~ dunif(0, 1) 
+psi_AB ~ dunif(0, 1) 
+p_A ~ dunif(0, 1) 
+p_B ~ dunif(0, 1) 
+r_AB ~ dunif(0, 1) 
+r_aB ~ dunif(0, 1) 
+r_Ab ~ dunif(0, 1) 
+for (i in 1:4) { #AIS what is beta? why does it change across surveys? and why use the dirichlet prior?
+    beta[i] ~ dgamma(1, 1) # Induce Dirichlet prior 
+}
+
+# Define state vector 
+for (s in 1:R){         # AIS s is number of spatial replicates at a site?
+    phi[s,1] <- psi_AB          # Prob species A and B present
+    phi[s,2] <- psi_A           # Prob species A present
+    phi[s,3] <- psi_B           # Prob species B present
+    phi[s,4] <- 1 - psi_AB - psi_A - psi_B     # Prob no species present
+}
+
+# Define observation matrix 
+# Order of indices: true state, time, observed state
+# Assumption of no false positives
+for (t in 1:T){
+    p[1,t,1] <- r_AB
+    p[1,t,2] <- r_Ab
+    p[1,t,3] <- r_aB
+    p[1,t,4] <- 1 - r_AB - r_Ab - r_aB
+    p[2,t,1] <- 0
+    p[2,t,2] <- p_A
+    p[2,t,3] <- 0
+    p[2,t,4] <- 1 - p_A
+    p[3,t,1] <- 0
+    p[3,t,2] <- 0
+    p[3,t,3] <- p_B
+    p[3,t,4] <- 1 - p_B
+    p[4,t,1] <- 0
+    p[4,t,2] <- 0
+    p[4,t,3] <- 0
+    p[4,t,4] <- 1
+}
+
+# State-space likelihood 
+# State equation: model of true states (z)
+for (s in 1:R) {    #AIS allowing z to vary by spatial replicate violates spatial closure?
+    z[s] ~ dcat(phi[s,]) 
+}
+# Observation equation 
+for (s in 1:R){ 
+    for (t in 1:T) { 
+        y[s,t] ~ dcat(p[z[s],t,]) 
+    }#t
+}#s
+# Derived quantities 
+for (s in 1:R) {
+    occ1[s] <- equals(z[s], 1) 
+    occ2[s] <- equals(z[s], 2) 
+    occ3[s] <- equals(z[s], 3) 
+    occ4[s] <- equals(z[s], 4) 
+}
+n.occ[1] <- sum(occ1[])     # Sites in state 1, both species present
+n.occ[2] <- sum(occ2[])     # Sites in state 2, species A only present
+n.occ[3] <- sum(occ3[])     # Sites in state 3, species B only present
+n.occ[4] <- sum(occ4[])     # Sites in state 3, neither species present
+
+} #model
