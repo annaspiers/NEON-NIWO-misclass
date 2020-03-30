@@ -99,11 +99,11 @@ JAGSout <- jags(data = JAGSdata,
                  n.burnin = nb,
                  n.thin = nt)
 
-print(JAGSout, dig=2) #AIS since growthr means are all <1, tht means that the occupancy probability shrunk each year? Also, how to interpret turnover... extinction*colonization from last year over survival this year
+print(JAGSout, dig=2) #growthr <1 means the number of occupied sites is smaller between years
 names(JAGSout)
 plot(JAGSout) 
 
-#AIS when viewing the following output, if the data does not fall within two sd of the model-estimated mean, does that indicate a poorly fit model?
+# Compare data value to credible interval range
 # Occupancy probability
 print(cbind(data$psi, JAGSout$summary[1:K, c(1, 2, 3, 7)]), dig = 3) 
 # Survival probability
@@ -116,5 +116,5 @@ print(cbind(data$p, JAGSout$summary[(3*K-1):(4*K-2), c(1, 2, 3, 7)]), dig = 3)
 # Plot occupancy through seasons
 plot(1:K, data$psi, type = "l", xlab = "Year", ylab = "Occupancy probability", col = "red", xlim = c(0,K+1), ylim = c(0,1), lwd = 2, lty = 1, frame.plot = FALSE, las = 1)
 lines(1:K, data$psi.app, type = "l", col = "black", lwd = 2) 
-points(1:K, out$mean$psi, type = "l", col = "blue", lwd = 2) 
-segments(1:K, out$summary[1:K,3], 1:K,out$summary[1:K,7], col = "blue", lwd = 1)
+points(1:K, JAGSout$mean$psi, type = "l", col = "blue", lwd = 2) 
+segments(1:K, JAGSout$summary[1:K,3], 1:K,JAGSout$summary[1:K,7], col = "blue", lwd = 1)
