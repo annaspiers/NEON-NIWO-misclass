@@ -5,60 +5,44 @@ library(jagsUI)
 # Select sample sizes (spatial and temporal replication) 
 R <- 200 
 T <- 3
+nspec <- 10
 
-# Determine process parameters 
-# Species given equal probabilities for occupying sites. The following scenarios outlined by Mackenzie et al. 2004
-# Scenario 1: {0·4, 0·4, 0·08}, low prob of species occupying a site, species exhibit low association 
-# Scenario 2: {0·4, 0·4, 0·24}, low prob of species occupying a site, species exhibit high association 
-# Scenario 3: {0·7, 0·7, 0·4}, high prob of species occupying a site, species exhibit low association
-# Scenario 2: {0·7, 0·7, 0·6125}, high prob of species occupying a site, species exhibit high association
-psi_A <- psi_B <- 0.4
-psi_AB <- 0.08
-# Assume species to have equal probability of detection, regardless of true state
-p_A <- p_B <- r_AB <- r_aB <- r_Ab <- 0.214
 
-# State vector
-phi <- array(NA, dim=4)   # initialize
-phi[1] <- psi_AB          # Prob species A and B present
-phi[2] <- psi_A           # Prob species A present
-phi[3] <- psi_B           # Prob species B present
-phi[4] <- 1 - psi_AB - psi_A - psi_B     # Prob no species present
+# Generate parameter values -----------------------------------------------
 
-# AIS possible states for z are 0,1,2,3
+psi <- rbeta(nspec, 4, 1)
+psi
 
-# Ecological process: Sample true (latent) occurrence from a binomial dist
-z <- sample(c(0,1,2,3), size=R, prob=phi, replace=TRUE)
+p <- rbeta(nspec, 1, 2)
+p
 
-# Observation matrix
-p <- array(NA, dim=c(4,4) ) # initialize
-p[1,1] <- r_AB
-p[1,2] <- r_Ab
-p[1,3] <- r_aB
-p[1,4] <- 1 - r_AB - r_Ab - r_aB
-p[2,1] <- 0
-p[2,2] <- p_A
-p[2,3] <- 0
-p[2,4] <- 1 - p_A
-p[3,1] <- 0
-p[3,2] <- 0
-p[3,3] <- p_B
-p[3,4] <- 1 - p_B
-p[4,1] <- 0
-p[4,2] <- 0
-p[4,3] <- 0
-p[4,4] <- 1
-
-# Observation process: Sample (non)detection 
-y <- matrix(NA, nrow = R, ncol = T) # s sites by t sampling occassions
-for (s in 1:R) {
-    y[s,] <- sample(c(0,1,2,3), size=3, prob=p[z[s],], replace=TRUE)
+# Simulate occupancy states
+Z <- matrix(nrow = R, ncol = nspec)
+for (i in 1:R) {
+    Z[i, ] <- rbinom(nspec, 1, psi)
 }
 
-# Run JAGS model
-str(JAGSdata <- list(y=y, T=T, R=R)) #bundle data
-zst <- apply(y, 1, max) #observed occurrence as starting values for z
-JAGSinits <- function(){list(z=zst) } #rep(JAGSinits, nc) too
-JAGSparams <- c("psi_A", "psi_B", "psi_AB", "p", "p_A", "p_B", "r_AB", "r_aB", "r_Ab", "n.occ") #params monitored
+
+
+# Simulate data -----------------------------------------------------------
+
+Y <- matrix(nrow = R, ncol = nspec)
+for (i in 1:R) {
+    Y[i, ] <- rbinom(nspec, T, p * Z[i, ])
+}
+
+
+
+# Fit model ---------------------------------------------------------------
+
+
+str(JAGSdata <- list(Y = Y, 
+                     T = T, 
+                     R = R, 
+                     nspec = nspec)) #bundle data
+z_init <- (Y > 0) * 1
+JAGSinits <- function(){list(Z = z_init) } #rep(JAGSinits, nc) too
+JAGSparams <- c("psi", "p") #params monitored
 nc <- 3 #MCMC chains
 ni <- 2000 #MCMC iterations
 nb <- 500 #MCMC burnin
