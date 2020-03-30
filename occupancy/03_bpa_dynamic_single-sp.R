@@ -48,7 +48,7 @@ data.fn <- function( R = 250,  #number of sites across a population
     for(i in 1:R){ 
         for(k in 1:K){ 
             prob <- z[i,k] * p[k] 
-            for(j in 1:J){ 
+            for( j in 1:J ){ 
                 y[i,j,k] <- rbinom(1, 1, prob) 
             }#j
         }#k
