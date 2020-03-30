@@ -1,4 +1,4 @@
-# This script models the occupancy of a single species at Niwot Ridge from the NEON carabid dataset. Following example from Bayesian Population Analysis (Kery & Schaub 2012) section 13.4.
+# This script models the occupancy of a single species over a single season (static) at Niwot Ridge from the NEON carabid dataset. Following example from Bayesian Population Analysis (Kery & Schaub 2012) section 13.4.
 
 library(jagsUI)
 library(tidyverse)
@@ -69,7 +69,7 @@ nt <- 5  #MCMC thin
 jags_out <- jags(data = JAGSdata,
                  inits = JAGSinits,
                  parameters.to.save = JAGSparams,
-                 model.file = "occupancy/neon_single-season_single-sp_JAGS.txt", 
+                 model.file = "occupancy/neon_static_single-sp_JAGS.txt", 
                  n.chains = nc,
                  n.iter = ni,
                  n.burnin = nb,
