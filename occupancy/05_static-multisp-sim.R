@@ -24,12 +24,10 @@ phi[2] <- psi_A           # Prob species A present
 phi[3] <- psi_B           # Prob species B present
 phi[4] <- 1 - psi_AB - psi_A - psi_B     # Prob no species present
 
+# AIS possible states for z are 0,1,2,3
 
 # Ecological process: Sample true (latent) occurrence from a binomial dist
-z <- array(NA, dim=R) # initialize
-for (s in 1:R) {        #AIS wasn't sure how to initialize z, so made this up
-    z[s] <- rbinom(1, size = 1, prob = sample(phi,1)) 
-}
+z <- sample(c(0,1,2,3), size=R, prob=phi, replace=TRUE)
 
 # Observation matrix
 p <- array(NA, dim=c(4,4) ) # initialize
@@ -51,17 +49,10 @@ p[4,3] <- 0
 p[4,4] <- 1
 
 # Observation process: Sample (non)detection 
-y <- matrix(NA, nrow = R, ncol = T) # s sites (rows) by t sampling occassions
+y <- matrix(NA, nrow = R, ncol = T) # s sites by t sampling occassions
 for (s in 1:R) {
-    prob <- z[s] * sample(p,1)
-    for ( t in 1:T ) { 
-        y[s,t] <- rbinom(1, 1, prob ) 
-    }
+    y[s,] <- sample(c(0,1,2,3), size=3, prob=p[z[s],], replace=TRUE)
 }
-
-# Look at truth and at our imperfect observations 
-sum(z) # Realized occupancy among 200 surveyed sites 
-sum(apply(y, 1, max)) # Observed occupancy 
 
 # Run JAGS model
 str(JAGSdata <- list(y=y, T=T, R=R)) #bundle data
