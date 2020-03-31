@@ -44,7 +44,7 @@ These are the 7 most abundant and accurately identified species at Niwot Ridge.
 | Calathus advena | Anna |   |
 | Carabus taedatus | Anna |   |
 | Cymindis unicolor | **Tribe**: Lebiini **Habitat**: An arctic-alpine species occurring in tundra and tundra-forest transition zones; inhabits treeless, well-drained environments |  [Garry 1990](https://pubs.geoscienceworld.org/books/book/386/chapter/3797287/Environmental-analysis-of-a-Twocreekan-aged-beetle) , [Nelson 1988](https://www-jstor-org.colorado.idm.oclc.org/stable/4008554?seq=1#metadata_info_tab_contents)| 
-| Harpalus nigritarsis | **Tribe** Harpalini  **Diet** (for genus): seed-eaters as adults and typically also as larvae. **Phenology** annual life cycle |  Kent Wildlife Trust |
+| Harpalus nigritarsis | **Tribe** Harpalini  **Diet** (for genus): seed-eaters as adults and typically also as larvae. **Phenology** annual life cycle **Habitat pref.** open, dry, firm soil; dense but short vegetation of grasses, etc. (utah.edu) **Biogeography** (for genus) not well adapted to desert conditions, moved up into mountainous regions post-glaciation; (for sp) most of current range (85%) was glaciated during maximal Wisconsin glaciation (Noonan 1990)|  Kent Wildlife Trust, [utah.edu](http://ants.biology.utah.edu/tescbiota/kingdom/animalia/phylum/arthropoda/class/insecta/order/coleoptera/family/carabidae/genera/HARPALUS/species/nigritarsis/H_nigritarsis.htm), [Noonan 1990](https://www.jstor.org/stable/2845142?) |
 | Pterostichus restrictus | **Tribe** Pterostichini |   |
 
 ##### Data thoughts & questions
