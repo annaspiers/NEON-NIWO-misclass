@@ -3,7 +3,7 @@ library(neonUtilities)
 library(raster)
 
 
-###### Canopy cover explo ######
+###### Canopy height explo ######
 byFileAOP(dpID = "DP3.30015.001", site = "NIWO", check.size = F) # 830 MB #called ecosystem structure in data portal
 
 #only 2017 downloaded for some reason - will need to figure this out at some point
