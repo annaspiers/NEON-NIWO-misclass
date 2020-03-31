@@ -5,6 +5,7 @@ library(arm)       #for se.ranef()
 library(ggplot2)
 library(gridExtra) #arranging multiple plots
 library(dplyr)
+library(mgcv) #for gams
 
 all7sp_dat <- read.csv("data_derived/model_df_by_species_in_sample.csv")
 
@@ -72,10 +73,9 @@ caladv_dat %>%
 # Not really regular abundance patterns throughout the year.... not sure how to summarize
 
 
+
 ### Multilevel analysis --------------
 # including the many 0-count samples
-
-
 
 # Complete pooling
 poolmean <- mean(caladv_dat$sp_abund)
@@ -107,6 +107,55 @@ npfit_pois <- glm( sp_abund ~ -1 + plotID, family=poisson, data=caladv_dat )
 plot(npfit_pois,1:5,ask=FALSE)
 # This looks cray
 
+#GAMs
+caladv_dat_gam <- caladv_dat %>%
+    mutate(plot_trap = as.factor(paste(plotID, trapID, sep="")),
+           occ = ifelse(sp_abund>0,1,0),
+           scaled_elev = scale(elevation, center = TRUE, scale = TRUE),
+           scaled_dayofyear = scale(dayofyear, center = TRUE, scale = TRUE))
+
+modre <- gam(sp_abund ~ s(nlcdClass, bs="re"),
+             s(plot_trap, bs="re"),
+             data=caladv_dat_gam, method="REML")
+
+mod1 <- gam(sp_abund ~ s(elevation),
+            s(nlcdClass, bs="re"),
+            s(plot_trap, bs="re"),
+           data=caladv_dat_gam, method="REML")
+
+mod2d_occ <- gam(occ ~ s(decimalLatitude, decimalLongitude),
+            #s(elevation),
+            #s(nlcdClass,bs="re"),
+            s(plotID, bs="re"),
+            s(plot_trap, bs="re"),
+            family=poisson(),
+            data=caladv_dat_gam, method="REML")
+mod2d_abund <- gam(sp_abund ~ s(as.numeric(as.character(col_year)), k=3) +
+                       s(dayofyear,  bs = "cc", k=3) +
+                       s(elevation) +
+                       s(nlcdClass,bs="re") +
+                       s(plotID, bs="re") +
+                       s(plot_trap, bs="re"),
+                   family=poisson(),
+                   data=caladv_dat_gam, method="REML")
+plot(mod2d_abund, pages=1, all.terms=TRUE, scale=0)
+summary(mod2d_abund)
+#try gam with year term with other species - this one is speciose always, so may not fluxuate as much between 
+# random effects are pretty much priors
+#jSDMs are an attempt to incorporate biotic interactions, but this is debated
+# find overwintering behavior for each species
+
+
+mod2d_elev <- gam(sp_abund ~ s(elevation),
+            s(nlcdClass,bs="re"),
+            s(plotID, bs="re"),
+            s(plot_trap, bs="re"),
+            family=poisson(),
+            data=caladv_dat_gam, method="REML")
+summary(mod1)
+plot(mod2d, scheme=2)
+
+
 
 
 caladv_dat <- caladv_dat %>%
@@ -120,17 +169,12 @@ plot(var_part)
 summary(var_part)
 plot(var_part,ask=FALSE)
 library(DHARMa)
-library("mgcv")
 plot(caladv_dat$sp_abund, predict(var_part, type="response"))
 # nlcdcover tricky bc there are no beetles in herbaceous
 # try different distribution (not poisson)
 # could be temporal
 # create a cyclic spline for dayofyear (mgcv, "cc" for cyclic, "re" for random effect) - with gamms, recommended to create trap_plotID variables to capture nested nature
 var_part_spl 
-
-
-
-
 
 # Try GLM using quasipoisson distribution for abundance
 npfit_qpois <- glm( sp_abund ~ -1 + plotID, family=quasipoisson, data=caladv_dat )
@@ -227,7 +271,5 @@ summary(var_part)
 # then you have multiple samples per trap through time
 # Where is most of the variation? Is it between plots or between traps?
 # This average model with a random effects structure is farily sophisticated at different scales.
-
-# See radon example
 
 # Harris' baseline naive model
