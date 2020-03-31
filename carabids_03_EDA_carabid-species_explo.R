@@ -35,7 +35,7 @@ for (i in 1:nrow(barcode)) {
 
 # Join barcode and expert data
 bc_exp_taxon_df <- expert %>%
-            select(individualID, expert_sciname) %>%
+            dplyr::select(individualID, expert_sciname) %>%
             left_join(distinct(barcode, individualID, bc_sciname))
 
 # What percentage of barcode IDs match expert IDs 
@@ -55,7 +55,7 @@ bc_exp_taxon_df %>%
 
 para <- bet_parataxonomistID %>%
             mutate(para_sciname = scientificName) %>%
-            select(individualID, morphospeciesID, taxonRank, para_sciname) %>%
+            dplyr::select(individualID, morphospeciesID, taxonRank, para_sciname) %>%
             as_tibble
 
 # Join para and expert/barcode data, and evaluate discrepancies in species ids 
@@ -158,7 +158,7 @@ select_spp <- taxon_df %>%
 # Plot abundance of selected Niwot species over time
 taxon_df %>% 
   full_join(bet_parataxonomistID %>% 
-    select(individualID, plotID , trapID , collectDate)) %>% 
+    dplyr::select(individualID, plotID , trapID , collectDate)) %>% 
   filter(para_sciname %in% select_spp) %>%
   ggplot() +
   geom_bar(aes(x = collectDate, fill = para_sciname)) +
