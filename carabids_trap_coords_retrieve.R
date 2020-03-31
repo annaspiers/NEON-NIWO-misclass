@@ -1,3 +1,5 @@
+# uses query_api_for_coords.R and extr_car_plot_coords.R to query the 
+# NEON API (via the url) to retrieve the coordinates for each carabid trap
 library(geoNEON)
 library(httr)
 library(jsonlite)
