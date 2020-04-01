@@ -3,7 +3,18 @@ Project: NEON-Niwot forest species SDMs
 
 This is a centralized location to organize our thoughts and resources for this project. Thoughts and data are focused on Niwot Ridge site, unless specified otherwise.
 
-##### Scientific questions we could ask
+##### Scientific questions
+Our goal for the semester is to answer as many of these questions, in the following order:
+1. For each species respectively, what are the key predictor variables (e.g. environmental, canopy cover, etc.)?
+2. What model best predicts species abundance spatially?
+    - Leave out one plot or one from each biome from training set
+    - Cross-validate different models. Which cross-validation method to use?
+3. What model best predicts species abundance in the 2019 collection season?
+4. What are our predictions for the 2020 collection season?
+5. How many years of data do you need to “accurately” forecast species abundances at different future time steps? 
+    - Define level of accuracy. 
+
+**Other brainstorming questions**
 1. How will carabid species distributions shift with global warming in a subalpine forest?  
 1. Is there a shift in community composition through time at all in the NEON data available? For multiple sites, account for habitat and environmental differences. see Brooks et al. 2012 hyp1
 1. Across NEON sites, do temporal community trends differ in magnitude and direction between habitats and regions? see Brooks et al. 2012 hyp2
