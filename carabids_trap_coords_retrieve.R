@@ -5,6 +5,7 @@ library(httr)
 library(jsonlite)
 library(ggplot2)
 library(raster)
+library(tidyr)
 
 source('query_api_for_coords.R')
 source("extr_car_plot_coords.R")
