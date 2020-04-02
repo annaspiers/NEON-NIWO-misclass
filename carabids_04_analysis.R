@@ -130,14 +130,24 @@ mod2d_occ <- gam(occ ~ s(decimalLatitude, decimalLongitude),
             s(plot_trap, bs="re"),
             family=poisson(),
             data=caladv_dat_gam, method="REML")
+
 mod2d_abund <- gam(sp_abund ~ s(as.numeric(as.character(col_year)), k=3) +
                        s(dayofyear,  bs = "cc", k=3) +
                        s(elevation) +
-                       s(nlcdClass,bs="re") +
+                       s(nlcdClass,bs="re") + #B/K says we want this to be a fixed effect
                        s(plotID, bs="re") +
                        s(plot_trap, bs="re"),
                    family=poisson(),
                    data=caladv_dat_gam, method="REML")
+#maximum likelihood doesn't do well with separation (cal adv isn't present in tundra)
+# data augmentation - add 1 to a tundra site
+# but bayesian analysis can cope with it
+
+
+
+
+
+
 plot(mod2d_abund, pages=1, all.terms=TRUE, scale=0)
 summary(mod2d_abund)
 #try gam with year term with other species - this one is speciose always, so may not fluxuate as much between 
