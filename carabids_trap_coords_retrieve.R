@@ -20,13 +20,16 @@ trap_strings = carabid_abund$bet_fielddata %>%
     dplyr::select(string_to_query) %>%
     unique() %>%
     pull(string_to_query)
+# Trap "NIWO_013.basePlot.bet.N" DNE, so add
+trap_strings <- c(trap_strings, "NIWO_013.basePlot.bet.N")
 
 car_trap_coords = query_api_for_coords(strings_to_query = trap_strings) #queries the NEON api
 
 
-car_coords = car_trap_coords %>% separate(locationName, into = c('plotID', 'junk', 'junk2', 'trapID'), sep = "\\.", remove = FALSE) %>%
-    select(-junk, -junk2) %>%
-    left_join(car_plot_coords, by = 'plotID')
+car_coords = car_trap_coords %>% 
+    separate(locationName, into = c('plotID', 'junk', 'junk2', 'trapID'), sep = "\\.", remove = FALSE) %>%
+    dplyr::select(-c(locationName, junk, junk2), trap.coord_uncert=coord_uncertainty) %>%
+    left_join(car_plot_coords)
 
 
 #plot over the dem to check
