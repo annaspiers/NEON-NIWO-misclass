@@ -118,6 +118,15 @@ nrow(model_df_by_sample) #6270 rows
 model_df_by_sample$sp_abund[is.na(model_df_by_sample$sp_abund)] <- 0
 unique(model_df_by_sample$sp_abund) #no NAs
 
+# Index collection date within each year
+secondary_period_df <- model_df_by_sample %>%
+    distinct(col_year, collectDate) %>%
+    filter(!is.na(col_year)) %>%
+    group_by(col_year) %>%
+    mutate(col_index = 1:n()) 
+model_df_by_sample <- model_df_by_sample %>%
+  left_join(secondary_period_df)
+  
 # Add in more predictor variables -----------------------------------------
 
 #LAI
