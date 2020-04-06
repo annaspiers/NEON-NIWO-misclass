@@ -1,0 +1,31 @@
+model {
+  # priors
+  psi_beta1 ~ dunif(0, 20)
+  psi_beta2 ~ dunif(0, 20)
+  p_beta1 ~ dunif(0, 20)
+  p_beta2 ~ dunif(0, 20)
+
+  # each species has its own occupancy and detection probability
+  for (j in 1:nspec) {
+    psi[j] ~ dbeta(psi_beta1, psi_beta2) 
+    p[j] ~ dbeta(p_beta1, p_beta2)
+  }
+  
+  # state model
+  for (j in 1:nspec) {
+    for (i in 1:ntrap) {
+      z[i, j]  ~ dbern(psi[j])
+    }
+  }
+
+  # observation model
+  for (k in 1:nsurv) {
+    for (j in 1:nspec) {
+      for (i in 1:ntrap) {
+        y[i, j, k] ~ dbinom(z[i, j] * p[j], 1)
+      }
+    }
+  }
+  
+}
+
