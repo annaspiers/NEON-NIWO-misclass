@@ -220,6 +220,17 @@ bet_fielddata %>%
   ggplot() +
   geom_point(aes(x = decimalLongitude, y = decimalLatitude, colour = nlcdClass))
 
+# Visualize what species are in which nlcdClass
+taxon_df %>% 
+  full_join(bet_parataxonomistID %>% 
+    dplyr::select(individualID, plotID , trapID , collectDate)) %>% 
+  left_join(bet_fielddata %>%
+             dplyr::select(plotID , nlcdClass)) %>% 
+  filter(para_sciname %in% select_spp) %>%
+  ggplot() +
+  geom_bar(aes(x = collectDate, fill = para_sciname)) +
+  facet_wrap(para_sciname ~ nlcdClass)
+
 # cool variables to look at: bet_fielddata$nativestatuscode
 bet_parataxonomistID %>% 
   filter(scientificName %in% select_spp) %>%
@@ -228,36 +239,3 @@ bet_parataxonomistID %>%
 # All species are classified as native
 
 
-
-### SCRATCH ###
-# # How to decide on the final species ID to use?
-# # Pseudocode
-# # for individuals that have expertID,
-#   # If paraID matches expertID
-#     # then assign expertID to all individuals in para with that paraID (supported by 100% match of expert and barcode ID)
-#   # else if expertID does NOT match paraID
-#     # then still take expertID?
-# # for individuals that do not have expertID
-#   # if their paraID was matched to an expertID elsewhere in the df, take the expertID
-#   # if their paraID has no expert match, then assign NA to final_sciname and don't get analyzed?
-# 
-# matched_species <- taxon_df %>%
-#   filter(!is.na(expert_sciname)) %>%
-#   select(para_sciname, expert_sciname) %>%
-#   distinct() %>%
-#   arrange(expert_sciname) %>%
-#   data.frame
-# 
-# taxon_df <- taxon_df %>% 
-#   mutate(same_species = para_sciname == expert_sciname, 
-#          final_sciname = NA) 
-# # for each row where same_species is T, use expertID on all other rows with matching paraIDs
-# for (i in 1:nrow(taxon_df)) { 
-#     if (!is.na(taxon_df$expert_sciname[i])) {
-#         taxon_df$final_sciname[i] <- taxon_df$expert_sciname[i]
-#     } else {
-#         if (taxon_df$para_sciname[i] %in% matched_species$para_sciname) {
-#             # if their paraID was matched to an expertID elsewhere in the df, take the expertID. Here we risk the chance that the parataxonomist identified two different species as one (e.g. para ID for Amara sp. matches 6 expert IDs)
-#         }
-#     }
-# }
