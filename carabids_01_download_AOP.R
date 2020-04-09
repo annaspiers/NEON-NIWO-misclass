@@ -61,7 +61,3 @@ for (i in years) {
     writeRaster(full_lai_1x1, filename = paste0("data_derived/neonLAI_1x1_",i,".grd"))
 }
 
-# Crop extent
-
-# merge all rasters
-
