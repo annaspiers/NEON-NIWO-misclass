@@ -137,6 +137,13 @@ trap_LAI_sp_edited <- trap_LAI_sp@data %>%
 model_df_by_sample <- model_df_by_sample %>%
   left_join(trap_LAI_sp_edited)
 
+# CHM
+load("data_derived/trap_CHM_sp.Rdata")
+model_df_by_sample <- model_df_by_sample %>%
+  left_join(trap_CHM_sp@data)
+model_df_by_sample <- model_df_by_sample %>%
+  rename(trap_CHM = trap_CH)
+
 ### Save df ###
   
 write.csv(model_df_by_ind, file="data_derived/model_df_by_individual_beetle.csv") #df by individuals
