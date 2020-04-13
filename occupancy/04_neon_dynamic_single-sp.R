@@ -11,7 +11,7 @@ dat <- read.csv("data_derived/model_df_by_species_in_sample.csv", header = TRUE)
 CAAD_dat <- dat %>% 
     filter(para_sciname == "Calathus advena" ) %>% #choose 1 sp 
     mutate(occ = ifelse(sp_abund > 0, 1, 0),
-           scaled_doy = scale(dayofyear, center = TRUE, scale = TRUE),
+           #scaled_doy = scale(dayofyear, center = TRUE, scale = TRUE),
            plot_trap = paste(plotID,trapID, sep=""))
 
 secondary_period_df <- CAAD_dat %>%
@@ -60,7 +60,7 @@ str(JAGSdata <- list(y = y,       #dim(y) is 44 7 4
                      nrep = dim(y)[2], 
                      nyear = dim (y)[3]))
 # Initial values 
-zst <- apply(y, c(1,3), max, na.rm = TRUE)
+zst <- apply(y, c(1,3), max, na.rm = TRUE) #z dimensions: [ntrap,nyear]
 zst[zst == "-Inf"] <- NA 
 # Observed occurrence as inits for z 
 JAGSinits <- function() { list(z = zst) } #dim(z) is 44 4
