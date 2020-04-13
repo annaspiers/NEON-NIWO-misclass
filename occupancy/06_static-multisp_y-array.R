@@ -18,7 +18,7 @@ p <- rbeta(nspec, 1, 2)
 #hist(rbeta(10000, 1, 2))
 p
 
-# Simulate occupancy states
+# Simulate true occupancy states
 z <- matrix(nrow = R, ncol = nspec)
 for (i in 1:R) {
     z[i, ] <- rbinom(nspec, 1, psi)
@@ -45,7 +45,7 @@ str(JAGSdata <- list(y = y,
                      T = T, 
                      R = R, 
                      nspec = nspec)) #bundle data
-#z_init_test <- matrix((y > 0) * 1, nrow=R, ncol=nspec) AIS why does this not work? the only difference seems to be that z_init has dimension names and z_init_test does not. Both matrices
+#z_init_test <- matrix((y > 0) * 1, nrow=R, ncol=nspec) #this only makes sense if y is a matrix (summed detection through surveys)
 z_init <- apply(y, c(1,2), max, na.rm = TRUE)
 z_init[z_init == "-Inf"] <- NA 
 JAGSinits <- function(){list(z = z_init) } #rep(JAGSinits, nc) too
