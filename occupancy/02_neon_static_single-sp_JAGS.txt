@@ -1,24 +1,28 @@
 model { 
-# Priors 
-alpha.psi ~ dnorm(0, 1) 
-beta.psi ~ dnorm(0, 1) 
-alpha.p ~ dnorm(0, 1) 
-beta1.p ~ dnorm(0, 1) 
-beta2.p ~ dnorm(0, 1)
-# Likelihood 
-for (i in 1:R) { 
-    # Ecological model for true occurrence 
-    logit(psi[i]) <- alpha.psi + beta.psi * nlcd[i]
-    z[i] ~ dbern(psi[i]) # True occurrence z at plot i 
-    # Observation model for replicated detection/nondetection observations
-    for (j in 1:T) {
-        logit(p[i, j]) <- alpha.p + 
-            beta1.p * sc_doy[i,j] + 
-            beta2.p * pow(sc_doy[i,j], 2)
-        y[i,j] ~ dbern(z[i] * p[i,j])
-    } #j 
-} #i
-# Derived quantities 
-occ.fs <- sum(z[]) #Number of occupied sites
-mean.p <- ilogit(alpha.p) # Average detection (ilogit is inverse logit)
+
+    # Priors 
+    alpha.psi ~ dnorm(0, 1) 
+    beta.psi ~ dnorm(0, 1) 
+    alpha.p ~ dnorm(0, 1) 
+    beta1.p ~ dnorm(0, 1) 
+    beta2.p ~ dnorm(0, 1)
+    
+    # Likelihood 
+    for (i in 1:R) { 
+        # Ecological model for true occurrence 
+        logit(psi[i]) <- alpha.psi + beta.psi * nlcd[i]
+        z[i] ~ dbern(psi[i]) # True occurrence z at plot i 
+        # Observation model for replicated detection/nondetection observations
+        for (j in 1:T) {
+            logit(p[i, j]) <- alpha.p + 
+                beta1.p * sc_doy[i,j] + 
+                beta2.p * pow(sc_doy[i,j], 2)
+            y[i,j] ~ dbern(z[i] * p[i,j])
+        } #j 
+    } #i
+    
+    # Derived quantities 
+    occ.fs <- sum(z[]) #Number of occupied sites
+    mean.p <- ilogit(alpha.p) # Average detection (ilogit is inverse logit)
+    
 } #model
