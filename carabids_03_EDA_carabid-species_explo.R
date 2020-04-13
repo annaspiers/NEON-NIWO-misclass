@@ -167,7 +167,7 @@ taxon_df %>%
 # Plot taxa by year (thanks SN)
 taxon_df %>% 
   full_join(bet_parataxonomistID %>% 
-    select(individualID, plotID , trapID , collectDate)) %>% 
+    dplyr::select(individualID, plotID , trapID , collectDate)) %>% 
   filter(para_sciname %in% select_spp) %>%
   mutate(year = lubridate::year(collectDate), 
          month = lubridate::month(collectDate), 
@@ -183,7 +183,7 @@ taxon_df %>%
 # Plot taxa by month through the years
 taxon_df %>% 
   full_join(bet_parataxonomistID %>% 
-    select(individualID, plotID , trapID , collectDate)) %>% 
+    dplyr::select(individualID, plotID , trapID , collectDate)) %>% 
   filter(para_sciname %in% select_spp) %>%
   mutate(year = lubridate::year(collectDate), 
          month = lubridate::month(collectDate), 
@@ -200,7 +200,7 @@ taxon_df %>%
 # Plot taxa through time by collection day
 taxon_df %>% 
   full_join(bet_parataxonomistID %>% 
-    select(individualID, plotID , trapID , collectDate)) %>% 
+    dplyr::select(individualID, plotID , trapID , collectDate)) %>% 
   filter(para_sciname %in% select_spp) %>%
   mutate(year = lubridate::year(collectDate), 
          month = lubridate::month(collectDate), 
@@ -216,7 +216,7 @@ taxon_df %>%
 # Plot spatial arrangement of plots, labeled with habitat
 # add lat and long poitns
 bet_fielddata %>% 
-  select(plotID, nlcdClass, decimalLatitude, decimalLongitude) %>%
+  dplyr::select(plotID, nlcdClass, decimalLatitude, decimalLongitude) %>%
   ggplot() +
   geom_point(aes(x = decimalLongitude, y = decimalLatitude, colour = nlcdClass))
 
@@ -238,4 +238,25 @@ bet_parataxonomistID %>%
   summarize(mean(nativeStatusCode == "N") )
 # All species are classified as native
 
+
+# Exploration with compiled df's (carabids_03_zcompiled_df)  --------------
+
+clean_dat <- read.csv("data_derived/model_df_by_species_in_sample.csv") %>%
+  mutate(plot_trap = paste0(plotID, trapID, sep=""))
+
+# Plot taxa's abundance at each trap through time
+quartz()
+clean_dat %>% 
+  filter(para_sciname %in% select_spp) %>%
+  group_by(para_sciname, plot_trap, col_year, sp_abund) %>%
+  summarize(sum_abund = sum(sp_abund)) %>%
+  mutate(occ = as.character(ifelse(sum_abund>0,1,0))) %>%
+  ggplot(aes(x = col_year, 
+             y = plot_trap, 
+             color = occ)) +
+  geom_point(aes(size = sum_abund)) +
+  scale_size_area() + #value 0 will have zero size
+  scale_color_manual(values=c("grey","darkblue")) +
+  theme(axis.text.x = element_text(size=6)) +
+  facet_grid(. ~ para_sciname)
 
