@@ -35,6 +35,9 @@ rad_net <- loadByProduct(dpID = 'DP1.00006.001', site = 'NIWO', check.size = FAL
 # Rad short direct diffuse
 rad_short_dir_diff <- loadByProduct(dpID = 'DP1.00023.001', site = 'NIWO', check.size = FALSE) #78 MB, took a minute 
 
+# summary weather statistics (includes air temp and precip)
+summ_weath <- loadByProduct(dpID = 'DP4.00001.001', site = 'NIWO', check.size = FALSE) #7 MB
+
 ### Save to data_raw ###
 save(carabid_abund, carabid_barcode, file="data_raw/carabids_NIWO.Rdata")
 #save(soil_wc, file="data_raw/soil_wc_NIWO.Rdata")
@@ -45,4 +48,4 @@ save(ir_bio_temp, file="data_raw/ir_bio_temp_NIWO.Rdata")
 save(precip, file="data_raw/precip_NIWO.Rdata")
 save(rad_net, file="data_raw/rad_net_NIWO.Rdata")
 save(rad_short_dir_diff, file="data_raw/rad_short_dir_diff_NIWO.Rdata")
-
+save(summ_weath, file = "data_raw/summ_weath_NIWO.Rdata")
