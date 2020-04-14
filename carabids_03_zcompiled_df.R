@@ -67,7 +67,9 @@ model_df_by_sample <- model_df_by_ind %>%
            group_by(col_year) %>%
            mutate(col_index = 1:n())) %>% #index the collection date within each year
   filter(!(plotID == "NIWO_004" & col_year == 2018), # Remove rows for plot 4 in 2018
-         !(plotID == "NIWO_013" & (col_year==2015 | col_year==2016 | col_year==2017 ))) # Remove rows for plot 13 in 2015-2017
+         !(plotID == "NIWO_013" & (col_year==2015 | col_year==2016 | col_year==2017 ))) %>% # Remove rows for plot 13 in 2015-2017
+  mutate(plot_trap = as.factor(paste(plotID, trapID, sep="")),
+           occ = ifelse(sp_abund>0,1,0)) 
 
   
 # III. Add in more predictor variables -----------------------------------------
