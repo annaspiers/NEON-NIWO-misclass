@@ -18,23 +18,27 @@ remove_NA_cols <- function(list_of_lists){
 
 ### Load raw data ###
 
-load("data_raw/carabids_NIWO.Rdata")
-# load("data_raw/soil_wc_NIWO.Rdata")
-load("data_raw/woody_veg_NIWO.Rdata")
-load("data_raw/litter_woodfall_NIWO.Rdata")
+# load("data_raw/carabids_NIWO.Rdata")
+# # load("data_raw/soil_wc_NIWO.Rdata")
+# load("data_raw/woody_veg_NIWO.Rdata")
+# load("data_raw/litter_woodfall_NIWO.Rdata")
+# load("data_raw/ir_bio_temp_NIWO.Rdata")
+# #load("data_raw/soil_temp_NIWO.Rdata")
+# load("data_raw/precip_NIWO.Rdata")
+# load("data_raw/rad_net_NIWO.Rdata")
+# load("data_raw/rad_short_dir_diff_NIWO.Rdata")
+# forest_niwot_all = read.csv("data_raw/PP_plot_data_1982-2016.tv.data.csv") #just the plot info
 load("data_raw/ir_bio_temp_NIWO.Rdata")
-#load("data_raw/soil_temp_NIWO.Rdata")
-load("data_raw/precip_NIWO.Rdata")
-load("data_raw/rad_net_NIWO.Rdata")
-load("data_raw/rad_short_dir_diff_NIWO.Rdata")
-forest_niwot_all = read.csv("data_raw/PP_plot_data_1982-2016.tv.data.csv") #just the plot info
-
+load("data_raw/summ_weath_NIWO.Rdata")
 
 ### Clean data ###
 
 # Remove columns with NAs from every data package
-all_data_packages <- c(carabid_abund, carabid_barcode, woody_veg, litter_woodfall,
-                       ir_bio_temp, precip, rad_net, rad_short_dir_diff) #soil_temp, soil_wc
+# all_data_packages <- c(carabid_abund, carabid_barcode, woody_veg, litter_woodfall,
+#                        ir_bio_temp, precip, rad_net, rad_short_dir_diff) #soil_temp, soil_wc
+
+all_data_packages <- c(ir_bio_temp, summ_weath) #cleaning missing packages
+
 for (i in 1:length(all_data_packages)) {
     all_data_packages[i] <- remove_NA_cols(all_data_packages[i])
 }
@@ -117,3 +121,4 @@ save(ir_bio_temp, file="data_derived/ir_bio_temp_NIWO.Rdata")
 save(precip, file="data_derived/precip_NIWO.Rdata")
 save(rad_net, file="data_derived/rad_net_NIWO.Rdata")
 save(rad_short_dir_diff, file="data_derived/rad_short_dir_diff_NIWO.Rdata")
+save(summ_weath, file="data_derived/summ_weath_NIWO.Rdata")
