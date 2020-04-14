@@ -19,7 +19,7 @@ list2env(carabid_abund, .GlobalEnv)
 #load("data_derived/precip_NIWO.Rdata")
 #load("data_derived/rad_net_NIWO.Rdata")
 #load("data_derived/rad_short_dir_diff_NIWO.Rdata")
-load("data_derived/trap_LAI_sp.Rdata")
+load("data_derived/trap_LAI_1718avg.Rdata")
 load("data_derived/trap_CHM_sp.Rdata")
 
 # Select 7 most abundant spp.
@@ -75,12 +75,10 @@ model_df_by_sample <- model_df_by_ind %>%
 # III. Add in more predictor variables -----------------------------------------
 
 model_df_by_sample <- model_df_by_sample %>%
-  left_join(trap_LAI_sp@data %>%
-              separate(locationNa, into = c('plotID','junk','junk2','trapID'), sep="\\.", remove=FALSE) %>%
-              dplyr::select(-c(locationNa, junk, junk2), trap_easting=x, trap_northing=y)) %>% #add LAI
   left_join(trap_CHM_sp@data %>%
-              rename(trap_CHM = trap_CH, trap_easting=trap.Easting, trap_northing=trap.Northing)) #add CHM
-
+              rename(trap_CHM = trap_CH)) %>% #add CHM
+  left_join(trap_LAI_1718avg %>%
+              dplyr::select(trap.Easting, trap.Northing, LAI_1718avg = avg1718))
 
 
 # Save dataframes to csv --------------------------------------------------
