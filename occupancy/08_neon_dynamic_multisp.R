@@ -14,11 +14,7 @@ dat <- read.csv("data_derived/model_df_by_species_in_sample.csv", header = TRUE)
 
 # Create detection array --------------------------------------------------
 
-# dimensions of y: 
-# 1. plot_trap
-# 2. species
-# 3. number sampling occasions per year
-# 4. number of years
+# dimensions of y: [plot_trap, species, surveys within year, year]
 y <- dat %>%
     reshape2::acast(plot_trap ~ para_sciname ~ col_index ~ col_year, 
                     value.var = "occ")
@@ -58,19 +54,37 @@ JAGSout <- jags(data = JAGSdata,
                  n.iter = ni,
                  n.burnin = nb,
                  n.thin = nt)
-# with autojags, I could see that growth[2,2], gamma[7,1],gamma[1,1], gamma[1,3], gamma[2,3], gamma had trouble converging
-# AIS species 2 and 7 were not present at beginning of survey 92015 and 2015-2016, respectively) - see output photo
 
 print(JAGSout, dig=2)
-names(JAGSout) #JAGout$mean, see growth[2,2] and growth[7,3] - too big!
-#JAGSout$mean - most p values are larger than corresponding psi. Is p conditional on phi?
-plot(JAGSout) #nonconverged: psi[2,1], psi[7,1], psi[7,2]. many of the phi's look wonky. most of the gamma's look wonky too. growth[2,2], growth[7,2], growth[7,3] DNE. bimodal turnover[7,1]
-#AIS what are the horizontal lines through the trace plots?
-View(JAGSout)
-whiskerplot(JAGSout, c("psi"), zeroline=T)
-pp.check(JAGSout, observed, simulated, xlab=NULL, ylab=NULL, main=NULL)
+names(JAGSout) 
+plot(JAGSout) # horizontal lines through the traceplots show convergence visually
 
 
-# IN THE MORNING - how to visualize these results nicely?
+# Notes on comparing data to model output  --------------------------------
 
-# AIS Next, allow parameters to vary by sampling occassion (bootom of bpa ch 14 p.456)
+dimnames(y)
+
+#compare to "data_derived/species_abund_by_year_by_trap.png"
+
+JAGSout$mean$psi
+# Calathus advena occupancy consistent through years
+# Species 2 not present in survey data in 2015
+# Species 7 not present in survey data in 2015-2016
+
+JAGSout$mean$p
+
+JAGSout$mean$phi
+
+JAGSout$mean$gamma
+# High colonization for gamma[4] - doesn't make sense with data
+
+JAGSout$mean$n.occ
+# Species 2 and 7 have low n.occ in first year(s) - consistent with data
+
+JAGSout$mean$growth
+# growth[,2] for species 2 and 7 are unrealistically large due to 0 detection in first year(s)
+# Species 6 vlaues seem too high
+
+JAGSout$mean$turnover
+
+
