@@ -49,7 +49,7 @@ ggplot() +
 #ggsave(file = "../map.png", width = 5, height = 5, dpi = 'retina')
 
 # crop DEM to carabid traps
-bord = 200 #number of pixels (or meters?) for border
+bord = 300 #number of pixels (or meters?) for border
 xmin = min(all_pts_df$Easting) - bord
 xmax = max(all_pts_df$Easting) + bord
 ymin = min(all_pts_df$Northing) - bord
@@ -71,3 +71,19 @@ ggplot() +
 
 #ggsave(file = "../crop_map.png", width = 5, height = 5, dpi = 'retina')
 
+# Plot carabid traps in proximity to Niwot Ridge C1 and saddle weather stations. 
+# Resources for C1 and saddle coordinates:
+  # https://portal.edirepository.org/nis/mapbrowse?packageid=knb-lter-nwt.416.10
+  # https://portal.edirepository.org/nis/mapbrowse?packageid=knb-lter-nwt.401.3
+  # convert lat/long to easting/northing: https://www.latlong.net/lat-long-utm.html
+weather_st_sp <- data.frame(rbind(c("c1",449737.62,4434020.06),
+                                  c("saddle",453573.88, 4431887.38)))
+colnames(weather_st_sp) <- c("weather_st","Easting", "Northing") 
+
+ggplot() + 
+  geom_raster(data = dem_crop_df, aes(x = x, y = y, fill = layer)) + 
+  geom_point(data = all_pts_df %>% filter(data_type %in% c('carabid')), aes(x = Easting, y = Northing)) +
+  geom_point(data=weather_st_sp, aes(x = as.numeric(as.character(Easting)), y = as.numeric(as.character(Northing)), label=weather_st), color="red") +
+  labs(fill = "Elevation (m)") +
+  scale_fill_gradientn(colours = c('#222222', 'darkgreen', 'white')) +
+  theme_map()
