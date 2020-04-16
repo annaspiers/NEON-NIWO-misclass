@@ -11,6 +11,42 @@
 
 
 # EDA
+## Beetles
+
+#   Identification - we already showed this at one of the earlier classes, so we might not need to show this now
+# 
+#   Species selection - 2/7 species that were most abundant
+#       ?info/natural history about the species we chose
+# 
+#   Abundance over time, per trap - awesome figure Anna made
+# 
+#   ?Map of beetle traps
+# 
+# 
+## Predictors
+# 
+#   fixed effects:
+#     day of year
+#   nlcd class, elevation - included with beetle data product
+# 
+#   canopy height - related to nlcd class and elevation (treeline)
+#       raster plot
+#       buffer radius choice
+#       show scatterplots of correlations?
+#     
+#   leaf area index
+#       raster plot
+#       buffer radius choice
+# 
+#   ?degree days, precipitation - short term and long term
+#   ?snowmelt date
+# 
+# 
+#   desired but unused: 
+#   soil moisture - not colocated with traps, ?map
+#   woody debris - not colocated with traps, ?map
+#   vegetation - difficult/unclear to summarize at trap level
+
 # Beetles...
 # 
 # The literature supported certain explanatory variables, but we didn't some of these to explain much variance in our models.
