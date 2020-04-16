@@ -7,201 +7,240 @@ library(gridExtra) #arranging multiple plots
 library(dplyr)
 library(mgcv) #for gams
 
-all7sp_dat <- read.csv("data_derived/model_df_by_species_in_sample.csv")
+all7sp_dat <- read.csv("data_derived/model_df_by_species_in_sample.csv") %>%
+    mutate(sc_DOY = scale(DOY, center = TRUE, scale = TRUE),
+           col_year_fact = as.factor(col_year))
 
-# Pick one species for now. 
-all7sp_dat %>% group_by(para_sciname) %>%
-    summarize(total = sum(sp_abund)) %>%
-    arrange(-total)
-# Calathus advena is most abundant
-caladv_dat <- all7sp_dat %>% 
-    filter(para_sciname == "Calathus advena") %>%
-    arrange(collectDate) %>%
-    mutate_at(c("siteID", "plotID", "trapID", "sampleID", "col_year", "col_month", "col_day", "nlcdClass", "soilOrder", "para_sciname"), funs(factor(.)))
-    
+# Try GAMs and GAMMs ----------------------------------------------------------
 
-# Try modeling Calathus advena
-# Following Brett's multilevel tutorials
+#AIS look at plot coords on google earth
 
-# EDA -------------------------
+# Check for collinearity of predictors
+# resource: https://cran.r-project.org/web/packages/olsrr/vignettes/regression_diagnostics.html
+# resource: https://datascienceplus.com/multicollinearity-in-r/
+# VIF=1 means no variance of predictor. VIFs >4 warrants investigation. VIFs >10 indicate serious multicollinearity
+library(mctest)
+vars_mat <- all7sp_dat %>%
+    mutate(nlcdclass_num = as.numeric(nlcdClass)) %>%
+    dplyr::select(LAI_1718avg, trap_CHM, DOY, col_year, nlcdclass_num)#, elev )
+omcdiag(vars_mat, all7sp_dat$sp_abund)
+imcdiag(vars_mat, all7sp_dat$sp_abund, method="VIF") #failed to dect multicollinearity when elevation was remoted
+# CHM and nlcdClass are highly correlated, but CHM contains more info, so leave out nlcdClass. nlcdClass also had a large VIF
 
-# How many samples with 0 abundance?
-sum(caladv_dat$sp_abund == 0) 
-# 813 out of 960
-ggplot(data=caladv_dat) +
-    geom_histogram(mapping = aes(x=sp_abund),bins=30)
-# Heavy 0 count data
+# Now try different modeling methods: GAMM, GLMM 
 
-# Try log-abundance
-ggplot(data=caladv_dat) +
-    geom_histogram(mapping = aes(x=log(sp_abund),bins=30))
-# looks pretty similar
+# For Carabus taedatus, we see higher abundance in the tundra 
 
-ggplot(data=caladv_dat) +
-    geom_histogram(mapping = aes(x=sp_abund, fill=nlcdClass), position="identity",
-                   bins=20,alpha=0.5)
-# This species is found only in forest plots, not on the tundra
-
-# Plot 4 was swapped for plot 13 in 2018. Compare plot abundance in first 3 years to see if plot 4 was an outlier
-all7sp_dat %>%
-    ggplot() +
-    geom_point(mapping = aes(x=dayofyear,col=col_year,y=sp_abund),shape=1,alpha=0.75) +
-    facet_wrap(facets = ~ plotID) 
-# Looking at 7 most abundant species, it seems that plot 4 didn't have have large beetle yield.... maybe that's why they moved it?
-caladv_dat %>%
-    group_by(plotID) %>%
-    summarize(abund = sum(sp_abund)) %>%
-    arrange(-abund)
-#Calathus advena is present in only 7 of the 11 plots
-caladv_dat %>%
-    ggplot() +
-    geom_point(mapping = aes(x=dayofyear, colour=as.numeric(as.character(col_year)), y=sp_abund),shape=1) +
-    facet_wrap(facets = ~ plotID) 
-# Consider dropping plot 4 from the data?
-
-# Density
-caladv_dat %>%
-    ggplot() +
-    geom_density(mapping = aes(x=sp_abund, col=col_month))
-# All years had proportionally high 0 counts
-
-# Through day of year
-caladv_dat %>%
-    ggplot(aes(x=dayofyear, y=sp_abund)) +
-    geom_bar(stat="identity") +
-    facet_grid(col_year ~ .) 
-# Not really regular abundance patterns throughout the year.... not sure how to summarize
+# all variables
+glmm1_cartae <- glmer(sp_abund ~ LAI_1718avg + trap_CHM + sc_DOY + nlcdClass +
+                      (1|plotID:trapID) + (1|col_year:collectDate),
+                  family=poisson(), data=all7sp_dat %>% filter(para_sciname == "Carabus taedatus") )
+# with squared sc_DOY
+glmm2_cartae <- glmer(sp_abund ~ LAI_1718avg + trap_CHM + sc_DOY^2 + nlcdClass +
+                      (1|plotID:trapID) + (1|col_year:collectDate),
+                  family=poisson(), data=all7sp_dat %>% filter(para_sciname == "Carabus taedatus") )
+# with sc_DOY, no col_year grouping
+glmm3_cartae <- glmer(sp_abund ~ LAI_1718avg + trap_CHM + sc_DOY + nlcdClass +
+                      (1|plotID:trapID) + (1|collectDate),
+                  family=poisson(), data=all7sp_dat %>% filter(para_sciname == "Carabus taedatus") )
+# with squared sc_DOY, no col_year grouping
+glmm4_cartae <- glmer(sp_abund ~ LAI_1718avg + trap_CHM + sc_DOY^2 + nlcdClass +
+                      (1|plotID:trapID) + (1|collectDate),
+                  family=poisson(), data=all7sp_dat %>% filter(para_sciname == "Carabus taedatus") )
+AIC(glmm1_cartae)
+AIC(glmm2_cartae)
+AIC(glmm3_cartae)
+AIC(glmm4_cartae)
 
 
+# all variables with splines (error when nlcdClass has spline)
+gamm1_cartae <- gam(sp_abund ~ s(LAI_1718avg) + s(trap_CHM) + nlcdClass + s(DOY,  bs = "cc", k=4) + 
+                      s(plotID, bs="re") + s(plot_trap, bs="re") + 
+                      s(col_year, bs="re") + s(collectDate, bs="re"), #grouping variables
+                  family=poisson(), method="REML",
+                  data=all7sp_dat %>% filter(para_sciname == "Carabus taedatus"))
+# all variables remove splines on predictors except DOY
+gamm2_cartae <- gam(sp_abund ~ LAI_1718avg + trap_CHM + nlcdClass + s(DOY,  bs = "cc", k=4) + 
+                      s(plotID, bs="re") + s(plot_trap, bs="re") + 
+                      s(col_year, bs="re") + s(collectDate, bs="re"), #grouping variables
+                  family=poisson(), method="REML",
+                  data=all7sp_dat %>% filter(para_sciname == "Carabus taedatus"))
+# remove nlcdClass
+gamm3_cartae <- gam(sp_abund ~ LAI_1718avg + trap_CHM  + s(DOY,  bs = "cc", k=4) + 
+                      s(plotID, bs="re") + s(plot_trap, bs="re") + 
+                      s(col_year, bs="re") + s(collectDate, bs="re"), #grouping variables
+                  family=poisson(), method="REML",
+                  data=all7sp_dat %>% filter(para_sciname == "Carabus taedatus"))
+# remove col_year grouping variable w nlcdClass
+gamm4_cartae <- gam(sp_abund ~ LAI_1718avg + trap_CHM + nlcdClass + s(DOY,  bs = "cc", k=4) + 
+                      s(plotID, bs="re") + s(plot_trap, bs="re") + 
+                      s(collectDate, bs="re"), #grouping variables
+                  family=poisson(), method="REML",
+                  data=all7sp_dat %>% filter(para_sciname == "Carabus taedatus"))
+# remove col_year grouping variable w/o nlcdClass
+gamm5_cartae <- gam(sp_abund ~ LAI_1718avg + trap_CHM  + s(DOY,  bs = "cc", k=4) + 
+                      s(plotID, bs="re") + s(plot_trap, bs="re") + 
+                      s(collectDate, bs="re"), #grouping variables
+                  family=poisson(), method="REML",
+                  data=all7sp_dat %>% filter(para_sciname == "Carabus taedatus"))
+AIC(gamm1_cartae) #tied for first
+AIC(gamm2_cartae) #tied for first
+AIC(gamm3_cartae)
+AIC(gamm4_cartae) #tied for first
+AIC(gamm5_cartae)
 
-### Multilevel analysis --------------
-# including the many 0-count samples
+# Now for the second species
 
-# Complete pooling
-poolmean <- mean(caladv_dat$sp_abund)
-poolmean
-cp_pred_df <- data.frame(poolmean) #df for use with ggplot
+# all variables
+glmm1_cymuni <- glmer(sp_abund ~ LAI_1718avg + trap_CHM + sc_DOY + nlcdClass +
+                      (1|plotID:trapID) + (1|col_year:collectDate),
+                  family=poisson(), data=all7sp_dat %>% filter(para_sciname == "Cymindis unicolor") )
+# with squared sc_DOY
+glmm2_cymuni <- glmer(sp_abund ~ LAI_1718avg + trap_CHM + sc_DOY^2 + nlcdClass +
+                      (1|plotID:trapID) + (1|col_year:collectDate),
+                  family=poisson(), data=all7sp_dat %>% filter(para_sciname == "Cymindis unicolor") )
+# with sc_DOY, no col_year grouping
+glmm3_cymuni <- glmer(sp_abund ~ LAI_1718avg + trap_CHM + sc_DOY + nlcdClass +
+                      (1|plotID:trapID) + (1|collectDate),
+                  family=poisson(), data=all7sp_dat %>% filter(para_sciname == "Cymindis unicolor") )
+# with squared sc_DOY, no col_year grouping
+glmm4_cymuni <- glmer(sp_abund ~ LAI_1718avg + trap_CHM + sc_DOY + nlcdClass +
+                      (1|plotID:trapID) + (1|collectDate),
+                  family=poisson(), data=all7sp_dat %>% filter(para_sciname == "Cymindis unicolor") )
+AIC(glmm1_cymuni)
+AIC(glmm2_cymuni)
+AIC(glmm3_cymuni)
+AIC(glmm4_cymuni) #all equal
 
-# No pooling
-# Does this make sense to do since abundance is not a normally distributed outcome varable
-sp_abund_mean_var <- 
-    caladv_dat %>%
-    group_by(plotID) %>%
-    summarize(sample_size=n(),plt_mn=mean(sp_abund),plt_sd=sd(sp_abund)) %>%
-    mutate(plt_se=plt_sd/sqrt(sample_size)) %>%
-    mutate(sample_size_jit=jitter(sample_size)) #jitter added for plotting
-print(sp_abund_mean_var,n=Inf) #n=Inf to print all rows
 
-ggplot(data=sp_abund_mean_var) +
-    geom_hline(mapping=aes(yintercept=poolmean),data=cp_pred_df,col="blue") +
-    geom_point(mapping=aes(x=sample_size_jit,y=plt_mn)) +
-    geom_text(aes(x=sample_size_jit,y=plt_mn,label=plotID), hjust=-.1, vjust=0) +
-    geom_linerange(mapping=aes(x=sample_size_jit,ymin=plt_mn-plt_se,ymax=plt_mn+plt_se)) +
-    #scale_x_continuous(trans="log",breaks=c(1,3,10,30,100)) +
-    labs(x="Sample size in plot j",y="mean abundance of Calathus advena in plot j",
-         title="No pooling: separate analyses by plot")
+# all variables with splines (error when nlcdClass has spline)
+gamm1_cymuni <- gam(sp_abund ~ s(LAI_1718avg) + s(trap_CHM) + nlcdClass + s(DOY,  bs = "cc", k=4) + 
+                      s(plotID, bs="re") + s(plot_trap, bs="re") + 
+                      s(col_year, bs="re") + s(collectDate, bs="re"), #grouping variables
+                  family=poisson(), method="REML",
+                  data=all7sp_dat %>% filter(para_sciname == "Cymindis unicolor"))
+# all variables remove splines on predictors except DOY
+gamm2_cymuni <- gam(sp_abund ~ LAI_1718avg + trap_CHM + nlcdClass + s(DOY,  bs = "cc", k=4) + 
+                      s(plotID, bs="re") + s(plot_trap, bs="re") + 
+                      s(col_year, bs="re") + s(collectDate, bs="re"), #grouping variables
+                  family=poisson(), method="REML",
+                  data=all7sp_dat %>% filter(para_sciname == "Cymindis unicolor"))
+# remove nlcdClass
+gamm3_cymuni <- gam(sp_abund ~ LAI_1718avg + trap_CHM  + s(DOY,  bs = "cc", k=4) + 
+                      s(plotID, bs="re") + s(plot_trap, bs="re") + 
+                      s(col_year, bs="re") + s(collectDate, bs="re"), #grouping variables
+                  family=poisson(), method="REML",
+                  data=all7sp_dat %>% filter(para_sciname == "Cymindis unicolor"))
+# remove col_year grouping variable w nlcdClass
+gamm4_cymuni <- gam(sp_abund ~ LAI_1718avg + trap_CHM + nlcdClass + s(DOY,  bs = "cc", k=4) + 
+                      s(plotID, bs="re") + s(plot_trap, bs="re") + 
+                      s(collectDate, bs="re"), #grouping variables
+                  family=poisson(), method="REML",
+                  data=all7sp_dat %>% filter(para_sciname == "Cymindis unicolor"))
+# remove col_year grouping variable w/o nlcdClass
+gamm5_cymuni <- gam(sp_abund ~ LAI_1718avg + trap_CHM  + s(DOY,  bs = "cc", k=4) + 
+                      s(plotID, bs="re") + s(plot_trap, bs="re") + 
+                      s(collectDate, bs="re"), #grouping variables
+                  family=poisson(), method="REML",
+                  data=all7sp_dat %>% filter(para_sciname == "Cymindis unicolor"))
+AIC(gamm1_cymuni) 
+AIC(gamm2_cymuni) #tied for first
+AIC(gamm3_cymuni)
+AIC(gamm4_cymuni) #tied for first
+AIC(gamm5_cymuni)
 
-# Partial pooling - plot as fixed effect
-# Try GLM using poisson distribution for abundance
-npfit_pois <- glm( sp_abund ~ -1 + plotID, family=poisson, data=caladv_dat )
-plot(npfit_pois,1:5,ask=FALSE)
-# This looks cray
+# For both species, gamms performed better than glmms, and models with nlcdClass and only splining DOY performed best
+# Now predict abundance
+gamm_cartae <- gam(sp_abund ~ LAI_1718avg + trap_CHM + nlcdClass + s(DOY,  bs = "cc", k=4) + 
+                      s(plotID, bs="re") + s(plot_trap, bs="re") + 
+                      s(col_year_fact, bs="re") + s(collectDate, bs="re"), #grouping variables
+                  family=poisson(), method="REML",
+                  data=all7sp_dat %>% 
+                      filter(para_sciname == "Carabus taedatus",
+                             plotID != "NIWO_013"))
+gam.check(gamm_cartae)
+summary(gamm_cartae)
+plot(gamm_cartae, pages=1)
+# Plot predictions of NIWO_0013
 
-#GAMs
-caladv_dat_gam <- caladv_dat %>%
-    mutate(plot_trap = as.factor(paste(plotID, trapID, sep="")),
-           occ = ifelse(sp_abund>0,1,0),
-           scaled_elev = scale(elevation, center = TRUE, scale = TRUE),
-           scaled_dayofyear = scale(dayofyear, center = TRUE, scale = TRUE))
 
-modre <- gam(sp_abund ~ s(nlcdClass, bs="re"),
-             s(plot_trap, bs="re"),
-             data=caladv_dat_gam, method="REML")
+gam_cymuni <- gam(sp_abund ~ LAI_1718avg + trap_CHM + nlcdClass + s(DOY,  bs = "cc", k=4) + 
+                      s(plotID, bs="re") + s(plot_trap, bs="re") + 
+                      s(col_year_fact, bs="re") + s(collectDate, bs="re"), #grouping variables
+                  family=poisson(), method="REML",
+                  data=all7sp_dat %>% 
+                      filter(para_sciname == "Cymindis unicolor",
+                             plotID != "NIWO_013"))
+gamm_cymuni <- gamm(sp_abund ~ LAI_1718avg + trap_CHM + nlcdClass + s(DOY,  bs = "cc", k=4),
+                    random = s(plotID, bs="re") + s(plot_trap, bs="re") + 
+                      s(col_year_fact, bs="re") + s(collectDate, bs="re"), #grouping variables
+                  family=poisson(), method="REML",
+                  data=all7sp_dat %>% 
+                      filter(para_sciname == "Cymindis unicolor",
+                             plotID != "NIWO_013"))
+gam.check(gamm_cymuni)
+summary(gamm_cymuni)
+plot(gamm_cymuni, pages=1)
+# what's the difference between gam vs gamm fns?
+# why smooth the grouping variables? ways to put grouping variables into a gam?
+# compare a simulation of the fitted model to the data (predict)
+# predict just predicts the means. then take random draws from the distribution
+# does mgcv have a simulate fn?
+# draw from the fitted mean, then from each grouping variable's normal dist, then from the final poisson dist
+# plot simulated abund and actual abund vs each predictor variable
 
-mod1 <- gam(sp_abund ~ s(elevation),
-            s(nlcdClass, bs="re"),
-            s(plot_trap, bs="re"),
-           data=caladv_dat_gam, method="REML")
+plot(x=exp(predict(gamm_cymuni)), y=(all7sp_dat %>%
+                                    filter(para_sciname == "Cymindis unicolor",
+                                           plotID != "NIWO_013"))$sp_abund)
 
-mod2d_occ <- gam(occ ~ s(decimalLatitude, decimalLongitude),
-            #s(elevation),
-            #s(nlcdClass,bs="re"),
-            s(plotID, bs="re"),
-            s(plot_trap, bs="re"),
-            family=poisson(),
-            data=caladv_dat_gam, method="REML")
+plot()
 
-mod2d_abund <- gam(sp_abund ~ s(as.numeric(as.character(col_year)), k=3) +
-                       s(dayofyear,  bs = "cc", k=3) +
-                       s(elevation) +
-                       s(nlcdClass,bs="re") + #B/K says we want this to be a fixed effect
+
+
+
+
+
+#for one species
+# remove one plot or trap
+# compare a few gams
+#do model selection
+# predict on removed trap/plot
+
+
+
+
+
+
+# For Cymindis unicolor, we see higher abundance in the forest 
+mod_cymuni_all <- gam(sp_abund ~ s(trap_LAI) +
+                      trap_CHM +
+                       as.numeric(as.character(col_year)) +
+                       s(DOY,  bs = "cc", k=3) +
+                       #s(elevation) +
+                       #nlcdClass + #B/K says we want this to be a fixed effect
                        s(plotID, bs="re") +
-                       s(plot_trap, bs="re"),
+                       s(plot_trap, bs="re") +
+                       s(collectDate, bs="re"),
                    family=poisson(),
-                   data=caladv_dat_gam, method="REML")
-#maximum likelihood doesn't do well with separation (cal adv isn't present in tundra)
-# data augmentation - add 1 to a tundra site
-# but bayesian analysis can cope with it
+                   data=all7sp_dat %>% filter(para_sciname == "Cymindis unicolor"),
+                   method="REML")
+summary(mod_cymuni_all)
+plot(mod_cymuni_all, pages=1)
 
 
 
 
-
-
-plot(mod2d_abund, pages=1, all.terms=TRUE, scale=0)
-summary(mod2d_abund)
-#try gam with year term with other species - this one is speciose always, so may not fluxuate as much between 
-# random effects are pretty much priors
-#jSDMs are an attempt to incorporate biotic interactions, but this is debated
-# find overwintering behavior for each species
-
-
-mod2d_elev <- gam(sp_abund ~ s(elevation),
-            s(nlcdClass,bs="re"),
-            s(plotID, bs="re"),
-            s(plot_trap, bs="re"),
-            family=poisson(),
-            data=caladv_dat_gam, method="REML")
-summary(mod1)
-plot(mod2d, scheme=2)
-
-
-
-
-caladv_dat <- caladv_dat %>%
-    mutate(scaled_elev = scale(elevation, center = TRUE, scale = TRUE),
-           scaled_dayofyear = scale(dayofyear, center = TRUE, scale = TRUE))
-var_part <-glmer( sp_abund ~ scaled_elev + scaled_dayofyear +
-                      (1|plotID/trapID) + 
-                      (1|nlcdClass), 
-                  family=poisson, data=caladv_dat )
-plot(var_part)
-summary(var_part)
-plot(var_part,ask=FALSE)
-library(DHARMa)
-plot(caladv_dat$sp_abund, predict(var_part, type="response"))
-# nlcdcover tricky bc there are no beetles in herbaceous
-# try different distribution (not poisson)
-# could be temporal
-# create a cyclic spline for dayofyear (mgcv, "cc" for cyclic, "re" for random effect) - with gamms, recommended to create trap_plotID variables to capture nested nature
-var_part_spl 
-
-# Try GLM using quasipoisson distribution for abundance
-npfit_qpois <- glm( sp_abund ~ -1 + plotID, family=quasipoisson, data=caladv_dat )
-plot(npfit_qpois,1:5,ask=FALSE)
-# Still cray, but slightly better
-
-# Try GLM using neg-bin distribution for abundance
-npfit_nb <- glm.nb(sp_abund ~ -1 + plotID, data=caladv_dat)
-plot(npfit_nb,1:5,ask=FALSE)
-# Still cray, similar to quasipoisson
-
-npfit_qpois_ln <- glm( log(sp_abund) ~ -1 + plotID, family=quasipoisson, data=caladv_dat )
-plot(npfit_qpois_ln,1:5,ask=FALSE)
-
-var_part <-glmer( sp_abund ~ 1 + (1|plotID/trapID), family=poisson, data=caladv_dat )
-plot(var_part)
-summary(var_part)
+# GLMs
+mod_cartae_all <- glmer(sp_abund ~ trap_LAI +
+                            trap_CHM +
+                            col_year +
+                            DOY^2 +
+                            (1|plotID) +
+                            (1|plot_trap) +
+                            (1|collectDate),
+                   family=poisson(),
+                   data=all7sp_dat %>% filter(para_sciname == "Carabus taedatus"),
+                   method="REML")
 
 
 
@@ -209,63 +248,6 @@ summary(var_part)
 
 
 
-var_part <-glmer( sp_abund ~ 1 + (1|plotID/trapID), family=poisson, data=caladv_dat )
-plot(var_part)
-summary(var_part)
-
-# Let's go with quasipoisson dist.
-# Now plot the residuals
-r <- residuals(var_part)
-#r <- residuals(npfit_qpois_ln)
-x <- seq(min(r),max(r),length.out=100)
-y <- dnorm(x,mean(r),sd(r))
-res_df <- data.frame(residuals=r)
-norm_df <- data.frame(x=x,y=y)
-rm(r,x,y)
-ggplot() +
-    geom_histogram(mapping=aes(x=residuals,y=stat(density)),data=res_df,bins=50) +
-    geom_line(mapping=aes(x=x,y=y),col="red",data=norm_df)
-# AIS what to make of this residual distribution?? many small negative residuals and few large postitive residuals. why would the residuals be lognormal/
-
-np_pred_df <- data.frame(sp_abund_mean_var$plotID, coef(summary(var_part)),sp_abund_mean_var$sample_size_jit)
-names(np_pred_df) <- c("plotID", "plt_mn","plt_se","sample_size_jit")
-gh12.1a <- 
-    ggplot(data=np_pred_df) +
-    geom_hline(mapping=aes(yintercept=poolmean),data=cp_pred_df,col="blue") +
-    geom_point(mapping=aes(x=sample_size_jit,y=plt_mn)) +
-    geom_text(aes(x=sample_size_jit,y=plt_mn,label=plotID), hjust=-.1, vjust=0) +
-    geom_linerange(mapping=aes(x=sample_size_jit,ymin=plt_mn-plt_se,ymax=plt_mn+plt_se)) +
-    labs(x="Sample size in plot j",y="mean abundance of Calathus advena in plot j",
-         title="No pooling: estimates from linear model fit")
-gh12.1a
-# That doesn't look right at all, but at least the plots with higher sample size have smaller SEs
-
-# Partial pooling - plot as random effect
-# Try without and with logging abundance
-ppfit <- glmer( sp_abund ~ 1 + (1|plotID), REML=FALSE, family=poisson, data=caladv_dat )
-plot(ppfit)
-ppfit <- glmer( log(sp_abund) ~ 1 + (1|plotID), REML=FALSE, family=poisson, data=caladv_dat )
-plot(ppfit)
-# Logging abundance has fewer outliers, let's go with that
-
-summary(ppfit)
-# Hmm error. Try removing plot 4 rows, only 2 rows
-subset(caladv_dat, plotID == "NIWO_004")
-caladv_dat_wo4 <- subset(caladv_dat, plotID != "NIWO_004")
-
-ppfit <- glmer( log(sp_abund) ~ 1 + (1|plotID), REML=FALSE, family=poisson, data=caladv_dat_wo4 )
-plot(ppfit)
-
-var_part <-glmer( sp_abund ~ 1 + (1|plotID/trapID), family=poisson, data=caladv_dat )
-plot(var_part)
-summary(var_part)
-
-
-# prediction intervals
-# cross-validation analysis
-# see time series tutorial
-# see timetable for next TO DO
-# next time, see complete df
 
 
 
@@ -273,13 +255,12 @@ summary(var_part)
 
 
 
-# Poisson, quasipoisson, or neg-bin?
 
-# Harris' baseline average model
-# Investivating tthe scales of variance in the data (aka variance components model). In Dietze book, he uses the average model as an opportunity of exploring the scales of variance in the data. 
-# Between trap variation and between plot variation.
-# then you have multiple samples per trap through time
-# Where is most of the variation? Is it between plots or between traps?
-# This average model with a random effects structure is farily sophisticated at different scales.
 
-# Harris' baseline naive model
+
+
+
+
+
+
+
