@@ -1,19 +1,17 @@
 model {
 
   # Priors
-  psi_beta[1] ~ dunif(0, 20)
-  psi_beta[2] ~ dunif(0, 20)
-  #lambda_pois ~ dunif(0, 20)
-  lambda_prob ~ dunif(0, 1)
-  lambda_size ~ dunif(0,100) #increasing dunif range doesn't change lambda est.
+  psi_beta[1]   ~ dunif(0,20)
+  psi_beta[2]   ~ dunif(0,20)
+  lambda_shape  ~ dunif(0,20)
+  lambda_rate   ~ dunif(0,20) 
   
   # each species has its own occupancy and detection probability
   for (k in 1:nspec) {
     psi[k] ~ dbeta(psi_beta[1], psi_beta[2]) 
     for (j in 1:nsurv) {
       for (i in 1:nsite) {
-        #lambda[i,j,k] ~ dpois(lambda_pois) 
-        lambda[i,j,k] ~ dbin(lambda_prob,round(lambda_size)) #AIS should lambda_prob be redrawn more than 1x?
+        lambda[i,j,k] ~ dgamma(lambda_shape, lambda_rate) 
       }
     }
   }
@@ -26,14 +24,12 @@ model {
   }
 
   # observation model
-  for (j in 1:nsurv) {
-    for (i in 1:nsite) {
-      for (k in 1:nspec) { # actual species
-        for (k_class in 1:nspec) { # classified as 
-          C[k,k_class,i,j] ~ dpois( z[i,k] * lambda[i,j,k] * theta[k,k_class] ) 
-        }
+  for (i in 1:nsite) {
+    for (j in 1:nsurv) {
+      for (k_prime in 1:nspec) {
+        c_obs[i,j,k_prime] ~ dpois( sum(z[i, ] * lambda[i,j, ] * theta[ ,k_prime]) )
       }
-    }
+	  }
   }
   
 } #model
