@@ -22,8 +22,6 @@ nsite <- 20
 nsurv <- 5
 nspec <- 2
 theta <- matrix(c(.8,.2,.1,.9), nrow=2, ncol=2, byrow=TRUE)
-lambda_prob1 <- runif(1,0,1)
-lambda_prob2 <- runif(1,0,1)
 
 # one psi value per species
 psi <- rbeta(nspec, 3,4)
@@ -35,26 +33,30 @@ for (i in 1:nsite) {
 }
 
 # lambda dimensions: nsite rows, nsurv columns, nspec matrices
-lambda <- array(NA, dim=c(nrow=nsite, ncol=nsurv, n3d=nspec ))
+lambda <- array(NA, dim = c(nrow=nsite, ncol=nsurv, n3d=nspec))
+y <- array(NA, dim = c(nrow=nsite, ncol=nsurv, n3d=nspec))
 for (j in 1:nsurv) {
-    for (i in 1:nsite) {
-        lambda[i,j,] <- rbinom(nspec, 10, c(lambda_prob1,lambda_prob2)) #AIS increased size. Species 2 more abundant than species 1 when present
-    }
+	for (i in 1:nsite) {
+    	lambda[i,j, ]    <- rgamma(nspec, 5, 1) #arbitrarily chosen
+    	y[i,j, ]         <- rpois(nspec, Z[i, ] * lambda[i,j, ]) #y is a latent variable. the only data we observe is c_obs
+	}
 }
 
 
-# Simulate C, count of detections
+# Simulate matrix C and c_obs, count of detections
 
-# C dimensions: KxK, rows are correct species ID's, columns are (mis)classified species ID's - AIS right orientation?
-C <- array(NA, dim=c(nrow=nspec, ncol=nspec, n3d=nsite, n4d=nsurv))
-for (j in 1:nsurv) {
-    for (i in 1:nsite) {
-        for (k in 1:nspec) { # actual species
-            for (k_class in 1:nspec) { # classified as 
-                C[k,k_class,i,j] <- rpois(1, lambda = Z[i,k] * lambda[i,j,k] * theta[k,k_class])
-            }
+# C dimensions: KxK, rows are correct species ID's, columns are (mis)classified species ID's
+C       <- array(NA, dim=c(nrow=nsite, ncol=nsurv, n3d=nspec, n4d=nspec))
+c_obs   <- array(NA, dim=c(nrow=nsite, ncol=nsurv, n3d=nspec))
+for (i in 1:nsite) {
+    for (j in 1:nsurv) {
+    	for (k in 1:nspec) { # actual species
+        	C[i,j,k, ] <- rmultinom(1, y[i,j,k], theta[k, ])
+    	}
+	    for (k_prime in 1:nspec) {
+            c_obs[i,j,k_prime] <- sum(C[i,j, ,k_prime]) #observed data
         }
-    }
+	}
 }
 
 
@@ -62,11 +64,11 @@ for (j in 1:nsurv) {
 # Implement this model in JAGS, using your simulated data.
 # How well can you recapture the true values of λ and ψ?
 
-str(JAGSdata <- list(C=C, #AIS should we pass in C as data? if not, why do we do this in occ models?
+str(JAGSdata <- list(c_obs = c_obs, 
                      nsite = nsite, 
                      nsurv = nsurv, 
                      nspec = nspec,
-                     theta=theta)) #bundle data
+                     theta = theta)) #bundle data
 z_init <- Z # AIS for the purposes of this model exercise, just allowed z_init to be Z
 JAGSinits <- function(){list(z = z_init) } #rep(JAGSinits, nc) too
 JAGSparams <- c("psi", "lambda") #params monitored
@@ -92,7 +94,7 @@ jags_out$summary[1:2,]
 psi
 
 # Compare true and recaptured lambda 
-hist(jags_out$summary[-c(1,2,nrow(jags_out$summary)),"mean"])
-hist(lambda)
+hist(jags_out$summary[-c(1,2,nrow(jags_out$summary)),"mean"], main="Recaptured lambda")
+hist(lambda, main="True Lambda")
 
-# AIS how to reconfigure model to make psi and lambda estimates better?
+# AIS how to reconfigure model to make psi and lambda estimates better? psi just seems off. lambda estimate is overly precise (narrow hist)
