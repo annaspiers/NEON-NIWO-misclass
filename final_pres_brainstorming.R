@@ -55,6 +55,20 @@
 # How did we calculate LAI (and other AOP data products) for each trap?
     # How did we decide on what size buffer to use for these calculations?
 
+# ANNA'S STORYTELLING BRAINSTORM
+# Out of these accurately id abundant species, many were present in only one
+# habitat, only these two were present in both, wanted to explore more. through
+# the sampling - neon found that one of the plots had low abundance (4) so
+# switched out for plot 13, can we predict the abundance for plot 13 in 2018 for
+# these two species??? given that we were intereste in these two species, we dug
+# into their biology....natural history of both species chosen....for these
+# reasons, we chose these explanatory variables to include....this is what the
+# process was like to summarize each predictor variable for our model (e.g.
+# defining buffer for canopy height)...heres a visual of the two species through
+# time...this is what our model was...questions: what predictors are most
+# important for explaining abundance of these species...what was our prediction
+# of the abundance, how accurate, how well does it match the raw data?...
+
 
 # Model 
 # compare GAMM and GLMM?
