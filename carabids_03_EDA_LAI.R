@@ -79,46 +79,126 @@ plot(LAI_2019_crop, main="2019 LAI",
 # Plots are 40m x 40m. Traps lay within the plot at the middle of each edge.  If they laid exactly on plot edge, they would be about 28m from the traps on the neighboring sides. How large should we summarize LAI for each trap? As to not overlap with neighboring traps' buffers, the buffer should be at most 14m. Max, min, avg LAI? for now choose avg
 
 #AIS experiment with different buffer sizes. 
-# Summarized to trap-level
-trap_LAI_2017 <- raster::extract(x = LAI_2017_crop, #raster
+# Mean ummarized to trap-level
+trap_LAI_avg_2017 <- raster::extract(x = LAI_2017_crop, #raster
                                y = trap_spdf,
                                buffer = 10, # specify a 10 m radius
                                fun = mean, # extract the MEAN value from each trap
                                sp = TRUE, # create spatial object
                                stringsAsFactors = FALSE)
-trap_LAI_2018 <- raster::extract(x = LAI_2018_crop, #raster
+trap_LAI_avg_2018 <- raster::extract(x = LAI_2018_crop, #raster
                                y = trap_spdf,
                                buffer = 10, # specify a 10 m radius
                                fun = mean, # extract the MEAN value from each trap
                                sp = TRUE, # create spatial object
                                stringsAsFactors = FALSE)
-trap_LAI_2019 <- raster::extract(x = LAI_2019_crop, #raster
+trap_LAI_avg_2019 <- raster::extract(x = LAI_2019_crop, #raster
                                y = trap_spdf,
                                buffer = 10, # specify a 10 m radius
                                fun = mean, # extract the MEAN value from each trap
                                sp = TRUE, # create spatial object
                                stringsAsFactors = FALSE)
 
-# Summarized to plot-level
-plot_LAI_2017 <- raster::extract(x = LAI_2017_crop, #raster
+# Max summarized to trap-level
+trap_LAI_max_2017 <- raster::extract(x = LAI_2017_crop, #raster
+                               y = trap_spdf,
+                               buffer = 10, # specify a 10 m radius
+                               fun = max, # extract the MEAN value from each trap
+                               sp = TRUE, # create spatial object
+                               stringsAsFactors = FALSE)
+trap_LAI_max_2018 <- raster::extract(x = LAI_2018_crop, #raster
+                               y = trap_spdf,
+                               buffer = 10, # specify a 10 m radius
+                               fun = max, # extract the MEAN value from each trap
+                               sp = TRUE, # create spatial object
+                               stringsAsFactors = FALSE)
+trap_LAI_max_2019 <- raster::extract(x = LAI_2019_crop, #raster
+                               y = trap_spdf,
+                               buffer = 10, # specify a 10 m radius
+                               fun = max, # extract the MEAN value from each trap
+                               sp = TRUE, # create spatial object
+                               stringsAsFactors = FALSE)
+
+# Stand dev summarized to trap-level
+trap_LAI_sd_2017 <- raster::extract(x = LAI_2017_crop, #raster
+                               y = trap_spdf,
+                               buffer = 10, # specify a 10 m radius
+                               fun = sd, # extract the MEAN value from each trap
+                               sp = TRUE, # create spatial object
+                               stringsAsFactors = FALSE)
+trap_LAI_sd_2018 <- raster::extract(x = LAI_2018_crop, #raster
+                               y = trap_spdf,
+                               buffer = 10, # specify a 10 m radius
+                               fun = sd, # extract the MEAN value from each trap
+                               sp = TRUE, # create spatial object
+                               stringsAsFactors = FALSE)
+trap_LAI_sd_2019 <- raster::extract(x = LAI_2019_crop, #raster
+                               y = trap_spdf,
+                               buffer = 10, # specify a 10 m radius
+                               fun = sd, # extract the MEAN value from each trap
+                               sp = TRUE, # create spatial object
+                               stringsAsFactors = FALSE)
+
+# Mean summarized to plot-level
+plot_LAI_avg_2017 <- raster::extract(x = LAI_2017_crop, #raster
                                y = plot_spdf,
                                buffer = 30, # specify a 10 m radius
                                fun = mean, # extract the MEAN value from each trap
                                sp = TRUE, # create spatial object
                                stringsAsFactors = FALSE)
-plot_LAI_2018 <- raster::extract(x = LAI_2018_crop, #raster
+plot_LAI_avg_2018 <- raster::extract(x = LAI_2018_crop, #raster
                                y = plot_spdf,
                                buffer = 30, # specify a 10 m radius
                                fun = mean, # extract the MEAN value from each trap
                                sp = TRUE, # create spatial object
                                stringsAsFactors = FALSE)
-plot_LAI_2019 <- raster::extract(x = LAI_2019_crop, #raster
+plot_LAI_avg_2019 <- raster::extract(x = LAI_2019_crop, #raster
                                y = plot_spdf,
                                buffer = 30, # specify a 10 m radius
                                fun = mean, # extract the MEAN value from each trap
                                sp = TRUE, # create spatial object
                                stringsAsFactors = FALSE)
 # AIS something seems wonky with 2019 LAI, values are too low
+
+# Max summarized to plot-level
+plot_LAI_max_2017 <- raster::extract(x = LAI_2017_crop, #raster
+                               y = plot_spdf,
+                               buffer = 30, # specify a 10 m radius
+                               fun = max, # extract the MEAN value from each trap
+                               sp = TRUE, # create spatial object
+                               stringsAsFactors = FALSE)
+plot_LAI_max_2018 <- raster::extract(x = LAI_2018_crop, #raster
+                               y = plot_spdf,
+                               buffer = 30, # specify a 10 m radius
+                               fun = max, # extract the MEAN value from each trap
+                               sp = TRUE, # create spatial object
+                               stringsAsFactors = FALSE)
+plot_LAI_max_2019 <- raster::extract(x = LAI_2019_crop, #raster
+                               y = plot_spdf,
+                               buffer = 30, # specify a 10 m radius
+                               fun = max, # extract the MEAN value from each trap
+                               sp = TRUE, # create spatial object
+                               stringsAsFactors = FALSE)
+
+# Max summarized to plot-level
+plot_LAI_sd_2017 <- raster::extract(x = LAI_2017_crop, #raster
+                               y = plot_spdf,
+                               buffer = 30, # specify a 10 m radius
+                               fun = sd, # extract the MEAN value from each trap
+                               sp = TRUE, # create spatial object
+                               stringsAsFactors = FALSE)
+plot_LAI_sd_2018 <- raster::extract(x = LAI_2018_crop, #raster
+                               y = plot_spdf,
+                               buffer = 30, # specify a 10 m radius
+                               fun = sd, # extract the MEAN value from each trap
+                               sp = TRUE, # create spatial object
+                               stringsAsFactors = FALSE)
+plot_LAI_sd_2019 <- raster::extract(x = LAI_2019_crop, #raster
+                               y = plot_spdf,
+                               buffer = 30, # specify a 10 m radius
+                               fun = sd, # extract the MEAN value from each trap
+                               sp = TRUE, # create spatial object
+                               stringsAsFactors = FALSE)
 
 # AIS while figuring out what's up with 2019...
 # Average 2017-2018 LAI values
