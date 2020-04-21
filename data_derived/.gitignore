@@ -11,6 +11,8 @@
 # *.tif
 rad_short_dir_diff_NIWO.Rdata
 ir_bio_temp_NIWO.Rdata
+*.grd
+*.gri
 
 
 # Ignore the following subdirectories

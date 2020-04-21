@@ -70,3 +70,13 @@ trap_CHM_sp@data = trap_CHM_sp@data %>%
 save(trap_CHM_sp, file="data_derived/trap_CHM_sp.Rdata")
 
 
+
+
+
+
+# correlations between CHM and other variables
+mod_df = read.csv("data_derived/model_df_by_species_in_sample.csv")
+
+plot(x = mod_df$elev, y = mod_df$trap_CHM)
+plot(x = mod_df$nlcdClass, y = mod_df$elev, ylab = 'Elevation')
+plot(x = mod_df$nlcdClass, y = mod_df$trap_CHM, ylab = 'trap_CHM')

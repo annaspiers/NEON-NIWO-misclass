@@ -30,8 +30,6 @@ writeRaster(full_25, filename = "data_derived/neonCHM_25x25.grd")
 
 
 
-
-
 # LAI  ------------------------------------------------------------
 
 # Dwonload data
@@ -41,9 +39,12 @@ byFileAOP(dpID="DP3.30012.001", site="NIWO", year=2019, check.size=T, savepath="
 # AIS From NEON LAI data product details: AOP legacy data (those collected in 2013 through 2016) currently has partial availability, and will be completely available by April of 2019.
 
 
-# Merge tiles
+# Merge tiles -------------------------------------------------------------
+
 years <- c("2017","2018","2019")
+
 for (i in years) {
+    
     # get vector of all .tif file names
     path_to_tifs = paste0("data_raw/DP3.30012.001/",i,"/FullSite/D13/",i,"_NIWO_",which(years==i),"/L3/Spectrometer/LAI/")
     
@@ -60,4 +61,3 @@ for (i in years) {
     full_lai_1x1 <- do.call("merge", rast_list)
     writeRaster(full_lai_1x1, filename = paste0("data_derived/neonLAI_1x1_",i,".grd"))
 }
-

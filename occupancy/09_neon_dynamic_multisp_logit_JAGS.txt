@@ -1,6 +1,11 @@
 model {
 
   # Priors
+  
+  mu_logit_p  ~ dnorm(0, 1)
+  sd_logit_p  ~ dunif(0, 5)
+  tau_logit_p <- pow(sd_logit_p, -2)
+  
   for (i in 1:2) {
     psi_beta[i]   ~ dunif(0, 20)
     p_beta[i]     ~ dunif(0, 20)
@@ -10,10 +15,10 @@ model {
   
   # Parameter priors vary across species
   for (j in 1:nspec) {
-    psi1[j] ~ dbeta(psi_beta[1], psi_beta[2])     #- occupancy prob.
-    p[j]    ~ dbeta(p_beta[1], p_beta[2])         #- detection prob.
-    phi[j]  ~ dbeta(phi_beta[1], phi_beta[2])     #- survival prob.
-    gamma[j]~ dbeta(gamma_beta[1], gamma_beta[2]) #- colonization prob.
+    psi1[j]     ~ dbeta(psi_beta[1], psi_beta[2])     - occupancy prob.
+    logit(p[j]) ~ dnorm(mu_logit_p, tau_logit_p)      - detection prob.
+    phi[j]      ~ dbeta(phi_beta[1], phi_beta[2])     - survival prob.
+    gamma[j]    ~ dbeta(gamma_beta[1], gamma_beta[2]) - colonization prob.
   }
   
   # State model

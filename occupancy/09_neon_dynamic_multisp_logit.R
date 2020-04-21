@@ -1,4 +1,4 @@
-# This script is models the dynamic occupancy of NEON carabid speciesat Niwot Ridge 2015-2018. Data include 7 most abundant and accurately-identified species
+# This script is models the dynamic occupancy of NEON carabid speciesat Niwot Ridge 2015-2018. Data include 7 most abundant and accurately-identified species. Rather than initializing priors with the beta distribution in the JAGS script, we initialize logit priors, as this model setup works better with covariates
 
 library(jagsUI)
 library(dplyr)
@@ -49,7 +49,7 @@ nt <- 2     #MCMC thin
 JAGSout <- jags(data = JAGSdata,
                  inits = JAGSinits,
                  parameters.to.save = JAGSparams,
-                 model.file = "occupancy/08_neon_dynamic_multisp_JAGS.txt", 
+                 model.file = "occupancy/09_neon_dynamic_multisp_logit_JAGS.txt", 
                  n.chains = nc,
                  n.iter = ni,
                  n.burnin = nb,
@@ -58,33 +58,7 @@ JAGSout <- jags(data = JAGSdata,
 print(JAGSout, dig=2)
 names(JAGSout) 
 plot(JAGSout) # horizontal lines through the traceplots show convergence visually
-
-
-# Notes on comparing data to model output  --------------------------------
-
-dimnames(y)
-
-#compare to "data_derived/species_abund_by_year_by_trap.png"
-
-JAGSout$mean$psi
-# Calathus advena occupancy consistent through years
-# Species 2 not present in survey data in 2015
-# Species 7 not present in survey data in 2015-2016
-
-JAGSout$mean$p
-
-JAGSout$mean$phi
-
-JAGSout$mean$gamma
-# High colonization for gamma[4] - doesn't make sense with data
-
-JAGSout$mean$n.occ
-# Species 2 and 7 have low n.occ in first year(s) - consistent with data
-
-JAGSout$mean$growth
-# growth[,2] for species 2 and 7 are unrealistically large due to 0 detection in first year(s)
-# Species 6 vlaues seem too high
-
-JAGSout$mean$turnover
-
+View(JAGSout)
+whiskerplot(JAGSout, c("psi"), zeroline=T)
+pp.check(JAGSout, observed, simulated, xlab=NULL, ylab=NULL, main=NULL)
 
