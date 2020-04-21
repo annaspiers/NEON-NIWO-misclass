@@ -5,14 +5,14 @@ library(dplyr)
 library(ggplot2)
 library(lubridate)
 
-
+# Load data
 # Load soil water content data
-load(file="data_derived/precip_NIWO.Rdata")
+load(file="data_derived/precip_NIWO.Rdata") # NEON precip 
 list2env(precip, .GlobalEnv)  
 rm(precip)
+load(file="data_derived/merged_C1-saddle_precip.Rdata") # Niwot LTER C1 and saddle precip
 
-
-# Explore data
+# NEON Precipitation gauge ------------------------------------------------
 
 # look at precip over time
 PRIPRE_30min %>%
@@ -32,7 +32,28 @@ PRIPRE_30min %>%
     summarise(year_precip = sum(priPrecipBulk, na.rm = T))
 
 
-# Seems like the precipitation gauge has too many missing time points to be
+# Seems like the NEON precipitation gauge has too many missing time points to be
 # super useful to us. Perhaps we could take an average across the data that are
 # available and use it to look at seasonality, but it seems like a lot of work
 # for something that wouldn't be super reliable...
+
+
+
+# Niwot Ridge LTER precipitation ------------------------------------------
+
+# Merge df's
+
+# Look at precip over time (by day)
+ggplot(merged_precip, aes(x=date, y=ppt_tot)) +
+    geom_smooth(aes(colour=local_site, alpha=.6))
+# We see higher precip at the saddle
+    
+# Monthly sums
+merged_precip %>%
+    select(date, ppt_tot, local_site) %>%
+    group_by(local_site, month = floor_date(date, unit = 'month')) %>%
+    summarise(monthly_precip = sum(ppt_tot, na.rm = T)) %>%
+    ggplot() +
+    geom_line(aes(x = month, y = monthly_precip, colour=local_site))
+# Wow, soo much more precip at the saddle than at C1
+
