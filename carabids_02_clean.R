@@ -25,8 +25,8 @@ load("data_raw/litter_woodfall_NIWO.Rdata")
 load("data_raw/ir_bio_temp_NIWO.Rdata")
 #load("data_raw/soil_temp_NIWO.Rdata")
 load("data_raw/precip_NIWO.Rdata")
-load("data_raw/precip_NIWO_LTER_saddle.Rdata") #precip_LTER_saddle
-load("data_raw/precip_NIWO_LTER_C1.Rdata") #precip_LTER_C1
+load("data_raw/precip_NIWO_LTER_saddle.Rdata") 
+load("data_raw/precip_NIWO_LTER_C1.Rdata") 
 load("data_raw/rad_net_NIWO.Rdata")
 load("data_raw/rad_short_dir_diff_NIWO.Rdata")
 forest_niwot_all = read.csv("data_raw/PP_plot_data_1982-2016.tv.data.csv") #just the plot info
@@ -103,6 +103,9 @@ for (i in 1:2) {
   
   if (i == 1) {precip_LTER_C1 <- precip_obj} else {precip_LTER_saddle <- precip_obj}
 }
+# Merge Niwot LTER precip products
+merged_precip <- full_join(precip_LTER_C1 %>% select(-c(qdays,flag_ppt_tot)), 
+                           precip_LTER_saddle %>% select(-c(qdays,flag_ppt_tot)) )
 
 # net radiation (shortwave and longwave)
 rad_net_spat <- rad_net$sensor_positions_00006 %>%
@@ -140,7 +143,6 @@ save(litter_woodfall, file="data_derived/litter_woodfall_NIWO.Rdata")
 save(ir_bio_temp, file="data_derived/ir_bio_temp_NIWO.Rdata")
 #save(soil_temp, file="data_derived/soil_temp_NIWO.Rdata")
 save(precip, file="data_derived/precip_NIWO.Rdata")
-save(precip_LTER_saddle, file="data_derived/precip_NIWO_LTER_saddle.Rdata") 
-save(precip_LTER_C1, file="data_derived/precip_NIWO_LTER_C1.Rdata") 
+save(merged_precip, file="data_derived/merged_C1-saddle_precip.Rdata") 
 save(rad_net, file="data_derived/rad_net_NIWO.Rdata")
 save(rad_short_dir_diff, file="data_derived/rad_short_dir_diff_NIWO.Rdata")
