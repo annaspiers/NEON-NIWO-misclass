@@ -241,8 +241,7 @@ bet_parataxonomistID %>%
 
 # Exploration with compiled df's (carabids_03_zcompiled_df)  --------------
 
-clean_dat <- read.csv("data_derived/model_df_by_species_in_sample.csv") %>%
-  mutate(plot_trap = paste0(plotID, trapID, sep=""))
+clean_dat <- read.csv("data_derived/model_df_by_species_in_sample.csv")
 
 # Plot taxa's abundance at each trap through time
 quartz()
@@ -259,4 +258,5 @@ clean_dat %>%
   scale_color_manual(values=c("grey","darkblue")) +
   theme(axis.text.x = element_text(size=6)) +
   facet_grid(. ~ para_sciname)
+#ggsave("output/species_abund_by_year_by_trap.png")
 
