@@ -29,7 +29,18 @@ remove_NA_cols <- function(list_of_lists){
 # load("data_raw/rad_short_dir_diff_NIWO.Rdata")
 # forest_niwot_all = read.csv("data_raw/PP_plot_data_1982-2016.tv.data.csv") #just the plot info
 load("data_raw/ir_bio_temp_NIWO.Rdata")
+<<<<<<< HEAD
 load("data_raw/summ_weath_NIWO.Rdata")
+=======
+#load("data_raw/soil_temp_NIWO.Rdata")
+load("data_raw/precip_NIWO.Rdata")
+load("data_raw/precip_NIWO_LTER_saddle.Rdata") 
+load("data_raw/precip_NIWO_LTER_C1.Rdata") 
+load("data_raw/rad_net_NIWO.Rdata")
+load("data_raw/rad_short_dir_diff_NIWO.Rdata")
+forest_niwot_all = read.csv("data_raw/PP_plot_data_1982-2016.tv.data.csv") #just the plot info
+
+>>>>>>> a481563e8f72d665372f071396fbd3cd0dc90240
 
 ### Clean data ###
 
@@ -77,11 +88,37 @@ ir_bio_temp_spat = ir_bio_temp$sensor_positions_00005 %>%
 #   cbind('data_type' = rep('soil_temp')) %>%
 #   rename('api.decimalLatitude' = referenceLatitude,'api.decimalLongitude' = referenceLongitude)
 
-# precipitation
+# NEON precipitation
 precip_spat <- precip$sensor_positions_00006 %>%
   dplyr::select(referenceLatitude, referenceLongitude) %>%
   cbind('Value.for.Plot.ID' = NA, 'data_type' = rep('precip')) %>% #site-level, not plot-level
   rename('api.decimalLatitude' = referenceLatitude,'api.decimalLongitude' = referenceLongitude)
+
+# NIWO LTER precipitation - see download script for data/code source
+for (i in 1:2) {
+  if (i == 1) {precip_obj <- precip_LTER_C1} else {precip_obj <- precip_LTER_saddle}
+
+  if (class(precip_obj$LTER_site)!="factor") precip_obj$LTER_site<- as.factor(precip_obj$LTER_site)
+  if (class(precip_obj$local_site)!="factor") precip_obj$local_site<- as.factor(precip_obj$local_site)
+  tmpDateFormat<-"%Y-%m-%d"
+  tmp1date<-as.Date(precip_obj$date,format=tmpDateFormat)
+  if(length(tmp1date) == length(tmp1date[!is.na(tmp1date)])){precip_obj$date <- tmp1date } else {print("Date conversion failed for precip_obj$date. Please inspect the data and do the date conversion yourself.")}
+  rm(tmpDateFormat,tmp1date) 
+  if (class(precip_obj$ppt_tot)=="factor") precip_obj$ppt_tot <-as.numeric(levels(precip_obj$ppt_tot))[as.integer(precip_obj$ppt_tot) ]
+  if (class(precip_obj$qdays)=="factor") precip_obj$qdays <-as.numeric(levels(precip_obj$qdays))[as.integer(precip_obj$qdays) ]
+  if (class(precip_obj$flag_ppt_tot)!="factor") precip_obj$flag_ppt_tot<- as.factor(precip_obj$flag_ppt_tot)
+  precip_obj$LTER_site <- as.factor(ifelse((trimws(as.character(precip_obj$LTER_site))==trimws("NaN")),NA,as.character(precip_obj$LTER_site)))
+  precip_obj$local_site <- as.factor(ifelse((trimws(as.character(precip_obj$local_site))==trimws("NaN")),NA,as.character(precip_obj$local_site)))
+  precip_obj$ppt_tot <- ifelse((trimws(as.character(precip_obj$ppt_tot))==trimws("NaN")),NA,precip_obj$ppt_tot)
+  precip_obj$qdays <- ifelse((trimws(as.character(precip_obj$qdays))==trimws("NaN")),NA,precip_obj$qdays)
+  precip_obj$flag_ppt_tot <- as.factor(ifelse((trimws(as.character(precip_obj$flag_ppt_tot))==trimws("NaN")),NA,as.character(precip_obj$flag_ppt_tot)))
+  precip_obj <- subset(precip_obj, date >= "2015-01-01") # Keep data since 2015
+  
+  if (i == 1) {precip_LTER_C1 <- precip_obj} else {precip_LTER_saddle <- precip_obj}
+}
+# Merge Niwot LTER precip products
+merged_precip <- full_join(precip_LTER_C1 %>% select(-c(qdays,flag_ppt_tot)), 
+                           precip_LTER_saddle %>% select(-c(qdays,flag_ppt_tot)) )
 
 # net radiation (shortwave and longwave)
 rad_net_spat <- rad_net$sensor_positions_00006 %>%
@@ -119,6 +156,7 @@ save(litter_woodfall, file="data_derived/litter_woodfall_NIWO.Rdata")
 save(ir_bio_temp, file="data_derived/ir_bio_temp_NIWO.Rdata")
 #save(soil_temp, file="data_derived/soil_temp_NIWO.Rdata")
 save(precip, file="data_derived/precip_NIWO.Rdata")
+save(merged_precip, file="data_derived/merged_C1-saddle_precip.Rdata") 
 save(rad_net, file="data_derived/rad_net_NIWO.Rdata")
 save(rad_short_dir_diff, file="data_derived/rad_short_dir_diff_NIWO.Rdata")
 save(summ_weath, file="data_derived/summ_weath_NIWO.Rdata")

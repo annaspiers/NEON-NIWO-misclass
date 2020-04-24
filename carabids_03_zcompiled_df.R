@@ -16,11 +16,13 @@ list2env(carabid_abund, .GlobalEnv)
 #load("data_derived/litter_woodfall_NIWO.Rdata")
 #load("data_derived/ir_bio_temp_NIWO.Rdata")
 #load("data_derived/soil_temp_NIWO.Rdata")
-#load("data_derived/precip_NIWO.Rdata")
+load("data_derived/summarized_precip.Rdata") 
 #load("data_derived/rad_net_NIWO.Rdata")
 #load("data_derived/rad_short_dir_diff_NIWO.Rdata")
 load("data_derived/trap_LAI_1718avg.Rdata")
 load("data_derived/trap_CHM_sp.Rdata")
+load("data_derived/slope_aspect_17.Rdata")
+
 
 # Select 7 most abundant spp.
 select_spp <- c("Amara alpina", "Amara quenseli", "Calathus advena", "Carabus taedatus", "Cymindis unicolor", "Harpalus nigritarsis", "Pterostichus restrictus")
@@ -74,11 +76,15 @@ model_df_by_sample <- model_df_by_ind %>%
   
 # III. Add in more predictor variables -----------------------------------------
 
+# Add predictors to model df
 model_df_by_sample <- model_df_by_sample %>%
   left_join(trap_CHM_sp@data %>%
               rename(trap_CHM = trap_CH)) %>% #add CHM
   left_join(trap_LAI_1718avg %>%
-              dplyr::select(trap.Easting, trap.Northing, LAI_1718avg = avg1718))
+              dplyr::select(trap.Easting, trap.Northing, LAI_1718avg = avg1718)) %>%
+  left_join(summ_precip %>%
+              dplyr::select(-c(local_site,collectDate))) %>%
+  left_join(slope_aspect_17)
 
 
 # Save dataframes to csv --------------------------------------------------
