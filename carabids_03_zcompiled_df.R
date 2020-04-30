@@ -21,6 +21,7 @@ load("data_derived/summarized_precip.Rdata")
 #load("data_derived/rad_short_dir_diff_NIWO.Rdata")
 load("data_derived/trap_LAI_1718avg.Rdata")
 load("data_derived/trap_CHM_sp.Rdata")
+load("data_derived/plot_CHM_sp.Rdata")
 load("data_derived/slope_aspect_17.Rdata")
 
 
@@ -80,6 +81,8 @@ model_df_by_sample <- model_df_by_ind %>%
 model_df_by_sample <- model_df_by_sample %>%
   left_join(trap_CHM_sp@data %>%
               rename(trap_CHM = trap_CH)) %>% #add CHM
+  left_join(plot_CHM_sp@data %>%
+              rename(plot_CHM = plot_CH)) %>% #add CHM
   left_join(trap_LAI_1718avg %>%
               dplyr::select(trap.Easting, trap.Northing, LAI_1718avg = avg1718)) %>%
   left_join(summ_precip %>%
