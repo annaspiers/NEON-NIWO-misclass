@@ -48,6 +48,8 @@
 #   vegetation - difficult/unclear to summarize at trap level
 
 # Beetles...
+#
+# How many beetles are at each site annually of each species (plot on map rather than graph)
 # 
 # The literature supported certain explanatory variables, but we didn't some of these to explain much variance in our models.
 # 

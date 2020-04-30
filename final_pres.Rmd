@@ -1,0 +1,143 @@
+---
+title: "final_pres"
+author: "Anna Spiers"
+date: "4/30/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+to hide text in knitted md, 
+<! –– and the comment closes with ––>
+
+# Brainstorming for forecasting final presentation
+
+#### Premise - Christa
+
+##### Carabids
+Why carabids? They're good indicators of environmental change, so creating accurate forecasts of them is helpful for understanding impacts of environmental change.  
+
+##### Research questions
+What were our questions
+Hypothesized strong spatial/microhabitat effects
+Predict when is peak abundance for each species in 2019. Assess based on timing and magnitude of peak. {Area under curve for total seasonal abundance}
+Here, we focus on two species. Carabus taedatus (more in tundra) and Cymindis unicolor (more in fores) are the only two species present in both nlcdClass
+
+Research questions we brainstormed earlier in the semester:  
+1. For each species respectively, what are the key predictor variables (e.g. environmental, canopy cover, etc.)? (answered by collinearity and stepGAM)
+2. What model best predicts species abundance spatially? (actually found most variation in temporal scale)
+3. Leave out one plot or one from each biome from training set (predict plot 13) (base model vs model that fits data best)
+4. Cross-validate chosen model. Which cross-validation method to use?
+5. What model best predicts species abundance in the 2019 collection season? 
+
+
+<!-- # Out of these accurately id abundant species, many were present in only one -->
+<!-- # habitat, only these two were present in both, wanted to explore more. through -->
+<!-- # the sampling - neon found that one of the plots had low abundance (4) so -->
+<!-- # switched out for plot 13, can we predict the abundance for plot 13 in 2018 for -->
+<!-- # these two species??? given that we were intereste in these two species, we dug -->
+<!-- # into their biology....natural history of both species chosen....for these -->
+<!-- # reasons, we chose these explanatory variables to include....this is what the -->
+<!-- # process was like to summarize each predictor variable for our model (e.g. -->
+<!-- # defining buffer for canopy height)...heres a visual of the two species through -->
+<!-- # time...this is what our model was...questions: what predictors are most -->
+<!-- # important for explaining abundance of these species...what was our prediction -->
+<!-- # of the abundance, how accurate, how well does it match the raw data?... -->
+
+
+#### EDA - Grant
+
+##### Carabids 
+
+Identification - show one graph of misidentification rates. say hey, remember
+
+Species selection - 2/7 species that were most abundant and accurately IDed
+    ?info/natural history about the species we chose
+    Do we have an idea for why certain carabids are greater in different nlcdClass given their biology?
+
+Abundance over time, per trap - awesome figure Anna made 
+
+Map of beetle traps 
+
+Sampling effort across plots
+
+Seasonal distribution
+
+##### Predictors 
+<!-- #   fixed effects: -->
+<!-- #     day of year -->
+<!-- #   nlcd class, elevation - included with beetle data product -->
+<!-- #  -->
+<!-- #   canopy height - related to nlcd class and elevation (treeline) -->
+<!-- #       raster plot -->
+<!-- #       buffer radius choice -->
+<!-- #       show scatterplots of correlations? -->
+<!-- #      -->
+<!-- #   leaf area index -->
+<!-- #       raster plot -->
+<!-- #       buffer radius choice -->
+<!-- #   slope and aspect -->
+<!-- #       raster plot -->
+<!-- #       buffer radius choice -->
+<!-- #  -->
+<!-- #   ?degree days, precipitation - short term and long term -->
+<!-- #   ? -->
+<!-- #  -->
+<!-- #  -->
+<!-- #   desired but unused:  -->
+<!-- #   soil moisture - not colocated with traps, ?map -->
+<!-- #   woody debris - not colocated with traps, ?map -->
+<!-- #   vegetation - difficult/unclear to summarize at trap level -->
+<!-- #   snowmelt -->
+
+<!-- # Beetles... -->
+<!-- # -->
+<!-- # How many beetles are at each site annually of each species (plot on map rather than graph) -->
+<!-- #  -->
+<!-- # The literature supported certain explanatory variables, but we didn't some of these to explain much variance in our models. -->
+<!-- #  -->
+<!-- #  Predictor variables... -->
+<!-- # How did we calculate LAI (and other AOP data products) for each trap? -->
+<!--     # How did we decide on what size buffer to use for these calculations? -->
+
+
+
+#### Model building and selection - Anna
+
+Research Q1. For each species respectively, what are the key predictor variables (e.g. environmental, canopy cover, etc.)? (answered by collinearity and stepGAM)
+
+Research Q2. What model best predicts species abundance? 
+
+GAMMs performed better than GLMMs (lower AIC) AND we wanted to use a spline to capture DOY (seasonality)
+
+Melissa's stepGAM
+
+Collinearity test helped cut out some predictor variables
+
+Base model to test for how much variance is in each grouping variable (GAM with just grouping variables)
+
+zero-inflated model? 
+
+ending with one model that we deem the best for each species
+
+
+
+#### Results & Interpretation
+
+interpret plots of gams biologically. do these make sense? Interpret model results with biology in mind... do these results make sense given that this species is more abundant in the tundra?...
+
+compare 'best fit' model to 'base' model
+
+{then simulate results - how good is our model - Grant: simulation results}
+
+Research Q3. Leave out one plot or one from each biome from training set (predict plot 13) (base model vs model that fits data best) - validate on testing data
+
+Research Q4. Cross-validate chosen model. Which cross-validation method to use? show cross validation: MSE
+
+Did we do what we set out to do?
+
+Expansions on this project with more time
+
+<!-- # Did not find strong spatial effect, but did find noticeable temporal effects -->
