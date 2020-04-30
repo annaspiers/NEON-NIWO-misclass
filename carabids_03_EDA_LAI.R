@@ -41,6 +41,7 @@ car_extent <- extent(min(car_coords$trap.Easting) - buff, #xmin
 LAI_2017_crop <- crop(LAI_raster_2017, car_extent)
 LAI_2018_crop <- crop(LAI_raster_2018, car_extent)
 LAI_2019_crop <- crop(LAI_raster_2019, car_extent)
+# AIS need to save these to data_derived
 
 plot(LAI_2017_crop, main="2017 LAI")
 points(car_coords$trap.Easting,car_coords$trap.Northing, pch=20, cex=0.5)
@@ -201,11 +202,8 @@ plot_LAI_sd_2019 <- raster::extract(x = LAI_2019_crop, #raster
                                stringsAsFactors = FALSE)
 
 # AIS while figuring out what's up with 2019...
-# Average 2017-2018 LAI values
-trap_LAI_1718avg <- trap_LAI_2017@data %>%
-    rename(layer2017 = layer) %>%
-    mutate(layer2018 = trap_LAI_2018$layer,
-           avg1718 = rowMeans(cbind(trap_LAI_2017$layer, trap_LAI_2018$layer)))
+# Just take the 2017 average values for trap and plot
+plot_trap_LAI_2017
 
 # Save LAI at trap-level to incorporate
-save(trap_LAI_1718avg, file="data_derived/trap_LAI_1718avg.Rdata")
+save(plot_trap_LAI_2017, file="data_derived/plot_trap_LAI_2017.Rdata")
