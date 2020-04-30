@@ -22,7 +22,7 @@ load("data_derived/summarized_precip.Rdata")
 load("data_derived/trap_LAI_1718avg.Rdata")
 load("data_derived/trap_CHM_sp.Rdata")
 load("data_derived/slope_aspect_17.Rdata")
-load("data_derived/summarized_temp_GDD.Rdata")
+load("data_derived/summarized_C1temp_GDD.Rdata")
 
 # Select 7 most abundant spp.
 select_spp <- c("Amara alpina", "Amara quenseli", "Calathus advena", "Carabus taedatus", "Cymindis unicolor", "Harpalus nigritarsis", "Pterostichus restrictus")
@@ -88,9 +88,8 @@ model_df_by_sample <- model_df_by_sample %>%
 
 # Not quite the right syntax, will fix (in progress)
 # %>%
-#     left_join(summarized_temp_GDD %>% 
-#                   dplyr::select(c(daily_mean, daily_GDD, GDD_cum)) %>%
-#                   rename(temp_mean = daily_mean))
+#     left_join(summarized_C1temp_GDD %>% 
+#                   dplyr::select(c(airtemp_avg, GDD_cum)))
 #     
 
 # Save dataframes to csv --------------------------------------------------
