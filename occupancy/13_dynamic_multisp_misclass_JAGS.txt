@@ -1,0 +1,58 @@
+model {
+
+  # Parameter argument priors
+  mu_logit_p    ~ dnorm(0, 1)
+  sd_logit_p    ~ dunif(0, 5)
+  tau_logit_p   <- pow(sd_logit_p, -2)
+  lambda_shape  ~ dunif(0,20) 
+  lambda_scale  ~ dunif(0,20)
+  lambda_rate   <- 1/lambda_scale 
+  
+  for (n in 1:2) {
+    psi_beta[n]   ~ dunif(0, 20)
+    p_beta[n]     ~ dunif(0, 20)
+    phi_beta[n]   ~ dunif(0, 20)
+    gamma_beta[n] ~ dunif(0, 20)
+  }
+  
+    # Parameter priors. Each species has its own occupancy prob, classification prob vector, and expected number of detections
+  for (k in 1:nspec) {
+    psi1[k]     ~ dbeta(psi_beta[1], psi_beta[2]) 
+    logit(p[k]) ~ dnorm(mu_logit_p, tau_logit_p)
+    phi[k]      ~ dbeta(phi_beta[1], phi_beta[2])
+    gamma[k]    ~ dbeta(gamma_beta[1], gamma_beta[2])
+    theta[k,1:nspec] ~ ddirch(alpha[k,1:nspec])
+    for (i in 1:nsite) {
+      for (j in 1:nsurv) {
+        lambda[i,j,k] ~ dgamma(lambda_shape, lambda_rate) 
+      }
+    }
+  }
+  
+  # State model
+  # z dimensions: nsite, nspec, nyear
+  for (i in 1:nsite) {
+    for (k in 1:nspec) {
+      z[i,k,1] ~ dbern(psi1[k])
+      for (l in 2:nyear) {
+        z[i,k,l]    ~ dbern(z[i,k,l-1]*phi[k] + 
+                        (1 - z[i,k,l-1])*gamma[k]) 
+      }
+    }
+  }
+
+  # Observation model
+  for (i in 1:nsite) {
+    for (j in 1:nsurv) {
+      for (k in 1:nspec) {
+        M[k,] ~ dmulti(theta[k, ], n[k])
+        for (l in 1:nyear) {
+          y[i,j,k,l]    ~ dbern(z[i,k,l]*p[k])
+        }
+      }
+      for (k_prime in 1:nspec) {
+        c_obs[i,j,k_prime] ~ dpois( sum(z[i, ] * lambda[i,j, ] * theta[ ,k_prime]) )
+      }
+	  }
+  }
+} #model
