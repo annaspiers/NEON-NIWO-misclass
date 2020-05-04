@@ -35,7 +35,7 @@ for (i in 1:nrow(barcode)) {
 
 # Join barcode and expert data
 bc_exp_taxon_df <- expert %>%
-            select(individualID, expert_sciname) %>%
+            dplyr::select(individualID, expert_sciname) %>%
             left_join(distinct(barcode, individualID, bc_sciname))
 
 # What percentage of barcode IDs match expert IDs 
@@ -55,7 +55,7 @@ bc_exp_taxon_df %>%
 
 para <- bet_parataxonomistID %>%
             mutate(para_sciname = scientificName) %>%
-            select(individualID, morphospeciesID, taxonRank, para_sciname) %>%
+            dplyr::select(individualID, morphospeciesID, taxonRank, para_sciname) %>%
             as_tibble
 
 # Join para and expert/barcode data, and evaluate discrepancies in species ids 
@@ -83,7 +83,7 @@ taxon_df %>%
 taxon_df %>%
   filter(taxonRank == "species", 
          para_sciname != expert_sciname) %>%
-  select(individualID, para_sciname, expert_sciname) %>%
+  dplyr::select(individualID, para_sciname, expert_sciname) %>%
   arrange(para_sciname) %>%
   data.frame
 # Three mismatches checked with taxize pckg had different taxon serial numbers
@@ -98,10 +98,12 @@ taxon_df %>%
              y = expert_sciname, 
              color = discrepancy)) + 
   geom_point(aes(size = n)) + 
+  theme_bw() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + 
   xlab("Species ID from parataxonomist") + 
   ylab("Species ID from expert taxonomist") + 
   scale_color_manual(values = c("black", "red"))
+ggsave(filename = "output/paratax_vs_expertax.png", width = 6, height = 5, dpi = 'retina')
 
 
 # Plot morphospecies IDs with expert IDs: 
@@ -158,8 +160,17 @@ select_spp <- taxon_df %>%
 # Plot abundance of selected Niwot species over time
 taxon_df %>% 
   full_join(bet_parataxonomistID %>% 
-    select(individualID, plotID , trapID , collectDate)) %>% 
+    dplyr::select(individualID, plotID , trapID , collectDate)) %>% 
   filter(para_sciname %in% select_spp) %>%
+  ggplot() +
+  geom_bar(aes(x = collectDate, fill = para_sciname)) +
+  facet_wrap(. ~ para_sciname)
+
+# just for the 2 selected species
+taxon_df %>% 
+  full_join(bet_parataxonomistID %>% 
+              dplyr::select(individualID, plotID , trapID , collectDate)) %>% 
+  filter(para_sciname %in% c('Carabus taedatus','Cymindis unicolor')) %>%
   ggplot() +
   geom_bar(aes(x = collectDate, fill = para_sciname)) +
   facet_wrap(. ~ para_sciname)
@@ -167,7 +178,7 @@ taxon_df %>%
 # Plot taxa by year (thanks SN)
 taxon_df %>% 
   full_join(bet_parataxonomistID %>% 
-    select(individualID, plotID , trapID , collectDate)) %>% 
+    dplyr::select(individualID, plotID , trapID , collectDate)) %>% 
   filter(para_sciname %in% select_spp) %>%
   mutate(year = lubridate::year(collectDate), 
          month = lubridate::month(collectDate), 
@@ -183,7 +194,7 @@ taxon_df %>%
 # Plot taxa by month through the years
 taxon_df %>% 
   full_join(bet_parataxonomistID %>% 
-    select(individualID, plotID , trapID , collectDate)) %>% 
+    dplyr::select(individualID, plotID , trapID , collectDate)) %>% 
   filter(para_sciname %in% select_spp) %>%
   mutate(year = lubridate::year(collectDate), 
          month = lubridate::month(collectDate), 
@@ -200,7 +211,7 @@ taxon_df %>%
 # Plot taxa through time by collection day
 taxon_df %>% 
   full_join(bet_parataxonomistID %>% 
-    select(individualID, plotID , trapID , collectDate)) %>% 
+    dplyr::select(individualID, plotID , trapID , collectDate)) %>% 
   filter(para_sciname %in% select_spp) %>%
   mutate(year = lubridate::year(collectDate), 
          month = lubridate::month(collectDate), 
@@ -216,14 +227,14 @@ taxon_df %>%
 # Plot spatial arrangement of plots, labeled with habitat
 # add lat and long poitns
 bet_fielddata %>% 
-  select(plotID, nlcdClass, decimalLatitude, decimalLongitude) %>%
+  dplyr::select(plotID, nlcdClass, decimalLatitude, decimalLongitude) %>%
   ggplot() +
   geom_point(aes(x = decimalLongitude, y = decimalLatitude, colour = nlcdClass))
 
 # cool variables to look at: bet_fielddata$nativestatuscode
 bet_parataxonomistID %>% 
   filter(scientificName %in% select_spp) %>%
-  select(scientificName, nativeStatusCode) %>%
+  dplyr::select(scientificName, nativeStatusCode) %>%
   summarize(mean(nativeStatusCode == "N") )
 # All species are classified as native
 
@@ -233,10 +244,10 @@ bet_parataxonomistID %>%
 
 carabid_df <- taxon_df %>% 
   full_join(bet_parataxonomistID %>% 
-    select(individualID, plotID , trapID , collectDate)) %>% 
+    dplyr::select(individualID, plotID , trapID , collectDate)) %>% 
   filter(para_sciname %in% select_spp) %>%
   left_join(distinct(bet_fielddata %>%
-              select(plotID, nlcdClass, decimalLatitude, decimalLongitude, elevation))) %>%
+              dplyr::select(plotID, nlcdClass, decimalLatitude, decimalLongitude, elevation))) %>%
   mutate(year = lubridate::year(collectDate), 
          month = lubridate::month(collectDate), 
          day = lubridate::day(collectDate)) %>%
