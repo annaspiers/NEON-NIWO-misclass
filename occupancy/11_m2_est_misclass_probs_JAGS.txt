@@ -1,33 +1,15 @@
 model {
 
   # Priors
-  #alpha_shape ~ dunif(0,20) 
-  #alpha_rate  ~ dunif(0,20) 
-  #for (k in 1:nspec) {
-  #  for (i in 1:nspec) {
-  #    alpha[k,i] ~ dgamma(alpha_shape, alpha_rate) 
-  #  }
-  #  theta[k,1:nspec] ~ ddirch(alpha[k,1:nspec] + 0.01)
-  #}
-  # added 0.01 as per Martyn Plummer's rec: https://sourceforge.net/p/mcmc-jags/discussion/610037/thread/c21ef62a/
-  
   for (k in 1:nspec) {
-    for (i in 1:nspec) {
-      alpha[k,i] ~ dunif(0,50)
-    }
-    theta[k,1:nspec] ~ ddirch(alpha[k,1:nspec] + 0.01)
+    theta[k,1:nspec] ~ ddirch(alpha[k,1:nspec] )
   }
-  
-  # AIS we should not use n1,n2,n3 to initialize this model, because these are not observed data
-  # AIS talk through alpha prior - gamma vs unif
-  
   
   # no state model exists - AIS
 
-
   # observation model
   for (k in 1:nspec) {
-    M[k,] ~ dmulti(theta[k,],1)
+    M[k,] ~ dmulti(theta[k,],n[k])
   }
   
 } #model

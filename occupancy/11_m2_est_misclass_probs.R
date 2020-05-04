@@ -38,6 +38,7 @@ vis_theta_dens(alphak = c(50, 25))
 vis_theta_dens(alphak = c(200, 100))
 # with element1 = 2 * element2, peaks center over 1/3 and 2/3
 
+
 # Problem 5 ---------------------------------------------------------------
 # Simulate data from this misclassification model for Theta and M_k (both dim=KxK) for K= 3 species, using the following prior distributions
 # theta1 ~ Dirichlet(10,1,1)
@@ -47,19 +48,16 @@ vis_theta_dens(alphak = c(200, 100))
 
 nspec <- 3 
 
-n1 <- 25
-n2 <- 16
-n3 <- 5
+n <- c(25, 16, 5)
 
 # Define dirichlet parameter vectors
-alpha1 <- c(10,1,1)
-alpha2 <- c(1,10,1)
-alpha3 <- c(1,1,10)
+alpha <- matrix(1,nrow=nspec,ncol=nspec)
+diag(alpha) <- 10
 
 # Simulate rows of theta with dirichlet priors
-theta1 <- MCMCpack::rdirichlet(1, alpha1)
-theta2 <- MCMCpack::rdirichlet(1, alpha2)
-theta3 <- MCMCpack::rdirichlet(1, alpha3)
+theta1 <- MCMCpack::rdirichlet(1, alpha[1,])
+theta2 <- MCMCpack::rdirichlet(1, alpha[2,])
+theta3 <- MCMCpack::rdirichlet(1, alpha[3,])
 
 # Define (mis)classification probability matrix
 theta <- matrix(c(theta1,theta2,theta3), nrow=nspec, ncol=nspec, byrow=TRUE)
@@ -68,17 +66,19 @@ theta
 
 # Simulate observation matrix M
 M <- matrix(NA, nrow=nspec, ncol=nspec)
-M[1,] <- rmultinom(1,size=n1,prob=theta1)
-M[2,] <- rmultinom(1,size=n2,prob=theta2)
-M[3,] <- rmultinom(1,size=n3,prob=theta3)
+M[1,] <- rmultinom(1,size=n[1],prob=theta1)
+M[2,] <- rmultinom(1,size=n[2],prob=theta2)
+M[3,] <- rmultinom(1,size=n[3],prob=theta3)
 
 
 # Problem 6 ---------------------------------------------------------------
 # Implement this model in JAGS. Model the priors for rows in Theta and a likelihood for observation matrix M. Sample from the posterior using the data you simulated in the last problem. How well could you estimate the true values of Θ?  Did you get better estimates for species with larger sample sizes?
 
 jags_misclass_fn <- function(M_arg, nspec_arg, theta_arg){
-    str(JAGSdata <- list(M=M_arg, 
-                     nspec=nspec_arg)) #bundle data
+    str(JAGSdata <- list(M=M_arg,
+                         n=n,
+                         alpha=alpha,
+                         nspec=nspec_arg)) #bundle data
     JAGSinits <- function(){list(theta=theta_arg) } #rep(JAGSinits, nc) too
     JAGSparams <- c("theta") #params monitored
     nc <- 4 #MCMC chains
@@ -101,13 +101,10 @@ out <- jags_misclass_fn(M_arg=M, nspec_arg=nspec, theta_arg=theta)
 print(out, dig=2)
 plot(out)
 
-# AIS why is deviance 0?
-
 # Compare true and recaptured theta 
 theta
 out$mean$theta
 # The model underestimates the true species k-to-k' probabilities and overestimates the species k-to-k' misclassifications.
-# AIS can anything be done to the model to make these more accurate? Add more data?
 
 plot(NA,xlim=c(0,1),ylim=c(0,1),
      xlab="Predicted",ylab="Observed",main="Theta comparison")
@@ -126,7 +123,7 @@ for (i in 1:nspec) {
 
 nspec <- 20 
 
-n <- runif(nspec,min=1,max=50) #AIS n values are not whole
+n <- round(runif(nspec,min=1,max=50)) #AIS n values are not whole
 
 # Define dirichlet parameter vectors
 alpha <- matrix(1, nrow=nspec, ncol=nspec)
@@ -159,8 +156,6 @@ for (i in 1:nspec) {
          y=theta[i,],
          col=i)
 }
-# Prerdicts misclassification probs pretty well, but underpredicts correct identifications
-
 
 
 # Problem 8 ---------------------------------------------------------------
