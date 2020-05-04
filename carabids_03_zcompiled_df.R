@@ -87,7 +87,15 @@ model_df_by_sample <- model_df_by_sample %>%
               dplyr::select(trap.Easting, trap.Northing, LAI_1718avg = avg1718)) %>%
   left_join(summ_precip %>%
               dplyr::select(-c(local_site,collectDate))) %>%
-  left_join(slope_aspect_17) 
+  left_join(slope_aspect_17) %>%
+  left_join(airtemp_C1 %>%
+              ungroup() %>%
+              mutate(col_year = lubridate::year(date), 
+                     col_month = lubridate::month(date),
+                     col_day = lubridate::day(date)) %>%
+              select(col_year, col_month, col_day, GDD_cum)) %>%
+  mutate(GDD_cum=ifelse(col_year==2015 & col_month==07 & col_day==28,126.18,GDD_cum ))
+  
 
 # Not quite the right syntax, will fix (in progress)
 # %>%
