@@ -170,7 +170,7 @@ taxon_df %>%
 taxon_df %>% 
   full_join(bet_parataxonomistID %>% 
               dplyr::select(individualID, plotID , trapID , collectDate)) %>% 
-  filter(para_sciname %in% c('Calathus advena','Cymindis unicolor')) %>%
+  filter(para_sciname %in% c('Carabus taedatus','Cymindis unicolor')) %>%
   ggplot() +
   geom_bar(aes(x = collectDate, fill = para_sciname)) +
   facet_wrap(. ~ para_sciname)
