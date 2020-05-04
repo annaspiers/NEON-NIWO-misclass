@@ -160,8 +160,17 @@ select_spp <- taxon_df %>%
 # Plot abundance of selected Niwot species over time
 taxon_df %>% 
   full_join(bet_parataxonomistID %>% 
-    select(individualID, plotID , trapID , collectDate)) %>% 
+    dplyr::select(individualID, plotID , trapID , collectDate)) %>% 
   filter(para_sciname %in% select_spp) %>%
+  ggplot() +
+  geom_bar(aes(x = collectDate, fill = para_sciname)) +
+  facet_wrap(. ~ para_sciname)
+
+# just for the 2 selected species
+taxon_df %>% 
+  full_join(bet_parataxonomistID %>% 
+              dplyr::select(individualID, plotID , trapID , collectDate)) %>% 
+  filter(para_sciname %in% c('Calathus advena','Cymindis unicolor')) %>%
   ggplot() +
   geom_bar(aes(x = collectDate, fill = para_sciname)) +
   facet_wrap(. ~ para_sciname)
@@ -169,7 +178,7 @@ taxon_df %>%
 # Plot taxa by year (thanks SN)
 taxon_df %>% 
   full_join(bet_parataxonomistID %>% 
-    select(individualID, plotID , trapID , collectDate)) %>% 
+    dplyr::select(individualID, plotID , trapID , collectDate)) %>% 
   filter(para_sciname %in% select_spp) %>%
   mutate(year = lubridate::year(collectDate), 
          month = lubridate::month(collectDate), 
@@ -185,7 +194,7 @@ taxon_df %>%
 # Plot taxa by month through the years
 taxon_df %>% 
   full_join(bet_parataxonomistID %>% 
-    select(individualID, plotID , trapID , collectDate)) %>% 
+    dplyr::select(individualID, plotID , trapID , collectDate)) %>% 
   filter(para_sciname %in% select_spp) %>%
   mutate(year = lubridate::year(collectDate), 
          month = lubridate::month(collectDate), 
@@ -202,7 +211,7 @@ taxon_df %>%
 # Plot taxa through time by collection day
 taxon_df %>% 
   full_join(bet_parataxonomistID %>% 
-    select(individualID, plotID , trapID , collectDate)) %>% 
+    dplyr::select(individualID, plotID , trapID , collectDate)) %>% 
   filter(para_sciname %in% select_spp) %>%
   mutate(year = lubridate::year(collectDate), 
          month = lubridate::month(collectDate), 
@@ -218,14 +227,14 @@ taxon_df %>%
 # Plot spatial arrangement of plots, labeled with habitat
 # add lat and long poitns
 bet_fielddata %>% 
-  select(plotID, nlcdClass, decimalLatitude, decimalLongitude) %>%
+  dplyr::select(plotID, nlcdClass, decimalLatitude, decimalLongitude) %>%
   ggplot() +
   geom_point(aes(x = decimalLongitude, y = decimalLatitude, colour = nlcdClass))
 
 # cool variables to look at: bet_fielddata$nativestatuscode
 bet_parataxonomistID %>% 
   filter(scientificName %in% select_spp) %>%
-  select(scientificName, nativeStatusCode) %>%
+  dplyr::select(scientificName, nativeStatusCode) %>%
   summarize(mean(nativeStatusCode == "N") )
 # All species are classified as native
 
@@ -235,10 +244,10 @@ bet_parataxonomistID %>%
 
 carabid_df <- taxon_df %>% 
   full_join(bet_parataxonomistID %>% 
-    select(individualID, plotID , trapID , collectDate)) %>% 
+    dplyr::select(individualID, plotID , trapID , collectDate)) %>% 
   filter(para_sciname %in% select_spp) %>%
   left_join(distinct(bet_fielddata %>%
-              select(plotID, nlcdClass, decimalLatitude, decimalLongitude, elevation))) %>%
+              dplyr::select(plotID, nlcdClass, decimalLatitude, decimalLongitude, elevation))) %>%
   mutate(year = lubridate::year(collectDate), 
          month = lubridate::month(collectDate), 
          day = lubridate::day(collectDate)) %>%
