@@ -35,7 +35,7 @@ for (i in 1:nrow(barcode)) {
 
 # Join barcode and expert data
 bc_exp_taxon_df <- expert %>%
-            select(individualID, expert_sciname) %>%
+            dplyr::select(individualID, expert_sciname) %>%
             left_join(distinct(barcode, individualID, bc_sciname))
 
 # What percentage of barcode IDs match expert IDs 
@@ -55,7 +55,7 @@ bc_exp_taxon_df %>%
 
 para <- bet_parataxonomistID %>%
             mutate(para_sciname = scientificName) %>%
-            select(individualID, morphospeciesID, taxonRank, para_sciname) %>%
+            dplyr::select(individualID, morphospeciesID, taxonRank, para_sciname) %>%
             as_tibble
 
 # Join para and expert/barcode data, and evaluate discrepancies in species ids 
@@ -83,7 +83,7 @@ taxon_df %>%
 taxon_df %>%
   filter(taxonRank == "species", 
          para_sciname != expert_sciname) %>%
-  select(individualID, para_sciname, expert_sciname) %>%
+  dplyr::select(individualID, para_sciname, expert_sciname) %>%
   arrange(para_sciname) %>%
   data.frame
 # Three mismatches checked with taxize pckg had different taxon serial numbers
@@ -98,10 +98,12 @@ taxon_df %>%
              y = expert_sciname, 
              color = discrepancy)) + 
   geom_point(aes(size = n)) + 
+  theme_bw() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + 
   xlab("Species ID from parataxonomist") + 
   ylab("Species ID from expert taxonomist") + 
   scale_color_manual(values = c("black", "red"))
+ggsave(filename = "output/paratax_vs_expertax.png", width = 6, height = 5, dpi = 'retina')
 
 
 # Plot morphospecies IDs with expert IDs: 
