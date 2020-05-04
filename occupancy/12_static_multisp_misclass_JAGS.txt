@@ -1,0 +1,42 @@
+model {
+
+  # Priors
+  psi_beta[1]   ~ dunif(0,20) 
+  psi_beta[2]   ~ dunif(0,20) 
+  lambda_shape  ~ dunif(0,20) 
+  lambda_scale  ~ dunif(0,20)
+  lambda_rate   <- 1/lambda_scale 
+  
+  # AIS psi priors look fine. As is, fails to converge for lambda values (mostly lambda[1,1,1]) - autojags just runs til it runs out of iterations. Fails to converge when lambda is added as data, Rhat values return as NA. Runs when lambda_rate = 1.
+  #AIS looks like it works now, so ignore above
+  
+  # each species has its own occupancy prob, classification prob vector, and expected number of detections
+  for (k in 1:nspec) {
+    psi[k] ~ dbeta(psi_beta[1], psi_beta[2]) 
+    theta[k,1:nspec] ~ ddirch(alpha[k,1:nspec])
+    for (j in 1:nsurv) {
+      for (i in 1:nsite) {
+        lambda[i,j,k] ~ dgamma(lambda_shape, lambda_rate) 
+      }
+    }
+  }
+  
+  # State model
+  for (k in 1:nspec) {
+    for (i in 1:nsite) {
+      z[i,k] ~ dbern(psi[k])
+    }
+  }
+
+  # Observation model
+  for (k in 1:nspec) {
+    M[k,] ~ dmulti(theta[k, ], n[k])
+  }
+  for (i in 1:nsite) {
+    for (j in 1:nsurv) {
+      for (k_prime in 1:nspec) {
+        c_obs[i,j,k_prime] ~ dpois( sum(z[i, ] * lambda[i,j, ] * theta[ ,k_prime]) )
+      }
+	  }
+  }
+} #model
