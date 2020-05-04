@@ -10,6 +10,7 @@ jags_misclass_fn <- function(){
     str(JAGSdata <- list(nspec = nspec,
                          nsite = nsite, 
                          nsurv = nsurv, 
+                         nyear = nyear,
                          c_obs = c_obs,
                          alpha = alpha,
                          n = n,
