@@ -22,11 +22,40 @@ all7sp_dat <- read.csv("data_derived/model_df_by_species_in_sample.csv") %>%
 # VIF=1 means no variance of predictor. VIFs >4 warrants investigation. VIFs >10 indicate serious multicollinearity
 vars_mat <- all7sp_dat %>%
     mutate(nlcdclass_num = as.numeric(nlcdClass)) %>%
-    dplyr::select(LAI_1718avg, trap_CHM, DOY, col_year, nlcdclass_num)#, elev )
+    dplyr::select(elev, LAI_1718avg, plot_CHM, LAI_1718avg, precip_2weeks,
+                  DOY, plot17aspect, plot17slope, GDD_cum, col_year, nlcdclass_num)
 omcdiag(vars_mat, all7sp_dat$sp_abund)
 imcdiag(vars_mat, all7sp_dat$sp_abund, method="VIF") #failed to dect multicollinearity when elevation was remoted
-# CHM and nlcdClass are highly correlated, but CHM contains more info, so leave out nlcdClass. nlcdClass also had a large VIF
 
+# remove elevation
+vars_mat <- all7sp_dat %>%
+    mutate(nlcdclass_num = as.numeric(nlcdClass)) %>%
+    dplyr::select(LAI_1718avg, plot_CHM, LAI_1718avg, precip_2weeks, DOY,
+                  plot17aspect, plot17slope, GDD_cum, col_year, nlcdclass_num)
+omcdiag(vars_mat, all7sp_dat$sp_abund)
+imcdiag(vars_mat, all7sp_dat$sp_abund, method="VIF") # when elev is removed, collinearity among other variables disappears.
+# However, now plot_CHM, DOY, GDD_cum, nlcdclass_num have high VIF values
+
+# Visualize correlation 
+pairs(vars_mat, col="dodgerblue") 
+# GDD_cum and DOY are nearly perfectly correlated. 
+
+# Since GDD_cum is more biologically meaningful than DOY, drop DOY
+vars_mat <- all7sp_dat %>%
+    mutate(nlcdclass_num = as.numeric(nlcdClass)) %>%
+    dplyr::select(LAI_1718avg, plot_CHM, LAI_1718avg, precip_2weeks, 
+                  plot17aspect, plot17slope, GDD_cum, col_year, nlcdclass_num)
+omcdiag(vars_mat, all7sp_dat$sp_abund)
+imcdiag(vars_mat, all7sp_dat$sp_abund, method="VIF")
+# nlcdclass_num and plot_CHM still have high VIF values. Try dropping plot_CHM, since it's similar to LAI and we can also model the other cont. variables by the categorical nlcdClass_num variable
+
+vars_mat <- all7sp_dat %>%
+    mutate(nlcdclass_num = as.numeric(nlcdClass)) %>%
+    dplyr::select(LAI_1718avg, LAI_1718avg, precip_2weeks, 
+                  plot17aspect, plot17slope, GDD_cum, col_year, nlcdclass_num)
+omcdiag(vars_mat, all7sp_dat$sp_abund)
+imcdiag(vars_mat, all7sp_dat$sp_abund, method="VIF")
+# VIF values look good! 
 
 # Compare GAMM and GLMM ---------------------------------------------------
 
@@ -366,6 +395,657 @@ predict(gam_cartae, type = "response", newdata=all7sp_dat %>%
                       filter(para_sciname == "Carabus taedatus",
                              plotID == "NIWO_013"))
 
+
+
+# Model selection ---------------------------------------------------------
+
+for (spec in c("Carabus taedatus","Cymindis unicolor")) {
+    
+    #Null model
+    null_mod <- gam(sp_abund ~ 1, family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    
+    # Variance partition model
+    vp_mod <- gam(sp_abund ~ s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                      s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    
+    # Negative binomial models
+    # Just nlcdClass
+    nb2_mod <- gam(sp_abund ~ nlcdClass +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Just slope/aspect interaction
+    nb3_mod <- gam(sp_abund ~ te(plot17aspect, plot17slope) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Just LAI
+    nb4_mod <- gam(sp_abund ~ s(LAI_1718avg) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Just CHM
+    nb5_mod <- gam(sp_abund ~ s(trap_CHM) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Just precip
+    nb6_mod <- gam(sp_abund ~ s(precip_2weeks) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Just GDD
+    nb7_mod <- gam(sp_abund ~ s(GDD_cum) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Just DOY
+    nb8_mod <- gam(sp_abund ~ s(DOY, bs="cc",k=5) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    
+    # Add nlcdClass
+    nb9_mod <- gam(sp_abund ~ s(DOY, bs="cc",k=5) + nlcdClass +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Add slope/aspect interaction
+    nb10_mod <- gam(sp_abund ~ s(DOY, bs="cc",k=5) + nlcdClass + te(plot17aspect, plot17slope) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Add precip
+    nb11_mod <- gam(sp_abund ~ s(DOY, bs="cc",k=5) + nlcdClass + te(plot17aspect, plot17slope) + s(precip_2weeks) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Add precp x DOY interaction
+    nb12_mod <- gam(sp_abund ~ s(DOY, bs="cc",k=5) + nlcdClass + te(plot17aspect, plot17slope) + s(precip_2weeks) +
+                        te(DOY,precip_2weeks, bs=c("cc","ts")) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Add LAI
+    nb13_mod <- gam(sp_abund ~ s(DOY, bs="cc",k=5) + nlcdClass + te(plot17aspect, plot17slope) + s(precip_2weeks) +
+                        te(DOY,precip_2weeks, bs=c("cc","ts")) + s(LAI_1718avg) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Add CHM - shouldn't perform well since ther are highly correlated variables
+    nb14_mod <- gam(sp_abund ~ s(DOY, bs="cc",k=5) + nlcdClass + te(plot17aspect, plot17slope) + s(precip_2weeks) +
+                        te(DOY,precip_2weeks, bs=c("cc","ts")) + s(LAI_1718avg) + s(plot_CHM, k=3) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Add GDD - shouldn't perform well since ther are highly correlated variables
+    nb15_mod <- gam(sp_abund ~ s(DOY, bs="cc",k=5) + nlcdClass + te(plot17aspect, plot17slope) + s(precip_2weeks) +
+                        te(DOY,precip_2weeks, bs=c("cc","ts")) + s(LAI_1718avg) + s(plot_CHM, k=3) + s(GDD_cum) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Adjust for highly correlated variables: canopy height, DOY
+    nb16_mod <- gam(sp_abund ~ s(DOY, bs="cc",k=5) + te(plot17aspect, plot17slope) + s(precip_2weeks) +
+                        te(DOY,precip_2weeks, bs=c("cc","ts")) + s(LAI_1718avg) + s(plot_CHM, k=3) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Adjust for highly correlated variables: canopy height, GDD
+    nb17_mod <- gam(sp_abund ~ te(plot17aspect, plot17slope) + s(precip_2weeks) +
+                        te(DOY,precip_2weeks) + s(LAI_1718avg) + s(plot_CHM, k=3) + s(GDD_cum) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Adjust for highly correlated variables: nlcdClass, DOY
+    nb18_mod <- gam(sp_abund ~ s(DOY, bs="cc",k=5) + nlcdClass + te(plot17aspect, plot17slope) + s(precip_2weeks) +
+                        te(DOY,precip_2weeks, bs=c("cc","ts")) + s(LAI_1718avg) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Adjust for highly correlated variables: nlcdClass, GDD
+    nb19_mod <- gam(sp_abund ~ nlcdClass + te(plot17aspect, plot17slope) + s(precip_2weeks) +
+                        te(DOY,precip_2weeks, bs=c("cc","ts")) + s(LAI_1718avg) +s( GDD_cum) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Replace LAI and canopy height with interaction
+    nb20_mod <- gam(sp_abund ~ s(DOY, bs="cc",k=5) + nlcdClass + te(plot17aspect, plot17slope) + s(precip_2weeks) +
+                        te(DOY,precip_2weeks) + te(LAI_1718avg,plot_CHM) + s(GDD_cum) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Try variables that stepGAM said were important
+    nb21_mod <- gam(sp_abund ~ nlcdClass + te(plot17aspect, plot17slope) + s(precip_2weeks) +
+                        te(DOY,precip_2weeks) + s(LAI_1718avg) + s(GDD_cum) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Try variables that stepGAM said were important - no GDD_cum
+    nb22_mod <- gam(sp_abund ~ nlcdClass + te(plot17aspect, plot17slope) + s(precip_2weeks) +
+                        te(DOY,precip_2weeks) + s(LAI_1718avg) + 
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Add interaction between precip and GDD_cum
+    nb23_mod <- gam(sp_abund ~ nlcdClass + te(plot17aspect, plot17slope) + s(precip_2weeks) +
+                        s(LAI_1718avg) + s(GDD_cum) + te(precip_2weeks, GDD_cum) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Add interaction between precip and GDD_cum
+    nb24_mod <- gam(sp_abund ~ nlcdClass + te(plot17aspect, plot17slope) + 
+                        te(precip_2weeks, GDD_cum) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Try nlcdClass, slope/aspect, CHM, DOY/precip
+    nb25_mod <- gam(sp_abund ~ nlcdClass + te(plot17aspect, plot17slope) + 
+                        s(plot_CHM, k=3) + te(DOY, precip_2weeks, bs=c("cc","ts")) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    
+    # Now, allow intercept to vary by nlcdClass by adding by=nlcdClass to each plot- or trap-level continuous variable
+    # Adjust for highly correlated variables: canopy height, DOY
+    nb26_mod <- gam(sp_abund ~ s(DOY, bs="cc",k=5) + te(plot17aspect, plot17slope, by=nlcdClass) + 
+                        s(precip_2weeks, by=nlcdClass) +
+                        te(DOY,precip_2weeks, bs=c("cc","ts"), by=nlcdClass) + s(LAI_1718avg, by=nlcdClass) + s(plot_CHM, by=nlcdClass, k=3) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Adjust for highly correlated variables: canopy height, GDD
+    nb27_mod <- gam(sp_abund ~ te(plot17aspect, plot17slope, by=nlcdClass) + s(precip_2weeks, by=nlcdClass) +
+                        te(DOY,precip_2weeks) + s(LAI_1718avg, by=nlcdClass) + s(plot_CHM, by=nlcdClass, k=3) + s(GDD_cum) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Adjust for highly correlated variables: nlcdClass, DOY
+    nb28_mod <- gam(sp_abund ~ s(DOY, bs="cc",k=5) + nlcdClass + te(plot17aspect, plot17slope, by=nlcdClass) + s(precip_2weeks) +
+                        te(DOY,precip_2weeks, by=nlcdClass, bs=c("cc","ts")) + s(LAI_1718avg, by=nlcdClass) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Adjust for highly correlated variables: nlcdClass, GDD
+    nb29_mod <- gam(sp_abund ~ nlcdClass + te(plot17aspect, plot17slope, by=nlcdClass) + s(precip_2weeks, by=nlcdClass) +
+                        te(DOY,precip_2weeks, by=nlcdClass, bs=c("cc","ts")) + s(LAI_1718avg, by=nlcdClass) +s( GDD_cum) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Replace LAI and canopy height with interaction
+    nb30_mod <- gam(sp_abund ~ s(DOY, bs="cc",k=5) + nlcdClass + te(plot17aspect, plot17slope, by=nlcdClass) + s(precip_2weeks, by=nlcdClass) +
+                        te(DOY,precip_2weeks, by=nlcdClass, bs=c("cc","ts")) + te(LAI_1718avg,plot_CHM) + s(GDD_cum) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Try variables that stepGAM said were important
+    nb31_mod <- gam(sp_abund ~ nlcdClass + te(plot17aspect, plot17slope, by=nlcdClass) + s(precip_2weeks, by=nlcdClass) +
+                        te(DOY,precip_2weeks, by=nlcdClass, bs=c("cc","ts")) + s(LAI_1718avg, by=nlcdClass) + s(GDD_cum) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Try variables that stepGAM said were important - no GDD_cum
+    nb32_mod <- gam(sp_abund ~ nlcdClass + te(plot17aspect, plot17slope, by=nlcdClass) + s(precip_2weeks, by=nlcdClass) +
+                        te(DOY,precip_2weeks, by=nlcdClass, bs=c("cc","ts")) + s(LAI_1718avg, by=nlcdClass) + 
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Add interaction between precip and GDD_cum
+    nb33_mod <- gam(sp_abund ~ nlcdClass + te(plot17aspect, plot17slope, by=nlcdClass) + s(precip_2weeks, by=nlcdClass) +
+                        s(LAI_1718avg, by=nlcdClass) + s(GDD_cum) + te(precip_2weeks, GDD_cum, by=nlcdClass) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Add interaction between precip and GDD_cum
+    nb34_mod <- gam(sp_abund ~ nlcdClass + te(plot17aspect, plot17slope, by=nlcdClass) + 
+                        te(precip_2weeks, GDD_cum, by=nlcdClass) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    # Try nlcdClass, slope/aspect, CHM, DOY/precip
+    nb35_mod <- gam(sp_abund ~ nlcdClass + te(plot17aspect, plot17slope, by=nlcdClass) + 
+                        s(plot_CHM, by=nlcdClass, k=3)+ te(precip_2weeks, DOY, by=nlcdClass, bs=c("cc","ts")) +
+                       s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                    s(plot_trap, bs="re")  + s(plotID, bs="re") , family=nb, method="REML",
+                     data=all7sp_dat %>% filter(para_sciname == spec, plotID != "NIWO_013"))
+    
+    # stop there, but then go back to add by=nlcdClass
+    
+
+    
+    # Zero-inflated Poisson models
+    
+    
+    # Save models
+    pattern <- ls(pattern="_mod") # get names of models
+    models <- do.call("list", mget(pattern))
+    if (spec == "Carabus taedatus") {
+        save(models, file="data_derived/model_sel_cartae.Rdata", overwrite=T)
+    } else {
+        save(models, file="data_derived/model_sel_cymuni.Rdata", overwrite=T)
+    }
+}
+
+
+
+
+
+all7sp_dat <- read.csv("data_derived/model_df_by_species_in_sample.csv") %>%
+    mutate(sc_DOY = scale(DOY, center = TRUE, scale = TRUE),
+           col_year_fac = as.factor(col_year))
+
+# Load in models 
+load("data_derived/model_sel_cartae.Rdata")
+models_cartae <- models
+for (i in 1:length(models_cartae)) {
+    names(models_cartae)[i] <- paste0(names(models_cartae)[i],"_cartae",sep="")
+}
+load("data_derived/model_sel_cymuni.Rdata")
+models_cymuni <- models
+for (i in 1:length(models_cymuni)) {
+    names(models_cymuni)[i] <- paste0(names(models_cymuni)[i],"_cymuni",sep="")
+}
+rm(models)
+list2env(models_cartae, .GlobalEnv)
+list2env(models_cymuni, .GlobalEnv)
+# do.call(rbind, lapply(models_cartae, glance)) %>% 
+#     data.frame() %>%
+#     mutate(model = pattern) %>% 
+#     select(model, everything(.)) %>% 
+#     select(-c(df.residual, BIC, logLik)) %>%
+#     arrange(-AIC)
+# nb4_mod_cartae$deviance
+# nb4_mod_cartae$null.deviance #not sure what this is
+# nb4_mod_cartae$aic # different from the aic reported above
+# nb4_mod_cartae$sp #lists random effects
+# nb4_mod_cartae$rank #not sure what this is
+# nb4_mod_cartae$gcv.ubre #prints REML
+# nb4_mod_cartae$formula #lists formula or $call
+# nb4_mod_cartae$df.residual#good metric
+
+
+# We compared a ton of models above and looked to see which predictors were most useful for each species. Now, let's take those most imporant predictors and create model iterations
+    # Try nlcdClass, slope/aspect, CHM, DOY/precip
+dat_cartae <- all7sp_dat %>% filter(para_sciname == "Carabus taedatus", plotID != "NIWO_013")
+
+glob_nb_mod_cartae <- gam(sp_abund ~ nlcdClass + s(DOY,bs="cc",k=3) + s(precip_2weeks, bs="ts") +
+                              s(precip_2weeks, by=nlcdClass, bs="ts") +
+                              s(plot_CHM, bs="ts",k=5) + s(plot_CHM, by=nlcdClass, bs="ts",k=5) +
+                              te(DOY, precip_2weeks, bs=c("cc","ts")) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts")) +
+                              te(plot17aspect, plot17slope, bs=c("ts","ts")) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                          s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                          s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                      family=nb, method="REML", data=dat_cartae)
+
+# Only with 'by-nlcdClass'
+nb1_mod_cartae <- gam(sp_abund ~ nlcdClass + s(DOY,bs="cc",k=3) + 
+                          s(precip_2weeks, by=nlcdClass, bs="ts") +
+                          s(plot_CHM, by=nlcdClass, bs="ts",k=5) +
+                          te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts")) +
+                          te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                          s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                          s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                      family=nb, method="REML", data=dat_cartae)
+# Without 'by-nlcdClass'
+nb2_mod_cartae <- gam(sp_abund ~ nlcdClass + s(DOY,bs="cc",k=3) + 
+                          s(precip_2weeks, bs="ts") +
+                          s(plot_CHM, bs="ts",k=5) + s(plot_CHM, by=nlcdClass, bs="ts",k=5) +
+                          te(DOY, precip_2weeks, bs=c("cc","ts")) +
+                          te(plot17aspect, plot17slope, bs=c("ts","ts")) +
+                          s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                          s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                      family=nb, method="REML", data=dat_cartae)
+
+# Does te vs s matter for slope/aspect?
+nb3_mod_cartae <- gam(sp_abund ~ nlcdClass + s(DOY,bs="cc",k=3) + 
+                          s(precip_2weeks, bs="ts",k=3) +
+                          s(plot_CHM, bs="ts",k=3) + s(plot_CHM, by=nlcdClass, bs="ts",k=3) +
+                          te(DOY, precip_2weeks, bs=c("cc","ts"),k=3) +
+                          s(plot17aspect, plot17slope, bs=c("ts","ts"),k=3) +
+                          s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                          s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                      family=nb, method="REML", data=dat_cartae)
+
+# Look at summary output and then remove some
+nb4_mod_cartae <- gam(sp_abund ~ nlcdClass + s(DOY,bs="cc",k=3) + 
+                              s(precip_2weeks, by=nlcdClass, bs="ts") +
+                              s(plot_CHM, bs="ts",k=5) + s(plot_CHM, by=nlcdClass, bs="ts",k=5) +
+                              te(DOY, precip_2weeks, bs=c("cc","ts")) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts")) +
+                              te(plot17aspect, plot17slope, bs=c("ts","ts")) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                          s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                          s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                      family=nb, method="REML", data=dat_cartae)
+nb5_mod_cartae <- gam(sp_abund ~ nlcdClass + s(DOY,bs="cc",k=3) + 
+                              s(precip_2weeks, by=nlcdClass, bs="ts") +
+                              s(plot_CHM, bs="ts",k=5) + 
+                              te(DOY, precip_2weeks, bs=c("cc","ts")) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts")) +
+                              te(plot17aspect, plot17slope, bs=c("ts","ts")) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                          s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                          s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                      family=nb, method="REML", data=dat_cartae)
+nb6_mod_cartae <- gam(sp_abund ~ nlcdClass + 
+                              s(precip_2weeks, by=nlcdClass, bs="ts") +
+                              s(plot_CHM, bs="ts",k=5) + 
+                              te(DOY, precip_2weeks, bs=c("cc","ts")) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts")) +
+                              te(plot17aspect, plot17slope, bs=c("ts","ts")) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                          s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                          s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                      family=nb, method="REML", data=dat_cartae)
+nb7_mod_cartae <- gam(sp_abund ~ nlcdClass + 
+                              s(plot_CHM, bs="ts",k=5) + 
+                              te(DOY, precip_2weeks, bs=c("cc","ts")) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts")) +
+                              te(plot17aspect, plot17slope, bs=c("ts","ts")) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                          s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                          s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                      family=nb, method="REML", data=dat_cartae)
+nb8_mod_cartae <- gam(sp_abund ~ nlcdClass + 
+                              s(plot_CHM, bs="ts",k=5) + 
+                              te(DOY, precip_2weeks, bs=c("cc","ts")) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts")) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                          s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                          s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                      family=nb, method="REML", data=dat_cartae)
+# nb5 without nlcdClass
+nb9_mod_cartae <- gam(sp_abund ~ s(DOY,bs="cc",k=3) + 
+                              s(precip_2weeks, by=nlcdClass, bs="ts") +
+                              s(plot_CHM, bs="ts",k=5) + 
+                              te(DOY, precip_2weeks, bs=c("cc","ts")) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts")) +
+                              te(plot17aspect, plot17slope, bs=c("ts","ts")) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                          s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                          s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                      family=nb, method="REML", data=dat_cartae)
+
+# All of the models are within 2 AIC values, so let me start to try to differentiate
+nb10_mod_cartae <- gam(sp_abund ~ nlcdClass + s(DOY,bs="cc",k=3) + 
+                              s(precip_2weeks, by=nlcdClass, bs="ts") +
+                              te(DOY, precip_2weeks, bs=c("cc","ts")) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts")) +
+                              te(plot17aspect, plot17slope, bs=c("ts","ts")) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                          s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                          s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                      family=nb, method="REML", data=dat_cartae)
+nb11_mod_cartae <- gam(sp_abund ~ nlcdClass + s(GDD_cum) + 
+                              s(precip_2weeks, by=nlcdClass, bs="ts") +
+                              te(DOY, precip_2weeks, bs=c("cc","ts")) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts")) +
+                              te(plot17aspect, plot17slope, bs=c("ts","ts")) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                          s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                          s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                      family=nb, method="REML", data=dat_cartae)
+nb12_mod_cartae <- gam(sp_abund ~ nlcdClass + s(GDD_cum) + 
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts")) +
+                              te(plot17aspect, plot17slope, bs=c("ts","ts")) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                          s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                          s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                      family=nb, method="REML", data=dat_cartae)
+
+model.sel(glob_nb_mod_cartae, nb1_mod_cartae, nb2_mod_cartae, nb3_mod_cartae, nb4_mod_cartae, nb5_mod_cartae, nb6_mod_cartae, nb7_mod_cartae, nb8_mod_cartae, nb9_mod_cartae,nb10_mod_cartae, nb11_mod_cartae, nb12_mod_cartae, rank=AIC)
+
+# So many of the models are equivalent by AIC, so arbitrarily choose one
+#save(nb5_mod_cartae, file="data_derived/final_mod_cartae.Rdata")
+
+#AIS another time, try dredge for exhaustive model comparison. Took WAY too long to process to be usable for our presentation (right now, it's been 6hrs): dredge_cartae <- lapply(dredge(glob_nb_mod_cartae, evaluate = FALSE), eval)
+
+dat_cymuni <- all7sp_dat %>% filter(para_sciname == "Cymindis unicolor", plotID != "NIWO_013")
+glob_nb_mod_cymuni <- gam(sp_abund ~ nlcdClass +
+                              s(GDD_cum,bs="ts") + s(GDD_cum,by=nlcdClass,bs="ts") +
+                              s(LAI_1718avg,bs="ts") + s(LAI_1718avg,by=nlcdClass,bs="ts") +
+                              s(precip_2weeks,bs="ts", k=5) + s(precip_2weeks, by=nlcdClass,bs="ts", k=5) +
+                              te(plot17aspect, plot17slope, bs=c("ts","ts")) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                              te(DOY, precip_2weeks, bs=c("cc","ts"), k=4) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts"), k=4) +
+                              te(GDD_cum, precip_2weeks, bs=c("ts","ts"), k=3) +
+                              te(GDD_cum, precip_2weeks, by=nlcdClass, bs=c("ts","ts"), k=4) +
+                              s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                              s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                          family=nb, method="REML", data=dat_cymuni)
+
+glob_nonlcd_nb_mod_cymuni <- gam(sp_abund ~ 
+                              s(GDD_cum,bs="ts") + s(GDD_cum,by=nlcdClass,bs="ts") +
+                              s(LAI_1718avg,bs="ts") + s(LAI_1718avg,by=nlcdClass,bs="ts") +
+                              s(precip_2weeks,bs="ts", k=5) + s(precip_2weeks, by=nlcdClass,bs="ts", k=5) +
+                              te(plot17aspect, plot17slope, bs=c("ts","ts")) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                              te(DOY, precip_2weeks, bs=c("cc","ts"), k=4) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts"), k=4) +
+                              te(GDD_cum, precip_2weeks, bs=c("ts","ts"), k=3) +
+                              te(GDD_cum, precip_2weeks, by=nlcdClass, bs=c("ts","ts"), k=4) +
+                              s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                              s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                          family=nb, method="REML", data=dat_cymuni)
+
+# Only 'by nlcdclass' terms
+nb1_mod_cymuni <- gam(sp_abund ~ nlcdClass +
+                              s(GDD_cum,by=nlcdClass,bs="ts") +
+                              s(LAI_1718avg,by=nlcdClass,bs="ts") +
+                              s(precip_2weeks, by=nlcdClass,bs="ts", k=5) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts"), k=4) +
+                              te(GDD_cum, precip_2weeks, by=nlcdClass, bs=c("ts","ts"), k=4) +
+                              s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                              s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                          family=nb, method="REML", data=dat_cymuni)
+
+# No 'by nlcdclass' terms
+nb2_mod_cymuni <- gam(sp_abund ~ nlcdClass +
+                              s(GDD_cum,bs="ts") +
+                              s(LAI_1718avg,bs="ts") + 
+                              s(precip_2weeks,bs="ts", k=5) + 
+                              te(plot17aspect, plot17slope, bs=c("ts","ts")) +
+                              te(DOY, precip_2weeks, bs=c("cc","ts"), k=4) +
+                              te(GDD_cum, precip_2weeks, bs=c("ts","ts"), k=3) +
+                              s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                              s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                          family=nb, method="REML", data=dat_cymuni)
+
+# Half glob - top half with nlcdclass
+halfglob1_nb_mod_cymuni <- gam(sp_abund ~ nlcdClass +
+                              s(GDD_cum,by=nlcdClass,bs="ts") +
+                              s(LAI_1718avg,by=nlcdClass,bs="ts") +
+                              s(precip_2weeks, by=nlcdClass,bs="ts", k=5) +
+                              te(plot17aspect, plot17slope, bs=c("ts","ts")) +
+                              te(DOY, precip_2weeks, bs=c("cc","ts"), k=4) +
+                              te(GDD_cum, precip_2weeks, bs=c("ts","ts"), k=3) +
+                              s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                              s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                          family=nb, method="REML", data=dat_cymuni)
+# Half glob - bottom half with nlcdclass
+halfglob2_nb_mod_cymuni <- gam(sp_abund ~ nlcdClass +
+                              s(GDD_cum,bs="ts") + 
+                              s(LAI_1718avg,bs="ts") + 
+                              s(precip_2weeks,bs="ts", k=5) + 
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts"), k=4) +
+                              te(GDD_cum, precip_2weeks, by=nlcdClass, bs=c("ts","ts"), k=4) +
+                              s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                              s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                          family=nb, method="REML", data=dat_cymuni)
+model.sel(halfglob1_nb_mod_cymuni, halfglob2_nb_mod_cymuni, rank=AIC)
+
+# mod1 had the lowest AIC. Check out various iterations of it
+nb1.1_mod_cymuni <- gam(sp_abund ~ nlcdClass +
+                              s(GDD_cum,by=nlcdClass,bs="ts") +
+                              s(LAI_1718avg,by=nlcdClass,bs="ts") +
+                              s(precip_2weeks, by=nlcdClass,bs="ts", k=5) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts"), k=4) +
+                              s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                              s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                          family=nb, method="REML", data=dat_cymuni)
+nb1.2_mod_cymuni <- gam(sp_abund ~ nlcdClass +
+                              s(GDD_cum,by=nlcdClass,bs="ts") +
+                              s(LAI_1718avg,by=nlcdClass,bs="ts") +
+                              s(precip_2weeks, by=nlcdClass,bs="ts", k=5) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                              te(GDD_cum, precip_2weeks, by=nlcdClass, bs=c("ts","ts"), k=4) +
+                              s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                              s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                          family=nb, method="REML", data=dat_cymuni)
+nb1.3_mod_cymuni <- gam(sp_abund ~ nlcdClass +
+                              s(GDD_cum,by=nlcdClass,bs="ts") +
+                              s(LAI_1718avg,by=nlcdClass,bs="ts") +
+                              s(precip_2weeks, by=nlcdClass,bs="ts", k=5) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts"), k=4) +
+                              te(GDD_cum, precip_2weeks, by=nlcdClass, bs=c("ts","ts"), k=4) +
+                              s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                              s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                          family=nb, method="REML", data=dat_cymuni)
+nb1.4_mod_cymuni <- gam(sp_abund ~ nlcdClass +
+                              s(GDD_cum,by=nlcdClass,bs="ts") +
+                              s(LAI_1718avg,by=nlcdClass,bs="ts") +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts"), k=4) +
+                              te(GDD_cum, precip_2weeks, by=nlcdClass, bs=c("ts","ts"), k=4) +
+                              s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                              s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                          family=nb, method="REML", data=dat_cymuni)
+nb1.5_mod_cymuni <- gam(sp_abund ~ nlcdClass +
+                              s(GDD_cum,by=nlcdClass,bs="ts") +
+                              s(precip_2weeks, by=nlcdClass,bs="ts", k=5) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts"), k=4) +
+                              te(GDD_cum, precip_2weeks, by=nlcdClass, bs=c("ts","ts"), k=4) +
+                              s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                              s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                          family=nb, method="REML", data=dat_cymuni)
+nb1.6_mod_cymuni <- gam(sp_abund ~ nlcdClass +
+                              s(LAI_1718avg,by=nlcdClass,bs="ts") +
+                              s(precip_2weeks, by=nlcdClass,bs="ts", k=5) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts"), k=4) +
+                              te(GDD_cum, precip_2weeks, by=nlcdClass, bs=c("ts","ts"), k=4) +
+                              s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                              s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                          family=nb, method="REML", data=dat_cymuni)
+nb1.7_mod_cymuni <- gam(sp_abund ~ 
+                              s(GDD_cum,by=nlcdClass,bs="ts") +
+                              s(LAI_1718avg,by=nlcdClass,bs="ts") +
+                              s(precip_2weeks, by=nlcdClass,bs="ts", k=5) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts"), k=4) +
+                              te(GDD_cum, precip_2weeks, by=nlcdClass, bs=c("ts","ts"), k=4) +
+                              s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                              s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                          family=nb, method="REML", data=dat_cymuni)
+
+# Try a few other variations
+nb3_mod_cymuni <- gam(sp_abund ~ nlcdClass +
+                              s(GDD_cum,by=nlcdClass,bs="ts") +
+                              s(LAI_1718avg,by=nlcdClass,bs="ts") +
+                              s(precip_2weeks,bs="ts", k=5) + s(precip_2weeks, by=nlcdClass,bs="ts", k=5) +
+                              te(plot17aspect, plot17slope, bs=c("ts","ts")) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                              te(DOY, precip_2weeks, bs=c("cc","ts"), k=4) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts"), k=4) +
+                              te(GDD_cum, precip_2weeks, bs=c("ts","ts"), k=3) +
+                              te(GDD_cum, precip_2weeks, by=nlcdClass, bs=c("ts","ts"), k=4) +
+                              s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                              s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                          family=nb, method="REML", data=dat_cymuni)
+nb4_mod_cymuni <- gam(sp_abund ~ 
+                              s(GDD_cum,by=nlcdClass,bs="ts") +
+                              s(LAI_1718avg,by=nlcdClass,bs="ts") +
+                              s(precip_2weeks, by=nlcdClass,bs="ts", k=5) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts"), k=4) +
+                              te(GDD_cum, precip_2weeks, by=nlcdClass, bs=c("ts","ts"), k=4) +
+                              s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                              s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                          family=nb, method="REML", data=dat_cymuni)
+nb5_mod_cymuni <- gam(sp_abund ~ nlcdClass +
+                              s(GDD_cum,by=nlcdClass,bs="ts") +
+                              s(LAI_1718avg,by=nlcdClass,bs="ts") +
+                              s(precip_2weeks, by=nlcdClass,bs="ts", k=5) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                              te(DOY, precip_2weeks, GDD_cum, by=nlcdClass, bs=c("cc","ts","ts"), k=4) +
+                              s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                              s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                          family=nb, method="REML", data=dat_cymuni)
+nb6_mod_cymuni <- gam(sp_abund ~ nlcdClass +
+                              s(LAI_1718avg,bs="ts") + s(LAI_1718avg,by=nlcdClass,bs="ts") +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                              s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                              s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                          family=nb, method="REML", data=dat_cymuni)
+
+# removing predictors after looking at summary and plots of global model
+nb7_mod_cymuni <- gam(sp_abund ~ #nlcdClass +
+                              s(GDD_cum,bs="ts") + 
+                              LAI_1718avg +
+                              precip_2weeks +
+                              #s(LAI_1718avg,bs="ts") + s(LAI_1718avg,by=nlcdClass,bs="ts") +
+                              # summary says LAI and precip were useful, but it jsut doesn't look right
+                              #s(precip_2weeks,bs="ts", k=5) + s(precip_2weeks, by=nlcdClass,bs="ts", k=5) +
+                              te(plot17aspect, plot17slope, bs=c("ts","ts")) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                              te(DOY, precip_2weeks, bs=c("cc","ts"), k=4) +
+                              te(DOY, precip_2weeks, by=nlcdClass, bs=c("cc","ts"), k=4) +
+                              te(GDD_cum, precip_2weeks, bs=c("ts","ts"), k=3) +
+                              te(GDD_cum, precip_2weeks, by=nlcdClass, bs=c("ts","ts"), k=4) +
+                              s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                              s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                          family=nb, method="REML", data=dat_cymuni)
+nb8_mod_cymuni <- gam(sp_abund ~ #nlcdClass +
+                              s(GDD_cum,bs="ts") + 
+                              LAI_1718avg +
+                              precip_2weeks +
+                              #s(LAI_1718avg,bs="ts") + s(LAI_1718avg,by=nlcdClass,bs="ts") +
+                              # summary says LAI and precip were useful, but it jsut doesn't look right
+                              #s(precip_2weeks,bs="ts", k=5) + s(precip_2weeks, by=nlcdClass,bs="ts", k=5) +
+                              te(plot17aspect, plot17slope, bs=c("ts","ts")) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                              te(DOY, precip_2weeks, GDD_cum, bs=c("cc","ts","ts"), k=4) +
+                              te(DOY, precip_2weeks, GDD_cum, by=nlcdClass, bs=c("cc","ts","ts"), k=4) +
+                              s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                              s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                          family=nb, method="REML", data=dat_cymuni)
+nb9_mod_cymuni <- gam(sp_abund ~ nlcdClass +
+                              s(GDD_cum,bs="ts") + 
+                              LAI_1718avg +
+                              precip_2weeks +
+                              #s(LAI_1718avg,bs="ts") + s(LAI_1718avg,by=nlcdClass,bs="ts") +
+                              # summary says LAI and precip were useful, but it jsut doesn't look right
+                              #s(precip_2weeks,bs="ts", k=5) + s(precip_2weeks, by=nlcdClass,bs="ts", k=5) +
+                              te(plot17aspect, plot17slope, bs=c("ts","ts")) +
+                              te(plot17aspect, plot17slope, by=nlcdClass, bs=c("ts","ts")) +
+                              te(DOY, precip_2weeks, GDD_cum, bs=c("cc","ts","ts"), k=4) +
+                              te(DOY, precip_2weeks, GDD_cum, by=nlcdClass, bs=c("cc","ts","ts"), k=4) +
+                              s(collectDate, bs="re") + s(col_year_fac, bs="re") + 
+                              s(plot_trap, bs="re")  + s(plotID, bs="re"), 
+                          family=nb, method="REML", data=dat_cymuni)
+
+
+model.sel(glob_nb_mod_cymuni, glob_nonlcd_nb_mod_cymuni, nb1_mod_cymuni, nb2_mod_cymuni, nb1_mod_cymuni, nb1.1_mod_cymuni, nb1.2_mod_cymuni, nb1.3_mod_cymuni, nb1.4_mod_cymuni, nb1.5_mod_cymuni, nb1.6_mod_cymuni, nb1.7_mod_cymuni, halfglob1_nb_mod_cymuni, halfglob2_nb_mod_cymuni, nb3_mod_cymuni, nb4_mod_cymuni, nb5_mod_cymuni, nb6_mod_cymuni, nb7_mod_cymuni, nb8_mod_cymuni, nb9_mod_cymuni, rank=AIC) 
+
+final_mods_cymuni <- list(glob_nb_mod_cymuni, glob_nonlcd_nb_mod_cymuni, nb1.7_mod_cymuni, nb1.4_mod_cymuni)
+#save(final_mods_cymuni, file="data_derived/final_mods_cymuni.Rdata")
+    
+
+
+
+
+# AIS, when I return to this, I should set up an nxn table where n is the number of possible predictors (including interactions) and then I need to iterate through all of the unique combinations of these
+
+
+
 # model evaluation: RMSE, mean absolute error, look at Bias (high or low?), or maybe it has good fit over certain time periods (better at winter months than summer, for example)
 # see bird paper for model evaluation tips
 
@@ -399,90 +1079,29 @@ draw(gam_cymuni)
 #
 
 
+# smooth everythin
+# bs = ts (shrinkage) vs tp (default) - what does wynne do?
+# include shrinkage. If a term is using effectively 0 degrees of freedom it is having no effect on the fit/predictions at all. For the non-significant terms that have positive EDFs, by keeping them in you are effectively stating that these covariates have a small but non-zero effect. If you remove these terms as you suggest, you are saying explicitly that the effect is zero.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# what's the difference between gam vs gamm fns?
-# why smooth the grouping variables? ways to put grouping variables into a gam?
-# compare a simulation of the fitted model to the data (predict)
-# predict just predicts the means. then take random draws from the distribution
-# does mgcv have a simulate fn?
-# draw from the fitted mean, then from each grouping variable's normal dist, then from the final poisson dist
-# plot simulated abund and actual abund vs each predictor variable
-# Plot predictions of NIWO_0013
-
-
-
-
-
-#for one species
-# remove one plot or trap
-# compare a few gams
-#do model selection
-# predict on removed trap/plot
-
-
-
-
-
-
-# For Cymindis unicolor, we see higher abundance in the forest 
-mod_cymuni_all <- gam(sp_abund ~ s(trap_LAI) +
-                      trap_CHM +
-                       as.numeric(as.character(col_year)) +
-                       s(DOY,  bs = "cc", k=3) +
-                       #s(elevation) +
-                       #nlcdClass + #B/K says we want this to be a fixed effect
-                       s(plotID, bs="re") +
-                       s(plot_trap, bs="re") +
-                       s(collectDate, bs="re"),
-                   family=poisson(),
-                   data=all7sp_dat %>% filter(para_sciname == "Cymindis unicolor"),
-                   method="REML")
-summary(mod_cymuni_all)
-plot(mod_cymuni_all, pages=1)
-
-
-
-
-# GLMs
-mod_cartae_all <- glmer(sp_abund ~ trap_LAI +
-                            trap_CHM +
-                            col_year +
-                            DOY^2 +
-                            (1|plotID) +
-                            (1|plot_trap) +
-                            (1|collectDate),
-                   family=poisson(),
-                   data=all7sp_dat %>% filter(para_sciname == "Carabus taedatus"),
-                   method="REML")
-
+# Try Melissa's stepGAM fn
+allPred <- c("s(DOY, bs='cc', k=3)", "s(GDD_cum, bs='ts')", "te(DOY, precip_2weeks)", 
+             "te(plot17aspect,plot17slope)", "s(LAI_1718avg, bs='ts')", "s(trap_CHM, bs='ts')", "nlcdClass",
+                      "s(plotID, bs='re')", "s(plot_trap, bs='re')", 
+                      "s(col_year_fac, bs='re')", "s(collectDate, bs='re')")
+allAIC_cymuni <- stepGAM(dat = all7sp_dat %>%
+                             filter(para_sciname == "Cymindis unicolor",
+                             plotID != "NIWO_013"),
+                         predictors = allPred, 
+                         response = "sp_abund", 
+                         family = nb,
+                         ignore.combos=NA)
+save(allAIC_cymuni, file="data_derived/stepGAM_output_cymuni.Rdata")
+allAIC_cartae <- stepGAM(dat = all7sp_dat %>%
+                             filter(para_sciname == "Carabus taedatus",
+                             plotID != "NIWO_013"),
+                         predictors = allPred, 
+                         response = "sp_abund", 
+                         family = nb,
+                         ignore.combos=NA)
+save(allAIC_cartae, file="data_derived/stepGAM_output_cartae.Rdata")
 
