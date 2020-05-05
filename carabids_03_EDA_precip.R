@@ -53,7 +53,7 @@ ggplot(merged_precip, aes(x=date, y=ppt_tot)) +
     
 # Monthly sums
 merged_precip %>%
-    select(date, ppt_tot, local_site) %>%
+    dplyr::select(date, ppt_tot, local_site) %>%
     group_by(local_site, month = floor_date(date, unit = 'month')) %>%
     summarise(monthly_precip = sum(ppt_tot, na.rm = T)) %>%
     ggplot() +
@@ -75,7 +75,7 @@ for (i in 1:nrow(merged_precip)) {
 
 # Summarize the accumulated precip for 2 weeks prior to each collection date
 summ_precip <- merged_precip %>%
-    select(local_site, ppt_tot, collectDate) %>%
+    dplyr::select(local_site, ppt_tot, collectDate) %>%
     group_by(local_site, collectDate) %>%
     summarise(precip_2weeks = sum(ppt_tot, na.rm = T)) %>%
     filter(is.na(collectDate)==FALSE) %>%
@@ -87,8 +87,13 @@ summ_precip <- merged_precip %>%
 
 # Visualize accummulated precip for each collection date
 summ_precip %>%
+    mutate(dayofyear = as.numeric(strftime(collectDate, format = "%j"))) %>%
     ggplot() +
-    geom_point(aes(x = collectDate, y = precip_2weeks, colour=local_site))
+    geom_line(aes(x = dayofyear, y = precip_2weeks, colour=local_site)) +
+    geom_point(aes(x = dayofyear, y = precip_2weeks, colour=local_site)) +
+    facet_grid(. ~ col_year) +
+    theme_bw()
+ggsave("output/precip_2week_summ.png", width = 7, height = 4, dpi = 'retina')
 
 save(summ_precip, file="data_derived/summarized_precip.Rdata") 
 

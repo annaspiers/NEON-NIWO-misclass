@@ -173,7 +173,9 @@ taxon_df %>%
   filter(para_sciname %in% c('Carabus taedatus','Cymindis unicolor')) %>%
   ggplot() +
   geom_bar(aes(x = collectDate, fill = para_sciname)) +
-  facet_wrap(. ~ para_sciname)
+  facet_wrap(. ~ para_sciname) +
+  theme_bw()
+ggsave("output/abund_collectDate_twospp.png", width = 6, height = 5, dpi = 'retina')
 
 # Plot taxa by year (thanks SN)
 taxon_df %>% 
