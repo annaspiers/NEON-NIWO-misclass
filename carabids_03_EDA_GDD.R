@@ -32,7 +32,9 @@ airtemp_C1 <- read.csv(file = "data_derived/Niwot_airtemp_C1.csv") %>%
 airtemp_C1 %>%
     ggplot() +
     geom_line(aes( x = date, y = airtemp_max, col = 'max')) +
-    geom_line(aes(x = date, y = airtemp_min, col = 'min'))
+    geom_line(aes(x = date, y = airtemp_min, col = 'min')) +
+    theme_bw()
+ggsave("output/temp_time.png", width = 5, height = 3, dpi = 'retina')
 
 
 # calculate GDD 
@@ -44,7 +46,7 @@ UDT <- 33 # also used by Nufio et al. for Niwot grasshoppers
 
 airtemp_C1 <- airtemp_C1 %>%
     group_by(date) %>%
-    select(local_site, date, airtemp_max, airtemp_min, airtemp_avg) %>%
+    dplyr::select(local_site, date, airtemp_max, airtemp_min, airtemp_avg) %>%
     na.omit() %>%
     mutate(daily_GDD = degree_days(T_min = airtemp_min, T_max = airtemp_max, 
                                    LDT = LDT, UDT = UDT, method = "single.sine")) %>%
@@ -54,7 +56,9 @@ airtemp_C1 <- airtemp_C1 %>%
 # Visualize to make sure it's working 
 airtemp_C1 %>% 
     ggplot() +
-    geom_line(aes ( x = date, y = GDD_cum))
+    geom_line(aes ( x = date, y = GDD_cum)) +
+    theme_bw()
+ggsave("output/degree_days_cumulative.png", width = 5, height = 3, dpi = 'retina')
 
 # it's not perfect (would have to clip after accumulation stopped) but it is functional/ 
 # good enough for our purposes. SO:
