@@ -17,7 +17,7 @@ jags_misclass_fn <- function(){
     z_init <- Z
     JAGSinits <- function(){list(z = z_init, 
                                  theta = theta) }
-    JAGSparams <- c("psi", "lambda", "theta") #params monitored
+    JAGSparams <- c("psi", "lambda", "theta", "z") #params monitored
     nc <- 4 #MCMC chains
     ni <- 20000 #MCMC iterations
     nb <- 4000 #MCMC burnin
@@ -42,9 +42,9 @@ jags_misclass_fn <- function(){
 # Use  realistic values for n (number of species k identified by expert taxonomist) and include cases where no expert data are available (n[k]=0 for species k)
 # AIS This model assumes closure for Z and M throughout the season. 
 
-nsite <- 8 
-nsurv <- 5
-nspec <- 3 
+nsite <- 10 
+nsurv <- 2
+nspec <- 2 
 
 
 # Static occupancy model --------------------------------------------------
@@ -89,21 +89,20 @@ image(theta, main="Simulated Theta")
 image(M, main="Simulated M")
 
 
-
 # Combine occupancy and misclassification models to simulate observed data --------
 
 # C: C[i,j,k] is a vector of counts for species k (expert) classified as species 1,...,K whose elements sum to Y[i,j,k]. dim = [KxK], rows are expert species ID's, columns are parataxonomist species ID's
-# c_obs: c_obs[i,j,k,k'] are the elements of vector C, and represent the number of individuals that were actually of species k (expert) classified as k'
+# c_obs: c_obs[i,j,k'] are the elements of vector C, and represent the number of individuals that were classified as k'
 c_obs   <- array(NA, dim = c(nrow=nsite, ncol=nsurv, n3d=nspec))
 C       <- array(NA, dim = c(dim(c_obs), n4d=nspec))
 for (i in 1:nsite) {
     for (j in 1:nsurv) {
-         for (k_prime in 1:nspec) {
-            c_obs[i,j,k_prime] <- sum(C[i,j, ,k_prime]) #observed data
-        }
     	for (k in 1:nspec) { # actual species
         	C[i,j,k, ] <- rmultinom(1, Y[i,j,k], theta[k, ])
     	}
+        for (k_prime in 1:nspec) {
+            c_obs[i,j,k_prime] <- sum(C[i,j, ,k_prime]) #observed data
+        }
 	}
 }
 
@@ -115,7 +114,7 @@ out <- jags_misclass_fn()
 
 # How well does the model estimate specified parameters?
 print(out, dig=2)
-plot(out)
+traceplot(out, parameters="z")
 
 # Compare true and recaptured psi 
 psi
@@ -127,6 +126,7 @@ image(lambda[,,1], main="Observed lambda for species 1")
 image(out$mean$lambda[,,1], main="Predicted lambda for species 1")
 image(lambda[,,2], main="Observed lambda for species 2")
 image(out$mean$lambda[,,2], main="Predicted lambda for species 2")
+# plot(c(lambda), c(out$mean$lambda)). we'll see 1-1 line 
 
 # Compare true and recaptured theta 
 par(mfrow=c(1,2))
@@ -138,7 +138,7 @@ plot(NA,xlim=c(0,1),ylim=c(0,1),
      xlab="Predicted",ylab="Observed",main="Theta comparison")
 abline(0,1)
 for (i in 1:nspec) {
-    points(x=out$mean$theta[i,],
+    points(x=out$mean$theta[i, ],
          y=theta[i,],
          col=i)
 }

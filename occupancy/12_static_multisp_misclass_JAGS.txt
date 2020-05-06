@@ -3,12 +3,8 @@ model {
   # Priors
   psi_beta[1]   ~ dunif(0,20) 
   psi_beta[2]   ~ dunif(0,20) 
-  lambda_shape  ~ dunif(0,20) 
-  lambda_scale  ~ dunif(0,20)
-  lambda_rate   <- 1/lambda_scale 
-  
-  # AIS psi priors look fine. As is, fails to converge for lambda values (mostly lambda[1,1,1]) - autojags just runs til it runs out of iterations. Fails to converge when lambda is added as data, Rhat values return as NA. Runs when lambda_rate = 1.
-  #AIS looks like it works now, so ignore above
+  lambda_shape  ~ dgamma(5,1) 
+  lambda_rate   ~ dgamma(1,1)
   
   # each species has its own occupancy prob, classification prob vector, and expected number of detections
   for (k in 1:nspec) {
@@ -16,7 +12,7 @@ model {
     theta[k,1:nspec] ~ ddirch(alpha[k,1:nspec])
     for (j in 1:nsurv) {
       for (i in 1:nsite) {
-        lambda[i,j,k] ~ dgamma(lambda_shape, lambda_rate) 
+        lambda[i,j,k] ~ dgamma(lambda_shape,lambda_rate)
       }
     }
   }
@@ -30,7 +26,8 @@ model {
 
   # Observation model
   for (k in 1:nspec) {
-    M[k,] ~ dmulti(theta[k, ], n[k])
+    M[k,] ~ dmulti(theta[k, ], n[k]) #n captures expert tax's efforts
+    #only deals with classification. doesn't tell us anything about occupancy. Theta links the misclassification to the occupancy model
   }
   for (i in 1:nsite) {
     for (j in 1:nsurv) {
