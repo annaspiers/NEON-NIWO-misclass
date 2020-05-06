@@ -14,7 +14,7 @@ to hide text in knitted md,
 
 # Brainstorming for forecasting final presentation
 
-#### Premise - Christa
+# Premise - Christa
 
 ##### Carabids
 Why carabids? They're good indicators of environmental change, so creating accurate forecasts of them is helpful for understanding impacts of environmental change.  
@@ -47,64 +47,140 @@ Research questions we brainstormed earlier in the semester:
 <!-- # of the abundance, how accurate, how well does it match the raw data?... -->
 
 
-#### EDA - Grant
+# EDA - Grant
 
-##### Carabids 
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(knitr)
+```
 
-Identification - show one graph of misidentification rates. say hey, remember
+## Carabid data
 
-Species selection - 2/7 species that were most abundant and accurately IDed
-    ?info/natural history about the species we chose
-    Do we have an idea for why certain carabids are greater in different nlcdClass given their biology?
+### Sampling
 
-Abundance over time, per trap - awesome figure Anna made 
-
-Map of beetle traps 
-
-Sampling effort across plots
-
-Seasonal distribution
-
-##### Predictors 
-<!-- #   fixed effects: -->
-<!-- #     day of year -->
-<!-- #   nlcd class, elevation - included with beetle data product -->
-<!-- #  -->
-<!-- #   canopy height - related to nlcd class and elevation (treeline) -->
-<!-- #       raster plot -->
-<!-- #       buffer radius choice -->
-<!-- #       show scatterplots of correlations? -->
-<!-- #      -->
-<!-- #   leaf area index -->
-<!-- #       raster plot -->
-<!-- #       buffer radius choice -->
-<!-- #   slope and aspect -->
-<!-- #       raster plot -->
-<!-- #       buffer radius choice -->
-<!-- #  -->
-<!-- #   ?degree days, precipitation - short term and long term -->
-<!-- #   ? -->
-<!-- #  -->
-<!-- #  -->
-<!-- #   desired but unused:  -->
-<!-- #   soil moisture - not colocated with traps, ?map -->
-<!-- #   woody debris - not colocated with traps, ?map -->
-<!-- #   vegetation - difficult/unclear to summarize at trap level -->
-<!-- #   snowmelt -->
-
-<!-- # Beetles... -->
-<!-- # -->
-<!-- # How many beetles are at each site annually of each species (plot on map rather than graph) -->
-<!-- #  -->
-<!-- # The literature supported certain explanatory variables, but we didn't some of these to explain much variance in our models. -->
-<!-- #  -->
-<!-- #  Predictor variables... -->
-<!-- # How did we calculate LAI (and other AOP data products) for each trap? -->
-<!--     # How did we decide on what size buffer to use for these calculations? -->
+Carabid beetles were sampled at 10 plots, with 4 traps per plot. Beetles were collected every two weeks during the summer season (with temperature cutoffs to start and stop sampling). Data were available for 2015--2018 (2019 beetles were not yet identified). 
 
 
+```{r, echo=FALSE}
+knitr::include_graphics("output/canopy_height_traps.png")
+```
 
-#### Model building and selection - Anna
+In 2018, plot 4 was removed from sampling and plot 13 was added. Plot 4 was forested, and plot 13 is a tundra site. Plot 4 was likely removed from sampling due to low number of beetles caught (speculation from Matt Bitters). We took advantage of the new site in 2018 by using plot 13 as a test plot for our model predictions, which Anna will get to later.
+
+### Identification
+All individuals were identified to species (or morphospecies) by a parataxonomist. A subset (1511/1974) of those were then sent for expert identification. There was 97% agreement overall between the parataxonomist and the expert taxonomist.
+```{r, echo=FALSE, out.width = 600}
+knitr::include_graphics("output/paratax_vs_expertax.png")
+```
+
+<!-- ![species_abund_by_year_by_trap](output/paratax_vs_expertax.png) -->
+
+
+### Species selection 
+Most of the species collected were only found rarely, so we first narrowed down the set of species to the seven most abundant (and all were accurately ID'd). 
+
+```{r, echo=FALSE}
+knitr::include_graphics("output/species_through_years.png")
+```
+
+However, comparing multiple models across seven species is still a bit too much. To narrow further, we selected the two species of these seven that were found both above and below treeline. 
+
+**Selected species**: 
+
+*Carabus taedatus* is more abundant in tundra plots.
+
+```{r, echo=FALSE, out.width = 100}
+knitr::include_graphics("images/CARTAE.png")
+```
+
+*Cymindis unicolor* is more abundant in forested plots.
+
+```{r, echo=FALSE, out.width = 50}
+knitr::include_graphics("images/CYMUNI.png")
+```
+
+<!-- info/natural history about the species we chose
+Do we have an idea for why certain carabids are greater in different nlcdClass given their biology?
+-->
+
+We chose these species because we thought it would be interesting to examine model performance for the species that were found in both habitats, especially since they show opposite trends in abundance in the two habitats.
+
+### Abundance over time
+
+<!-- by year -->
+<!-- change to just the two species -->
+```{r, echo=FALSE}
+knitr::include_graphics("output/species_abund_by_year_by_trap_nlcd.png")
+```
+
+This plot shows the abundances at each trap in each year for *Carabus taedatus* and *Cymindis unicolor*. *Carabus taedatus* was reliably caught at the tundra sites and was caught on occasion in some forested sites. *Cymindis unicolor* was reliably caught at some (but not all) forested sites and was caught on occasion at one tundra plot (8) and once at another tundra plot (6). 
+
+
+
+## Predictor variables  
+At the start of this project we spent some time brainstorming and searching the literature for potentially important predictor variables for carabid abundance. Once we had identified a long list of potential predictors, we searched through the available datasets for usable predictors. We ended up using predictor variables from three sources: NEON data included in the carabid data product, NEON AOP data products, and Niwot Ridge LTER environmental data. The predictors we used from each of these sources will be shown below. There were also several predictor variables that we were not able to use: soil moisture (NEON product, not colocated with beetle traps), woody debris (NEON product, not colocated with beetle traps), vegetation (NEON product, difficult to summarize at plot or trap level), and snowmelt date (didn't find or have time to incorporate).
+
+#### Included with carabid data product
+Day of year - extracted from collect date  
+NLCD class - evergreen forest or grassland herbaceous  
+Elevation  
+
+#### AOP (remote sensing) data products 
+Data products from NEON's AOP collection were downloaded via the `neonUtilities` package in the form of multiple (over 100) .tif files in a zip folder for each data product. We then merged together all of the .tif's into a single raster in R (`carabids_01_download_AOP.R`) for each data product. These rasters were then used for all of our downstream analyses.
+
+**Canopy height**  
+Measured via LIDAR, this data product provides a 1x1m resolution map of canopy height across the site. To summarize for each trap, we took the average canopy height for a 10m radius from each trap location (see`raster::extract` in `carabids_03_EDA_CHM`). 
+```{r, echo=FALSE, out.width = 600}
+knitr::include_graphics("output/canopy_height_traps.png")
+```
+
+
+
+**Leaf area index**  
+This is the ratio of leaf area to bare ground area as sensed from above (similar metric to percent canopy cover). This was processed the same way as canopy height, but with some extra data cleaning. Data were available for 2017, 2018, and 2019, but the data looked different year to year. In the end, we used an average of 2017 and 2018 because these issues were difficult to sort out and those years were similar and appeared the most reliable. After contacting someone at NEON, we learned that they used different quality control measures in different years resulting in different values.
+
+**Slope and aspect**  
+Slope and aspect were summarized at the plot level (average slope and aspect at 20m radius from plot center). We included them because they may be related to microclimatic factors such as soil moisture (slope) and energy availability via sun exposure (aspect).
+
+```{r, echo=FALSE, out.width = 400}
+knitr::include_graphics("output/slope_traps.png")
+```
+```{r, echo=FALSE, out.width = 400}
+knitr::include_graphics("output/aspect_traps.png")
+```
+
+#### Niwot Ridge LTER data sources
+**Precipitation**  
+For the forested plots, C1 precipitation data were used; for the tundra plots Saddle precipitation data were used. [NEON also has a precipitation data product, but there were too many missing data points for our use.] We calculated total precipitation during the collection period (2 weeks) for each collect date. This summary gets at the short-term weather patterns that may influence beetle behavior and detectability in traps. [We wanted to get to a long-term precipitation summary, but ran out of time.]
+```{r, echo=FALSE}
+knitr::include_graphics("output/precip_2week_summ.png")
+```
+
+**Growing degree days**  
+Using temperature data from the C1 sensor (Saddle sensor data contained missing dates), we calculated growing degree days. Growing degree days were summarized similar to (Nufio et al. 2010) as a cumulative sum of growing degree days in that year until the date of collection. Degree days were quantified for temperatures between 12--33C based on grasshopper physiology at Niwot Ridge (Nufio et al. 2010). We did not have any information regarding the carabid temperature limits, so grasshopper values from the same location were our best estimate.
+```{r, echo=FALSE}
+knitr::include_graphics("output/temp_time.png")
+```
+
+```{r, echo=FALSE}
+knitr::include_graphics("output/degree_days_cumulative.png")
+```
+
+
+### Summary of predictors used in models
+
+* Day of year
+* NLCD class
+* Elevation
+* Canopy height (10m radius)
+* Leaf area index (LAI) (10m radius)
+* Slope
+* Aspect
+* Precipitation (during trapping period)
+* Growing degree days (cumulative over season)
+
+
+
+# Model building and selection - Anna
 
 Research Q1. For each species respectively, what are the key predictor variables (e.g. environmental, canopy cover, etc.)? (answered by collinearity and stepGAM)
 
