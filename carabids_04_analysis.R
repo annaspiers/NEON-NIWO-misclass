@@ -399,6 +399,22 @@ predict(gam_cartae, type = "response", newdata=all7sp_dat %>%
 
 # Model selection ---------------------------------------------------------
 
+vp_mod_cartae <- gam(sp_abund ~ s(collectDate, bs="re") + 
+                         s(col_year_fac, bs="re") + 
+                         s(plot_trap, bs="re")  + s(plotID, bs="re") ,
+                     family=nb, method="REML", data = all7sp_dat %>% 
+                         filter(para_sciname == "Carabus taedatus", 
+                                plotID!="NIWO_013"))
+save(vp_mod_cartae, file="data_derived/vp_mod_cartae.Rdata")
+
+vp_mod_cymuni <- gam(sp_abund ~ s(collectDate, bs="re") + 
+                         s(col_year_fac, bs="re") + 
+                         s(plot_trap, bs="re")  + s(plotID, bs="re") ,
+                     family=nb, method="REML", data = all7sp_dat %>% 
+                         filter(para_sciname == "Cymindis unicolor",
+                                plotID!="NIWO_013"))
+save(vp_mod_cymuni, file="data_derived/vp_mod_cymuni.Rdata")
+
 for (spec in c("Carabus taedatus","Cymindis unicolor")) {
     
     #Null model
@@ -1039,7 +1055,40 @@ final_mods_cymuni <- list(glob_nb_mod_cymuni, glob_nonlcd_nb_mod_cymuni, nb1.7_m
 #save(final_mods_cymuni, file="data_derived/final_mods_cymuni.Rdata")
     
 
+# Final models - convert te to t2 -----------------------------------------
 
+load("data_derived/final_mod_cartae.Rdata")
+load("data_derived/final_mod_cymuni.Rdata")
+cartae_mod <- nb5_mod_cartae
+cymuni_mod <- final_mod_cymuni
+rm(nb5_mod_cartae, final_mod_cymuni)
+
+cartae_mod$formula
+cartae_mod_t2 <- gam(sp_abund ~ nlcdClass + s(DOY, bs = "cc", k = 3) + s(precip_2weeks, 
+    by = nlcdClass, bs = "ts") + s(plot_CHM, bs = "ts", k = 5) + 
+    t2(DOY, precip_2weeks, bs = c("cc", "ts")) + t2(DOY, precip_2weeks, 
+    by = nlcdClass, bs = c("cc", "ts")) + t2(plot17aspect, plot17slope, 
+    bs = c("ts", "ts")) + t2(plot17aspect, plot17slope, by = nlcdClass, 
+    bs = c("ts", "ts")) + s(collectDate, bs = "re") + s(col_year_fac, 
+    bs = "re") + s(plot_trap, bs = "re") + s(plotID, bs = "re"), data =  all7sp_dat %>% filter(para_sciname == "Carabus taedatus", plotID != "NIWO_013"), family = nb, method="REML")
+save(cartae_mod_t2, file="data_derived/final_mod_cartae_t2.Rdata")
+
+cymuni_mod$formula
+cymuni_mod_t2 <- gam(sp_abund ~ nlcdClass + s(GDD_cum, bs = "ts") + s(GDD_cum, by = nlcdClass, bs = "ts") + s(LAI_1718avg, bs = "ts") + s(LAI_1718avg, by = nlcdClass, 
+    bs = "ts") + s(precip_2weeks, bs = "ts", k = 5) + s(precip_2weeks, 
+    by = nlcdClass, bs = "ts", k = 5) + t2(plot17aspect, plot17slope, 
+    bs = c("ts", "ts")) + t2(plot17aspect, plot17slope, by = nlcdClass, 
+    bs = c("ts", "ts")) + t2(DOY, precip_2weeks, bs = c("cc", 
+    "ts"), k = 4) + t2(DOY, precip_2weeks, by = nlcdClass, bs = c("cc", 
+    "ts"), k = 4) + t2(GDD_cum, precip_2weeks, bs = c("ts", "ts"), 
+    k = 3) + t2(GDD_cum, precip_2weeks, by = nlcdClass, bs = c("ts", 
+    "ts"), k = 4) + s(collectDate, bs = "re") + s(col_year_fac, 
+    bs = "re") + s(plot_trap, bs = "re") + s(plotID, bs = "re"), data =  all7sp_dat %>% filter(para_sciname == "Cymindis unicolor", plotID != "NIWO_013"), family = nb, method="REML")
+save(cymuni_mod_t2, file="data_derived/final_mod_cymuni_t2.Rdata")
+
+# Do they differ in AIC?
+model.sel(cartae_mod, cartae_mod_t2)
+model.sel(cymuni_mod, cymuni_mod_t2)
 
 
 # AIS, when I return to this, I should set up an nxn table where n is the number of possible predictors (including interactions) and then I need to iterate through all of the unique combinations of these
