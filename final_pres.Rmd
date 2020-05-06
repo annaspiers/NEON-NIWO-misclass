@@ -139,7 +139,7 @@ knitr::include_graphics("output/canopy_height_traps.png")
 This is the ratio of leaf area to bare ground area as sensed from above (similar metric to percent canopy cover). This was processed the same way as canopy height, but with some extra data cleaning. Data were available for 2017, 2018, and 2019, but the data looked different year to year. In the end, we used an average of 2017 and 2018 because these issues were difficult to sort out and those years were similar and appeared the most reliable. After contacting someone at NEON, we learned that they used different quality control measures in different years resulting in different values.
 
 **Slope and aspect**  
-Slope and aspect were summarized at the plot level (average slope and aspect at 20m radius from plot center). We included them because they may be related to microclimatic factors such as soil moisture (slope) and energy availability via sun exposure (aspect).
+Slope and aspect were summarized at the plot level (average slope and aspect at 10m radius from plot center). We included them because they may be related to microclimatic factors such as soil moisture (slope) and energy availability via sun exposure (aspect).
 
 ```{r, echo=FALSE, out.width = 400}
 knitr::include_graphics("output/slope_traps.png")
