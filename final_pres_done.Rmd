@@ -1,0 +1,305 @@
+---
+title: "Forecasting Carabid Beetle Abundance at Niwot Ridge"
+author: "Anna Spiers, Christa Torrens, Grant Vagle"
+date: "5/07/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Project overview and background
+
+## Project goals - big picture
+
+* To use NEON data, including AOP lidar data, to accurately forecast the abundance of carabid beetles across the landscape, using training data from Niwot Ridge. 
+
+* To be able to forecast changes to carabid beetle distribution under changing climate conditions 
+
+* To use our forecast model to determine "how much data is enough?" for accurate forcasting at different timesteps
+    + Assume the predicted data are real - run model 25 years into future
+    + Test model accuracy with 1, 3, 5, 10, 15, 20 years of “real” data
+
+
+## Project goals - this semester
+
+* To create and validate a working model to accurately predict the abundance of 1-2 carabid spp. at NEON's Niwot carabid traps 
+    + *either* a temporal prediction (2019 season)
+    + *or* spatial prediction (one of the plots, 2018 season).
+
+
+## Why Carabids?
+
+Ground beetles (Carabidae) are an excellent sentinel taxon, and can be used to understand the consequences of global climate change in high mountain areas. 
+
+* They are abundant, found across many biomes, and are relatively easy to identify
+
+* They are sensitive to habitat change, thus are predicted to serve as useful bioindicators of environmental and land use change 
+    + Numerous studies have shown that carabid beetle richness and/or assemblage composition change along altitudinal gradients, with vegetation type, and/ or land use type 
+    
+* Their presence/ absence impacts other ecosystem components: 
+    + They are an important component of terrestrial food webs and can influence trophic structure 
+(Hoekman et al. 2017, Hiramatsu and Usio 2018)
+
+Available data: The NEON data suite includes carabid abundance since 2015, as well as many of our target predictor variables. 
+
+
+## Research questions (initial)
+
+1. Which carabid species are 'best' to focus on for our semester goals?
+
+2. Initial exploration of variables (EDA)
++ Based on the literature, what are likely to be important variables driving carabid presence/ absence? 
+    + Note: We initially focused on spatial predictions, but found temporal variance was a stronger influence on carabid abundance
+
+3. What are the key predictor variables for each species?  (Model building)
+    
+4. Which model type will best predict species abundance? (Model testing)
+
+
+## Q1: Carabid species selection
+
+First we determined that there were seven abundant and well-identified species in NEON's Niwot data.  
+
+```{r, echo=FALSE, out.width = 600}
+knitr::include_graphics("images/Carabid ID_7circled.png")
+```
+
+(the next section will go into details on sampling design and analysis)
+
+Then we looked at abundance by sampling plot and collection date
+
+```{r, echo=FALSE}
+knitr::include_graphics("output/species_through_years.png")
+```
+
+Looking at the abundance data, we chose two of those seven: *Carabus taedatus* and *Cymindis unicolor*.
+
+```{r, echo=FALSE}
+knitr::include_graphics("output/abund_collectDate_twospp.png")
+```
+
+<!-- find code to create the distribution by nlcd class and spp image --> 
+
+Both species were consistently present in both of Niwot's landscape classes: tundra and evergreen forest. *C. unicolor* was more abundant in the forested plots and *C. taedatus* was more abundant in the tundra plots. This combination allows us to test our model's accuracy for high and low abundance levels in both habitats.
+
+
+## Species traits
+
+This information was sparse for our selected species - therefore some of the "specific" phenology information is for the family or genus level. 
+
+In general, carabids are ground-dwelling beetles that prefer moist conditions; note that both of our selected species are xerophilous. Most species are omnivorous as larvae and adults, commonly eating both other arthropods and seeds. The life cycle is 1 year long for most species, with adults living 2-4 years. Most taxa have three instars. Pupation is in the ground.  
+
+### *Carabus taedatus* 
+```{r, echo=FALSE, out.width = 100}
+knitr::include_graphics("images/CARTAE.png")
+```
+
+**Range**: Nearctic; **Habitat**: Boreal forests. Prefers dry, well-drained environments with thin, low vegetation; **Diet**: both larvae and adults are predatory; **Phenology**: probably overwinters as an adult; **Reproduction**: (genus) Females lay their eggs in specially-constructed cells made of mud, twigs and leaves. 
+
+### *Cymindis unicolor*
+```{r, echo=FALSE, out.width = 100}
+knitr::include_graphics("images/CYMUNI.png")
+```
+
+**Range**: Holarctic; **Habitat**: An arctic-alpine species occurring in tundra and tundra-forest transition zones; prefers dry, treeless, well-drained environments;  **Diet**: no specific information found; **Phenology**: Little known: In Canada, most specimens were found in June and July, but also found as late as October; **Reproduction**: (genus) Females use ovipositors to create cavities in the earth then deposit their eggs. **Remarks**: The species is relatively rare. The *Lebiini* tribe is found in all the major zoogeographical regions of the world; this genus ranges from Costa Rica to arctic tundra.
+
+
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(knitr)
+```
+
+# Q2: EDA
+
+## Carabid data
+
+### Sampling
+
+Carabid beetles were sampled at 10 plots, with 4 traps per plot. Beetles were collected every two weeks during the summer season (with temperature cutoffs to start and stop sampling). Data were available for 2015--2018 (2019 beetles were not yet identified). 
+
+
+```{r, echo=FALSE}
+knitr::include_graphics("output/canopy_height_traps.png")
+```
+
+In 2018, plot 4 was removed from sampling and plot 13 was added. Plot 4 was forested, and plot 13 is a tundra site. Plot 4 was likely removed from sampling due to low number of beetles caught (speculation from Matt Bitters). We took advantage of the new site in 2018 by using plot 13 as a test plot for our model predictions, which Anna will get to later.
+
+### Identification
+All individuals were identified to species (or morphospecies) by a parataxonomist. A subset (1511/1974) of those were then sent for expert identification. There was 97% agreement overall between the parataxonomist and the expert taxonomist.
+```{r, echo=FALSE, out.width = 600}
+knitr::include_graphics("output/paratax_vs_expertax.png")
+```
+
+<!-- ![species_abund_by_year_by_trap](output/paratax_vs_expertax.png) -->
+
+
+### Species selection 
+Most of the species collected were only found rarely, so we first narrowed down the set of species to the seven most abundant (and all were accurately ID'd). 
+
+```{r, echo=FALSE}
+knitr::include_graphics("output/species_through_years.png")
+```
+
+However, comparing multiple models across seven species is still a bit too much. To narrow further, we selected the two species of these seven that were found both above and below treeline. 
+
+**Selected species**: 
+
+*Carabus taedatus* is more abundant in tundra plots.
+
+```{r, echo=FALSE, out.width = 100}
+knitr::include_graphics("images/CARTAE.png")
+```
+
+*Cymindis unicolor* is more abundant in forested plots.
+
+```{r, echo=FALSE, out.width = 50}
+knitr::include_graphics("images/CYMUNI.png")
+```
+
+<!-- info/natural history about the species we chose
+Do we have an idea for why certain carabids are greater in different nlcdClass given their biology?
+-->
+
+We chose these species because we thought it would be interesting to examine model performance for the species that were found in both habitats, especially since they show opposite trends in abundance in the two habitats.
+
+### Abundance over time
+
+<!-- by year -->
+<!-- change to just the two species -->
+```{r, echo=FALSE}
+knitr::include_graphics("output/species_abund_by_year_by_trap_nlcd.png")
+```
+
+This plot shows the abundances at each trap in each year for *Carabus taedatus* and *Cymindis unicolor*. *Carabus taedatus* was reliably caught at the tundra sites and was caught on occasion in some forested sites. *Cymindis unicolor* was reliably caught at some (but not all) forested sites and was caught on occasion at one tundra plot (8) and once at another tundra plot (6). 
+
+
+
+## Predictor variables  
+At the start of this project we spent some time brainstorming and searching the literature for potentially important predictor variables for carabid abundance. Once we had identified a long list of potential predictors, we searched through the available datasets for usable predictors. We ended up using predictor variables from three sources: NEON data included in the carabid data product, NEON AOP data products, and Niwot Ridge LTER environmental data. The predictors we used from each of these sources will be shown below. There were also several predictor variables that we were not able to use: soil moisture (NEON product, not colocated with beetle traps), woody debris (NEON product, not colocated with beetle traps), vegetation (NEON product, difficult to summarize at plot or trap level), and snowmelt date (didn't find or have time to incorporate).
+
+#### Included with carabid data product
+Day of year - extracted from collect date  
+NLCD class - evergreen forest or grassland herbaceous  
+Elevation  
+
+#### AOP (remote sensing) data products 
+Data products from NEON's AOP collection were downloaded via the `neonUtilities` package in the form of multiple (over 100) .tif files in a zip folder for each data product. We then merged together all of the .tif's into a single raster in R (`carabids_01_download_AOP.R`) for each data product. These rasters were then used for all of our downstream analyses.
+
+**Canopy height**  
+Measured via LIDAR, this data product provides a 1x1m resolution map of canopy height across the site. To summarize for each trap, we took the average canopy height for a 10m radius from each trap location (see`raster::extract` in `carabids_03_EDA_CHM`). 
+```{r, echo=FALSE, out.width = 600}
+knitr::include_graphics("output/canopy_height_traps.png")
+```
+
+
+
+**Leaf area index**  
+This is the ratio of leaf area to bare ground area as sensed from above (similar metric to percent canopy cover). This was processed the same way as canopy height, but with some extra data cleaning. Data were available for 2017, 2018, and 2019, but the data looked different year to year. In the end, we used an average of 2017 and 2018 because these issues were difficult to sort out and those years were similar and appeared the most reliable. After contacting someone at NEON, we learned that they used different quality control measures in different years resulting in different values.
+
+**Slope and aspect**  
+Slope and aspect were summarized at the plot level (average slope and aspect at 10m radius from plot center). We included them because they may be related to microclimatic factors such as soil moisture (slope) and energy availability via sun exposure (aspect).
+
+```{r, echo=FALSE, out.width = 400}
+knitr::include_graphics("output/slope_traps.png")
+```
+```{r, echo=FALSE, out.width = 400}
+knitr::include_graphics("output/aspect_traps.png")
+```
+
+#### Niwot Ridge LTER data sources
+**Precipitation**  
+For the forested plots, C1 precipitation data were used; for the tundra plots Saddle precipitation data were used. [NEON also has a precipitation data product, but there were too many missing data points for our use.] We calculated total precipitation during the collection period (2 weeks) for each collect date. This summary gets at the short-term weather patterns that may influence beetle behavior and detectability in traps. [We wanted to get to a long-term precipitation summary, but ran out of time.]
+```{r, echo=FALSE}
+knitr::include_graphics("output/precip_2week_summ.png")
+```
+
+**Growing degree days**  
+Using temperature data from the C1 sensor (Saddle sensor data contained missing dates), we calculated growing degree days. Growing degree days were summarized similar to (Nufio et al. 2010) as a cumulative sum of growing degree days in that year until the date of collection. Degree days were quantified for temperatures between 12--33C based on grasshopper physiology at Niwot Ridge (Nufio et al. 2010). We did not have any information regarding the carabid temperature limits, so grasshopper values from the same location were our best estimate.
+```{r, echo=FALSE}
+knitr::include_graphics("output/temp_time.png")
+```
+
+```{r, echo=FALSE}
+knitr::include_graphics("output/degree_days_cumulative.png")
+```
+
+
+### Summary of predictors used in models
+
+* Day of year
+* NLCD class
+* Elevation
+* Canopy height (10m radius)
+* Leaf area index (LAI) (10m radius)
+* Slope
+* Aspect
+* Precipitation (during trapping period)
+* Growing degree days (cumulative over season)
+
+
+
+# Q3 and 4: Model building and selection
+<!-- updated Q numbers based on actual #s from Intro --> 
+
+Research Q3. For each species respectively, what are the key predictor variables (e.g. environmental, canopy cover, etc.)? (answered by collinearity and stepGAM)
+
+Research Q4. What model best predicts species abundance? 
+
+GAMMs performed better than GLMMs (lower AIC) AND we wanted to use a spline to capture DOY (seasonality)
+
+Melissa's stepGAM
+
+Collinearity test helped cut out some predictor variables
+
+Base model to test for how much variance is in each grouping variable (GAM with just grouping variables)
+
+zero-inflated model? 
+
+ending with one model that we deem the best for each species
+
+
+
+# Results & Interpretation
+
+## Biological interpretation
+<!-- interpret plots of gams biologically. do these make sense? Interpret model results with biology in mind... do these results make sense given that this species is more abundant in the tundra?... -->
+
+<!-- # Did not find strong spatial effect, but did find noticeable temporal effects -->
+
+## Simulation
+compare 'best fit' model to 'base' model
+
+{then simulate results - how good is our model - Grant: simulation results}
+
+
+## Prediction
+Research Q3. Leave out one plot or one from each biome from training set (predict plot 13) (base model vs model that fits data best) - validate on testing data
+
+
+## Cross-validation
+We chose the K-fold cross validation method
+<!-- will add details about this method --> 
+We were not able to get the code to run smoothly before the end of the semester. If we had more time, this would be the next step in our project. 
+
+
+# Discussion - Did we do what we set out to do?
+
+We did meet our primary semester goal:
+
+To create a working model to accurately predict the abundance of 1-2 carabid spp. at NEON's Niwot carabid traps (spatial prediction, Plot 13 in 2018)
+
+This was scaled back quite a bit from our early aspirations. And we did not meet some of our larger goals, including running a working cross-validation
+
+## Future work
+
+If we had more time (and data), we'd include the following items: 
+
+* Cross-validate the best-fit model for each species ( = get the code to run)
+
+* Once the 2019 carabid data is identified, we'd try to predict our two species for 2019 at all plots and collection dates
+
+* If successful, we'd try to predict all 7 abundant species
+
+* Regardless of outcome, we'd try to use our model to answer the question: "How much data is enough?" for accurate forcasting at different timesteps
