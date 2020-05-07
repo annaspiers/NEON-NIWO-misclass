@@ -26,7 +26,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 * To create and validate a working model to accurately predict the abundance of 1-2 carabid spp. at NEON's Niwot carabid traps 
     + *either* a temporal prediction (2019 season)
-    + *or* spatial prediction (one of the traps, 2018 season).
+    + *or* spatial prediction (one of the plots, 2018 season).
 
 
 ## Why Carabids?
@@ -106,12 +106,11 @@ knitr::include_graphics("images/CYMUNI.png")
 **Range**: Holarctic; **Habitat**: An arctic-alpine species occurring in tundra and tundra-forest transition zones; prefers dry, treeless, well-drained environments;  **Diet**: no specific information found; **Phenology**: Little known: In Canada, most specimens were found in June and July, but also found as late as October; **Reproduction**: (genus) Females use ovipositors to create cavities in the earth then deposit their eggs. **Remarks**: The species is relatively rare. The *Lebiini* tribe is found in all the major zoogeographical regions of the world; this genus ranges from Costa Rica to arctic tundra.
 
 
-
-# Q2: EDA
-
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 library(knitr)
 ```
+
+# Q2: EDA
 
 ## Carabid data
 
@@ -264,18 +263,42 @@ ending with one model that we deem the best for each species
 # Results & Interpretation
 
 ## Biological interpretation
-interpret plots of gams biologically. do these make sense? Interpret model results with biology in mind... do these results make sense given that this species is more abundant in the tundra?...
+<!-- interpret plots of gams biologically. do these make sense? Interpret model results with biology in mind... do these results make sense given that this species is more abundant in the tundra?... -->
 
+<!-- # Did not find strong spatial effect, but did find noticeable temporal effects -->
+
+## Simulation
 compare 'best fit' model to 'base' model
 
 {then simulate results - how good is our model - Grant: simulation results}
 
+
+## Prediction
 Research Q3. Leave out one plot or one from each biome from training set (predict plot 13) (base model vs model that fits data best) - validate on testing data
 
-Research Q4. Cross-validate chosen model. Which cross-validation method to use? show cross validation: MSE
 
-Did we do what we set out to do?
+## Cross-validation
+We chose the K-fold cross validation method
+<!-- will add details about this method --> 
+We were not able to get the code to run smoothly before the end of the semester. If we had more time, this would be the next step in our project. 
 
-Expansions on this project with more time
 
-<!-- # Did not find strong spatial effect, but did find noticeable temporal effects -->
+# Discussion - Did we do what we set out to do?
+
+We did meet our primary semester goal:
+
+To create a working model to accurately predict the abundance of 1-2 carabid spp. at NEON's Niwot carabid traps (spatial prediction, Plot 13 in 2018)
+
+This was scaled back quite a bit from our early aspirations. And we did not meet some of our larger goals, including running a working cross-validation
+
+## Future work
+
+If we had more time (and data), we'd include the following items: 
+
+* Cross-validate the best-fit model for each species ( = get the code to run)
+
+* Once the 2019 carabid data is identified, we'd try to predict our two species for 2019 at all plots and collection dates
+
+* If successful, we'd try to predict all 7 abundant species
+
+* Regardless of outcome, we'd try to use our model to answer the question: "How much data is enough?" for accurate forcasting at different timesteps
