@@ -8,9 +8,7 @@ output:
     keep_md: true
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+
 
 # Project overview and background
 
@@ -65,23 +63,17 @@ Available data: The NEON data suite includes carabid abundance since 2015, as we
 
 First we determined that there were seven abundant and well-identified species in NEON's Niwot data.  
 
-```{r, echo=FALSE, out.width = 600}
-knitr::include_graphics("images/Carabid ID_7circled.png")
-```
+<img src="images/Carabid ID_7circled.png" width="600" />
 
 (the next section will go into details on sampling design and analysis)
 
 Then we looked at abundance by sampling plot and collection date
 
-```{r, echo=FALSE}
-knitr::include_graphics("output/species_through_years.png")
-```
+<img src="output/species_through_years.png" width="3283" />
 
 Looking at the abundance data, we chose two of those seven: *Carabus taedatus* and *Cymindis unicolor*.
 
-```{r, echo=FALSE}
-knitr::include_graphics("output/abund_DateClass_twospp.png")
-```
+<img src="output/abund_DateClass_twospp.png" width="1920" />
 
 <!-- find code to create the distribution by nlcd class and spp image --> 
 
@@ -95,24 +87,18 @@ This information was sparse for our selected species - therefore some of the "sp
 In general, carabids are ground-dwelling beetles that prefer moist conditions; note that both of our selected species are xerophilous. Most species are omnivorous as larvae and adults, commonly eating both other arthropods and seeds. The life cycle is 1 year long for most species, with adults living 2-4 years. Most taxa have three instars. Pupation is in the ground.  
 
 ### *Carabus taedatus* 
-```{r, echo=FALSE, out.width = 100}
-knitr::include_graphics("images/CARTAE.png")
-```
+<img src="images/CARTAE.png" width="100" />
 
 **Range**: Nearctic; **Habitat**: Boreal forests. Prefers dry, well-drained environments with thin, low vegetation; **Diet**: both larvae and adults are predatory; **Phenology**: probably overwinters as an adult; **Reproduction**: (genus) Females lay their eggs in specially-constructed cells made of mud, twigs and leaves. 
 
 ### *Cymindis unicolor*
-```{r, echo=FALSE, out.width = 100}
-knitr::include_graphics("images/CYMUNI.png")
-```
+<img src="images/CYMUNI.png" width="100" />
 
 **Range**: Holarctic; **Habitat**: An arctic-alpine species occurring in tundra and tundra-forest transition zones; prefers dry, treeless, well-drained environments;  **Diet**: no specific information found; **Phenology**: Little known: In Canada, most specimens were found in June and July, but also found as late as October; **Reproduction**: (genus) Females use ovipositors to create cavities in the earth then deposit their eggs. **Remarks**: The species is relatively rare. The *Lebiini* tribe is found in all the major zoogeographical regions of the world; this genus ranges from Costa Rica to arctic tundra.
 
 
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-library(knitr)
-```
+
 
 # Q2: EDA
 
@@ -123,17 +109,13 @@ library(knitr)
 Carabid beetles were sampled at 10 plots, with 4 traps per plot. Beetles were collected every two weeks during the summer season (with temperature cutoffs to start and stop sampling). Data were available for 2015--2018 (2019 beetles were not yet identified). 
 
 
-```{r, echo=FALSE}
-knitr::include_graphics("output/canopy_height_traps.png")
-```
+<img src="output/canopy_height_traps.png" width="2144" />
 
 In 2018, plot 4 was removed from sampling and plot 13 was added. Plot 4 was forested, and plot 13 is a tundra site. Plot 4 was likely removed from sampling due to low number of beetles caught (speculation from Matt Bitters). We took advantage of the new site in 2018 by using plot 13 as a test plot for our model predictions, which Anna will get to later.
 
 ### Identification
 All individuals were identified to species (or morphospecies) by a parataxonomist. A subset (1511/1974) of those were then sent for expert identification. There was 97% agreement overall between the parataxonomist and the expert taxonomist.
-```{r, echo=FALSE, out.width = 600}
-knitr::include_graphics("output/paratax_vs_expertax.png")
-```
+<img src="output/paratax_vs_expertax.png" width="600" />
 
 <!-- ![species_abund_by_year_by_trap](output/paratax_vs_expertax.png) -->
 
@@ -141,9 +123,7 @@ knitr::include_graphics("output/paratax_vs_expertax.png")
 ### Species selection 
 Most of the species collected were only found rarely, so we first narrowed down the set of species to the seven most abundant (and all were accurately ID'd). 
 
-```{r, echo=FALSE}
-knitr::include_graphics("output/species_through_years.png")
-```
+<img src="output/species_through_years.png" width="3283" />
 
 However, comparing multiple models across seven species is still a bit too much. To narrow further, we selected the two species of these seven that were found both above and below treeline. 
 
@@ -151,15 +131,11 @@ However, comparing multiple models across seven species is still a bit too much.
 
 *Carabus taedatus* is more abundant in tundra plots.
 
-```{r, echo=FALSE, out.width = 100}
-knitr::include_graphics("images/CARTAE.png")
-```
+<img src="images/CARTAE.png" width="100" />
 
 *Cymindis unicolor* is more abundant in forested plots.
 
-```{r, echo=FALSE, out.width = 50}
-knitr::include_graphics("images/CYMUNI.png")
-```
+<img src="images/CYMUNI.png" width="50" />
 
 <!-- info/natural history about the species we chose
 Do we have an idea for why certain carabids are greater in different nlcdClass given their biology?
@@ -171,9 +147,7 @@ We chose these species because we thought it would be interesting to examine mod
 
 <!-- by year -->
 <!-- change to just the two species -->
-```{r, echo=FALSE}
-knitr::include_graphics("output/species_abund_by_year_by_trap_nlcd.png")
-```
+<img src="output/species_abund_by_year_by_trap_nlcd.png" width="2100" />
 
 This plot shows the abundances at each trap in each year for *Carabus taedatus* and *Cymindis unicolor*. *Carabus taedatus* was reliably caught at the tundra sites and was caught on occasion in some forested sites. *Cymindis unicolor* was reliably caught at some (but not all) forested sites and was caught on occasion at one tundra plot (8) and once at another tundra plot (6). 
 
@@ -192,9 +166,7 @@ Data products from NEON's AOP collection were downloaded via the `neonUtilities`
 
 **Canopy height**  
 Measured via LIDAR, this data product provides a 1x1m resolution map of canopy height across the site. To summarize for each trap, we took the average canopy height for a 10m radius from each trap location (see`raster::extract` in `carabids_03_EDA_CHM`). 
-```{r, echo=FALSE, out.width = 600}
-knitr::include_graphics("output/canopy_height_traps.png")
-```
+<img src="output/canopy_height_traps.png" width="600" />
 
 
 
@@ -204,29 +176,19 @@ This is the ratio of leaf area to bare ground area as sensed from above (similar
 **Slope and aspect**  
 Slope and aspect were summarized at the plot level (average slope and aspect at 10m radius from plot center). We included them because they may be related to microclimatic factors such as soil moisture (slope) and energy availability via sun exposure (aspect).
 
-```{r, echo=FALSE, out.width = 400}
-knitr::include_graphics("output/slope_traps.png")
-```
-```{r, echo=FALSE, out.width = 400}
-knitr::include_graphics("output/aspect_traps.png")
-```
+<img src="output/slope_traps.png" width="400" />
+<img src="output/aspect_traps.png" width="400" />
 
 #### Niwot Ridge LTER data sources
 **Precipitation**  
 For the forested plots, C1 precipitation data were used; for the tundra plots Saddle precipitation data were used. [NEON also has a precipitation data product, but there were too many missing data points for our use.] We calculated total precipitation during the collection period (2 weeks) for each collect date. This summary gets at the short-term weather patterns that may influence beetle behavior and detectability in traps. [We wanted to get to a long-term precipitation summary, but ran out of time.]
-```{r, echo=FALSE}
-knitr::include_graphics("output/precip_2week_summ.png")
-```
+<img src="output/precip_2week_summ.png" width="2240" />
 
 **Growing degree days**  
 Using temperature data from the C1 sensor (Saddle sensor data contained missing dates), we calculated growing degree days. Growing degree days were summarized similar to (Nufio et al. 2010) as a cumulative sum of growing degree days in that year until the date of collection. Degree days were quantified for temperatures between 12--33C based on grasshopper physiology at Niwot Ridge (Nufio et al. 2010). We did not have any information regarding the carabid temperature limits, so grasshopper values from the same location were our best estimate.
-```{r, echo=FALSE}
-knitr::include_graphics("output/temp_time.png")
-```
+<img src="output/temp_time.png" width="1600" />
 
-```{r, echo=FALSE}
-knitr::include_graphics("output/degree_days_cumulative.png")
-```
+<img src="output/degree_days_cumulative.png" width="1600" />
 
 
 ### Summary of predictors used in models
@@ -245,23 +207,7 @@ knitr::include_graphics("output/degree_days_cumulative.png")
 
 # Q3 and 4: Model building and selection
 
-```{r, echo = FALSE, results=FALSE, message = FALSE, warning = FALSE}
-library(dplyr)
-library(mctest)     #omcdiag()
-library(tidyr)      #gather()
-library(ggplot2)
-library(gridExtra)  #grid.arrange
-library(broom)      #glance
-library(MuMIn)      #model.sel
-library(brms)       #brm()
-library(mgcv)       #gam()
-library(gratia)     #draw()
-  
-# Load in model df
-all7sp_dat <- read.csv("data_derived/model_df_by_species_in_sample.csv") %>%
-    mutate(sc_DOY = scale(DOY, center = TRUE, scale = TRUE),
-           col_year_fac = as.factor(col_year))
-```
+
 
 To build and select a model for abundance of *Carabus taedatus* and *Cymindis unicolor*, our goals were to:  
     1. Identify what are the key predictor variables for each species.   
@@ -271,30 +217,67 @@ To build and select a model for abundance of *Carabus taedatus* and *Cymindis un
 
 We ruled out some variables by evaluating collinearity with the `mctest` package.
 
-```{r, echo = FALSE}
-vars_mat <- all7sp_dat %>%
-    mutate(nlcdclass_num = as.numeric(nlcdClass)) %>%
-    dplyr::select(elev, LAI_1718avg, plot_CHM, LAI_1718avg, precip_2weeks,
-                  DOY, plot17aspect, plot17slope, GDD_cum, col_year, nlcdclass_num)
-                  
-pairs(vars_mat, pch=20, cex=0.75, col="dodgerblue", main="Correlation scatterplots of every possible predictor") 
-```
+![](final_pres_done_files/figure-html/unnamed-chunk-20-1.png)<!-- -->
 
 Note the nearly perfect correlation between growing degree-days and day of year. Comparing all possible variables, we detect overall collinearity between elevation, canopy height, and NLCD class.  
 
-```{r, echo = FALSE}
-imcdiag(vars_mat, all7sp_dat$sp_abund, method="VIF") 
+
+```
+## 
+## Call:
+## imcdiag(x = vars_mat, y = all7sp_dat$sp_abund, method = "VIF")
+## 
+## 
+##  VIF Multicollinearity Diagnostics
+## 
+##                   VIF detection
+## elev          31.2824         1
+## LAI_1718avg    2.8618         0
+## plot_CHM      17.6503         1
+## precip_2weeks  1.0966         0
+## DOY            7.4956         0
+## plot17aspect   2.4078         0
+## plot17slope    1.2610         0
+## GDD_cum        6.8395         0
+## col_year       1.3224         0
+## nlcdclass_num 16.5812         1
+## 
+## Multicollinearity may be due to elev plot_CHM nlcdclass_num regressors
+## 
+## 1 --> COLLINEARITY is detected by the test 
+## 0 --> COLLINEARITY is not detected by the test
+## 
+## ===================================
 ```
 
 After dropping elevation, we failed to detect pairwise collinearity between variables. However, variance inflation factor (VIF) values are above 5 (indicating high correlation) for canopy height, NLCD class, day of year, and cummulative growing degree-day. 
 
-```{r, echo = FALSE}
-# remove elevation
-vars_mat <- all7sp_dat %>%
-    mutate(nlcdclass_num = as.numeric(nlcdClass)) %>%
-    dplyr::select(LAI_1718avg, plot_CHM, LAI_1718avg, precip_2weeks, DOY,
-                  plot17aspect, plot17slope, GDD_cum, col_year, nlcdclass_num)
-imcdiag(vars_mat, all7sp_dat$sp_abund, method="VIF") 
+
+```
+## 
+## Call:
+## imcdiag(x = vars_mat, y = all7sp_dat$sp_abund, method = "VIF")
+## 
+## 
+##  VIF Multicollinearity Diagnostics
+## 
+##                  VIF detection
+## LAI_1718avg   2.1936         0
+## plot_CHM      6.3306         0
+## precip_2weeks 1.0965         0
+## DOY           7.4956         0
+## plot17aspect  1.5325         0
+## plot17slope   1.0645         0
+## GDD_cum       6.8394         0
+## col_year      1.3209         0
+## nlcdclass_num 9.3633         0
+## 
+## NOTE:  VIF Method Failed to detect multicollinearity
+## 
+## 
+## 0 --> COLLINEARITY is not detected by the test
+## 
+## ===================================
 ```
 
 Canopy height and NLCD class are highly correlated because canopy height is 0 in the tundra. NLCD class is useful in model building since we can vary the intercept by this categorical variable. 
@@ -307,47 +290,7 @@ Second, use Melissa's stepGAM(), a wrapper function for stepAIC that is compatib
 
 The effects of plot, trap within plot, canopy height, and slope/aspect are strong for both species. For *Cymindis unicolor* we also see the interaction of day of year and precipitation as an important effect. 
 
-```{r, echo = FALSE, results=FALSE, message = FALSE, warning = FALSE}
-load("data_derived/stepGAM_output_cartae.Rdata")
-load("data_derived/stepGAM_output_cymuni.Rdata")
-
-allAIC_cartae_filt <- allAIC_cartae %>% 
-    filter(!is.na(AIC)) %>% arrange(AIC) %>%
-    mutate(rank=seq(1:length(AIC))) %>% 
-    mutate(AIC=as.numeric(AIC)
-           , Dev.expl = as.numeric(Dev.expl)
-           , REML = as.numeric(REML))# %>%
-    #filter(AIC<500)
-
-allAIC_cartae_plot <- allAIC_cartae_filt %>% 
-    gather(-c(AIC, REML, Dev.expl, formula,rank), key=Predictor, value=WithPredictor) %>% 
-  select(AIC, REML, Dev.expl, Predictor, WithPredictor) %>%
-  mutate(WithPredictor = ifelse(WithPredictor==0, F, T)) %>%
-  ggplot() + 
-    geom_violin(aes(x=WithPredictor, y=AIC), col="dodgerblue")  +  
-    ggtitle("Carabus taedatus") +
-    facet_wrap(.~Predictor) 
-
-
-allAIC_cymuni_filt <- allAIC_cymuni %>% 
-    filter(!is.na(AIC)) %>% arrange(AIC) %>%
-    mutate(rank=seq(1:length(AIC))) %>% 
-    mutate(AIC=as.numeric(AIC)
-           , Dev.expl = as.numeric(Dev.expl)
-           , REML = as.numeric(REML))# %>%
-    #filter(AIC<500)
- 
-allAIC_cymuni_plot <- allAIC_cymuni_filt %>% 
-    gather(-c(AIC, REML, Dev.expl, formula,rank), key=Predictor, value=WithPredictor) %>% 
-  select(AIC, REML, Dev.expl, Predictor, WithPredictor) %>%
-  mutate(WithPredictor = ifelse(WithPredictor==0, F, T)) %>%
-  ggplot() + 
-    geom_violin(aes(x=WithPredictor, y=AIC), col="dodgerblue")  +  
-    ggtitle("Cymindis unicolor") +
-    facet_wrap(.~Predictor) 
-
-grid.arrange(allAIC_cartae_plot,allAIC_cymuni_plot,nrow=1)
-```
+![](final_pres_done_files/figure-html/unnamed-chunk-23-1.png)<!-- -->
 
 #### Model selection
 
@@ -374,13 +317,24 @@ For *Cymindis unicolor*, the following environmental predictors were used:
 * interaction of precipitation and day of year  
 * interaction of growing degree days and precipitation  
 
-```{r, echo = FALSE}
-load("data_derived/final_mod_cartae.Rdata")
-load("data_derived/final_mod_cymuni.Rdata")
 
-# View selected model formulae
-cartae_mod$formula
-cymuni_mod$formula
+```
+## sp_abund ~ nlcdClass + s(DOY, bs = "cc", k = 3) + s(precip_2weeks, 
+##     by = nlcdClass, bs = "ts", k = 3) + s(plot_CHM, bs = "ts", 
+##     k = 3) + te(DOY, precip_2weeks, by = nlcdClass, bs = c("cc", 
+##     "ts"), k = 3) + te(plot17aspect, plot17slope, bs = c("ts", 
+##     "ts"), k = 3) + s(collectDate, bs = "re") + s(col_year_fac, 
+##     bs = "re") + s(plot_trap, bs = "re") + s(plotID, bs = "re")
+```
+
+```
+## sp_abund ~ nlcdClass + s(GDD_cum, bs = "ts", k = 1) + s(LAI_1718avg, 
+##     bs = "ts", k = 1) + s(precip_2weeks, bs = "ts", k = 1) + 
+##     te(GDD_cum, precip_2weeks, bs = c("ts", "ts"), k = 3) + te(plot17aspect, 
+##     plot17slope, by = nlcdClass, bs = c("ts", "ts"), k = 5) + 
+##     te(DOY, precip_2weeks, bs = c("cc", "ts"), k = 4) + s(collectDate, 
+##     bs = "re") + s(col_year_fac, bs = "re") + s(plot_trap, bs = "re") + 
+##     s(plotID, bs = "re")
 ```
 
 
@@ -392,30 +346,176 @@ Many of the models we selected between had comparable AIC values, so we chose on
 
 First, let's look at the output of the variance partition model for each species to see where the variability in the data sit.Note that the variance partition model explains over half of the deviance in the data already!
 
-```{r}
+
+```r
 load("data_derived/vp_mod_cartae.Rdata")
 load("data_derived/vp_mod_cymuni.Rdata")
 summary(vp_mod_cymuni)
 ```
 
+```
+## 
+## Family: Negative Binomial(0.448) 
+## Link function: log 
+## 
+## Formula:
+## sp_abund ~ s(collectDate, bs = "re") + s(col_year_fac, bs = "re") + 
+##     s(plot_trap, bs = "re") + s(plotID, bs = "re")
+## 
+## Parametric coefficients:
+##             Estimate Std. Error z value Pr(>|z|)    
+## (Intercept)  -2.9602     0.6533  -4.531 5.87e-06 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Approximate significance of smooth terms:
+##                    edf Ref.df  Chi.sq p-value   
+## s(collectDate)  12.014     23  30.763 0.00314 **
+## s(col_year_fac)  1.237      3   5.758 0.23388   
+## s(plot_trap)    15.193     39  84.973 0.20337   
+## s(plotID)        7.473      9 272.018 0.00399 **
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## R-sq.(adj) =  0.164   Deviance explained = 50.9%
+## -REML = 359.47  Scale est. = 1         n = 932
+```
+
 Now let's look at the best-fit GAMM result plots.
 
-```{r}
-summary(cartae_mod)
-plot(cartae_mod, pages = 5, rug = TRUE, residuals = TRUE, shade=TRUE, shade.col = "lightblue", all.terms = TRUE, seWithMean = TRUE, shift = coef(cartae_mod)[1], scheme=2)
 
+```r
+summary(cartae_mod)
 ```
 
-```{r}
+```
+## 
+## Family: Negative Binomial(1.107) 
+## Link function: log 
+## 
+## Formula:
+## sp_abund ~ nlcdClass + s(DOY, bs = "cc", k = 3) + s(precip_2weeks, 
+##     by = nlcdClass, bs = "ts", k = 3) + s(plot_CHM, bs = "ts", 
+##     k = 3) + te(DOY, precip_2weeks, by = nlcdClass, bs = c("cc", 
+##     "ts"), k = 3) + te(plot17aspect, plot17slope, bs = c("ts", 
+##     "ts"), k = 3) + s(collectDate, bs = "re") + s(col_year_fac, 
+##     bs = "re") + s(plot_trap, bs = "re") + s(plotID, bs = "re")
+## 
+## Parametric coefficients:
+##                              Estimate Std. Error z value Pr(>|z|)    
+## (Intercept)                   -3.2960     0.3425  -9.623  < 2e-16 ***
+## nlcdClassgrasslandHerbaceous   3.2106     0.4723   6.797 1.07e-11 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Approximate significance of smooth terms:
+##                                                          edf Ref.df Chi.sq
+## s(DOY)                                             6.947e-05      2   0.00
+## s(precip_2weeks):nlcdClassevergreenForest          4.180e-06      2   0.00
+## s(precip_2weeks):nlcdClassgrasslandHerbaceous      3.024e-05      2   0.00
+## s(plot_CHM)                                        4.338e-06      2   0.00
+## te(DOY,precip_2weeks):nlcdClassevergreenForest     1.423e+00      6   3.28
+## te(DOY,precip_2weeks):nlcdClassgrasslandHerbaceous 1.820e-04      6   0.00
+## te(plot17aspect,plot17slope)                       4.259e-05      8   0.00
+## s(collectDate)                                     2.268e-04     23   0.00
+## s(col_year_fac)                                    2.356e+00      3  11.18
+## s(plot_trap)                                       2.278e-04     38   0.00
+## s(plotID)                                          5.161e+00      8  28.57
+##                                                     p-value    
+## s(DOY)                                              0.40762    
+## s(precip_2weeks):nlcdClassevergreenForest           0.40929    
+## s(precip_2weeks):nlcdClassgrasslandHerbaceous       0.58624    
+## s(plot_CHM)                                         0.60593    
+## te(DOY,precip_2weeks):nlcdClassevergreenForest      0.06510 .  
+## te(DOY,precip_2weeks):nlcdClassgrasslandHerbaceous  0.42377    
+## te(plot17aspect,plot17slope)                        0.49039    
+## s(collectDate)                                      0.87587    
+## s(col_year_fac)                                     0.00262 ** 
+## s(plot_trap)                                        0.98142    
+## s(plotID)                                          2.19e-06 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## R-sq.(adj) =  0.276   Deviance explained = 51.1%
+## -REML = 510.14  Scale est. = 1         n = 932
+```
+
+```r
+plot(cartae_mod, pages = 5, rug = TRUE, residuals = TRUE, shade=TRUE, shade.col = "lightblue", all.terms = TRUE, seWithMean = TRUE, shift = coef(cartae_mod)[1], scheme=2)
+```
+
+![](final_pres_done_files/figure-html/unnamed-chunk-26-1.png)<!-- -->![](final_pres_done_files/figure-html/unnamed-chunk-26-2.png)<!-- -->![](final_pres_done_files/figure-html/unnamed-chunk-26-3.png)<!-- -->
+
+
+```r
 summary(cymuni_mod)
+```
+
+```
+## 
+## Family: Negative Binomial(0.436) 
+## Link function: log 
+## 
+## Formula:
+## sp_abund ~ nlcdClass + s(GDD_cum, bs = "ts", k = 1) + s(LAI_1718avg, 
+##     bs = "ts", k = 1) + s(precip_2weeks, bs = "ts", k = 1) + 
+##     te(GDD_cum, precip_2weeks, bs = c("ts", "ts"), k = 3) + te(plot17aspect, 
+##     plot17slope, by = nlcdClass, bs = c("ts", "ts"), k = 5) + 
+##     te(DOY, precip_2weeks, bs = c("cc", "ts"), k = 4) + s(collectDate, 
+##     bs = "re") + s(col_year_fac, bs = "re") + s(plot_trap, bs = "re") + 
+##     s(plotID, bs = "re")
+## 
+## Parametric coefficients:
+##                              Estimate Std. Error z value Pr(>|z|)    
+## (Intercept)                   -2.6097     0.3951  -6.606 3.95e-11 ***
+## nlcdClassgrasslandHerbaceous  -2.1537     0.9249  -2.329   0.0199 *  
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Approximate significance of smooth terms:
+##                                                                 edf Ref.df
+## s(GDD_cum)                                                7.362e-01      2
+## s(LAI_1718avg)                                            2.246e-04      2
+## s(precip_2weeks)                                          1.757e-04      2
+## te(GDD_cum,precip_2weeks)                                 6.155e-01      4
+## te(plot17aspect,plot17slope):nlcdClassevergreenForest     2.899e+00      6
+## te(plot17aspect,plot17slope):nlcdClassgrasslandHerbaceous 1.379e+00      2
+## te(DOY,precip_2weeks)                                     3.330e+00      9
+## s(collectDate)                                            3.628e+00     23
+## s(col_year_fac)                                           2.046e+00      3
+## s(plot_trap)                                              1.470e+01     38
+## s(plotID)                                                 6.563e-05      8
+##                                                            Chi.sq  p-value    
+## s(GDD_cum)                                                  5.060 0.045303 *  
+## s(LAI_1718avg)                                              0.000 0.896302    
+## s(precip_2weeks)                                            0.000 0.362979    
+## te(GDD_cum,precip_2weeks)                                   1.127 0.126433    
+## te(plot17aspect,plot17slope):nlcdClassevergreenForest     193.420 0.002080 ** 
+## te(plot17aspect,plot17slope):nlcdClassgrasslandHerbaceous  10.067 0.011047 *  
+## te(DOY,precip_2weeks)                                      22.854 0.001168 ** 
+## s(collectDate)                                              4.440 0.195747    
+## s(col_year_fac)                                             8.322 0.030188 *  
+## s(plot_trap)                                               33.590 0.000234 ***
+## s(plotID)                                                   0.000 0.946847    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## R-sq.(adj) =   0.15   Deviance explained = 50.1%
+## -REML = 351.96  Scale est. = 1         n = 932
+```
+
+```r
 plot(cymuni_mod, pages = 5, rug = TRUE, residuals = TRUE, shade=TRUE, shade.col = "lightblue", all.terms = TRUE, seWithMean = TRUE, shift = coef(cymuni_mod)[1], scheme=2)
 ```
+
+![](final_pres_done_files/figure-html/unnamed-chunk-27-1.png)<!-- -->![](final_pres_done_files/figure-html/unnamed-chunk-27-2.png)<!-- -->![](final_pres_done_files/figure-html/unnamed-chunk-27-3.png)<!-- -->
 
 
 ## Prediction
 Given the limited size of the carabid dataset over 4 years and at one site, we will validate our models on data from a single plot in a single year. We trained our models on the rest of the data. Remember that in our last sampling year, 2018, NEON swapped out plot 4 for plot 13. We thought it would be interesting to predict beetle abundance at this new plot, given what we know about the other plots and their abundances. 
 
-```{r, warning=F}
+
+```r
 val_dat <- all7sp_dat %>% 
   filter(plotID == "NIWO_013" & col_year == 2018) 
 
@@ -461,8 +561,9 @@ plot_cymuni_pred <- cymuni_pred %>%
   xlab("Predicted count")
 
 grid.arrange(plot_vp_cartae_pred,plot_vp_cymuni_pred,plot_cartae_pred,plot_cymuni_pred,nrow=2)
-
 ```
+
+![](final_pres_done_files/figure-html/unnamed-chunk-28-1.png)<!-- -->
 
 Our models can predict absence or low abundance, but not more. This is support for trying a zero-inflated poisson next. 
 
@@ -481,7 +582,8 @@ We chose the k-fold cross validation method, using *k* = 10. This method has rel
 
 * The mean of all *k* MSEs is reported to evaluate overall model performance 
 
-```{r}
+
+```r
 # all7sp_dat_cartae_k <- all7sp_dat %>% 
 #   filter(para_sciname=="Carabus taedatus") %>%
 #   mutate(k = sample(1:20, 960, replace=T))
@@ -566,6 +668,12 @@ CV_mat <- matrix(c(CV_cartae, CV_cymuni, CV_cartae_vp, CV_cymuni_vp), nrow=2, by
 rownames(CV_mat) <- c("best fit", "var par")
 colnames(CV_mat) <- c("Car tae", "Cym uni")
 CV_mat
+```
+
+```
+##            Car tae  Cym uni
+## best fit 10.684807 15.25025
+## var par   8.724124 12.81825
 ```
 
 
