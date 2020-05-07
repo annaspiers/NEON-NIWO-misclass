@@ -465,7 +465,19 @@ Our models can predict absence or low abundance, but not more. This is support f
 
 
 ## Cross-validation
-We chose the K-fold cross validation method. 
+Cross-validation is intended to evaluate model performance (esp re: prediction error) using a limited data sample. It estimates the skill of the model on unseen (test) data. There are various cross-validation methods; the key difference is in how they partition the data into training and test datasets. 
+
+We chose the k-fold cross validation method, using *k* = 10. This method has relatively low bias due to random grouping of test and training data. 
+
+### About the method
+* This method randomly splits the data into *k* groups for cross-validation
+
+* Then it cycles through the groups, selecting each one in turn as a test data set and using the other *k*-1 groups as a training data set to fit and test the model
+
+* The Mean Square Error [MSE] is calculated and retained for each step
+
+* The mean of all *k* MSEs is reported to evaluate overall model performance 
+
 ```{r}
 # all7sp_dat_cartae_k <- all7sp_dat %>% 
 #   filter(para_sciname=="Carabus taedatus") %>%
