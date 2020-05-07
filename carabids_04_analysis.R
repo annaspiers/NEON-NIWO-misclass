@@ -1128,6 +1128,21 @@ draw(gam_cymuni)
 #
 
 
+AIS Run the model in Bayesian.
+```{r}
+load("data_derived/final_mod_cartae_t2.Rdata")
+load("data_derived/final_mod_cymuni_t2.Rdata")
+
+final_mod_cartae_brm <- brm(bf(cartae_mod_t2$formula), data =  all7sp_dat %>% filter(para_sciname == "Carabus taedatus", plotID != "NIWO_013"), family = negbinomial, chains = 4, control = list(adapt_delta = 0.9, max_treedepth = 12))
+
+final_mod_cymuni_brm <- brm(bf(cymuni_mod_t2$formula), data =  all7sp_dat %>% filter(para_sciname == "Cymindis unicolor", plotID != "NIWO_013"), family = negbinomial, iter=1000, chains = 4)
+```
+
+
+## for the future
+# should we use collectionDate-years as an offset in this modeling?
+
+
 # smooth everythin
 # bs = ts (shrinkage) vs tp (default) - what does wynne do?
 # include shrinkage. If a term is using effectively 0 degrees of freedom it is having no effect on the fit/predictions at all. For the non-significant terms that have positive EDFs, by keeping them in you are effectively stating that these covariates have a small but non-zero effect. If you remove these terms as you suggest, you are saying explicitly that the effect is zero.

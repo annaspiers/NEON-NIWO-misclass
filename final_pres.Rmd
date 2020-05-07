@@ -253,47 +253,317 @@ knitr::include_graphics("output/degree_days_cumulative.png")
 
 
 # Q3 and 4: Model building and selection
-<!-- updated Q numbers based on actual #s from Intro --> 
+```{r, echo = FALSE, results=FALSE, message = FALSE, warning = FALSE}
+library(dplyr)
+library(mctest)     #omcdiag()
+library(tidyr)      #gather()
+library(ggplot2)
+library(gridExtra)  #grid.arrange
+library(broom)      #glance
+library(MuMIn)      #model.sel
+library(brms)       #brm()
+library(mgcv)       #gam()
+library(gratia)     #draw()
+  
+# Load in model df
+all7sp_dat <- read.csv("data_derived/model_df_by_species_in_sample.csv") %>%
+    mutate(sc_DOY = scale(DOY, center = TRUE, scale = TRUE),
+           col_year_fac = as.factor(col_year))
+```
 
-Research Q3. For each species respectively, what are the key predictor variables (e.g. environmental, canopy cover, etc.)? (answered by collinearity and stepGAM)
+To build and select a model for abundance of *Carabus taedatus* and *Cymindis unicolor*, our goals were to:  
+    1. Identify what are the key predictor variables for each species.   
+    2. Find what model best fits the training data species abundance.  
 
-Research Q4. What model best predicts species abundance? 
+#### Predictor variable selection
 
-GAMMs performed better than GLMMs (lower AIC) AND we wanted to use a spline to capture DOY (seasonality)
+We ruled out some variables by evaluating collinearity with the `mctest` package.
 
-Melissa's stepGAM
+```{r, echo = FALSE}
+vars_mat <- all7sp_dat %>%
+    mutate(nlcdclass_num = as.numeric(nlcdClass)) %>%
+    dplyr::select(elev, LAI_1718avg, plot_CHM, LAI_1718avg, precip_2weeks,
+                  DOY, plot17aspect, plot17slope, GDD_cum, col_year, nlcdclass_num)
+                  
+pairs(vars_mat, pch=20, cex=0.75, col="dodgerblue", main="Correlation scatterplots of every possible predictor") 
+```
 
-Collinearity test helped cut out some predictor variables
+Note the nearly perfect correlation between growing degree-days and day of year. Comparing all possible variables, we detect overall collinearity between elevation, canopy height, and NLCD class.  
 
-Base model to test for how much variance is in each grouping variable (GAM with just grouping variables)
+```{r, echo = FALSE}
+imcdiag(vars_mat, all7sp_dat$sp_abund, method="VIF") 
+```
 
-zero-inflated model? 
+After dropping elevation, we failed to detect pairwise collinearity between variables. However, variance inflation factor (VIF) values are above 5 (indicating high correlation) for canopy height, NLCD class, day of year, and cummulative growing degree-day. 
 
-ending with one model that we deem the best for each species
+```{r, echo = FALSE}
+# remove elevation
+vars_mat <- all7sp_dat %>%
+    mutate(nlcdclass_num = as.numeric(nlcdClass)) %>%
+    dplyr::select(LAI_1718avg, plot_CHM, LAI_1718avg, precip_2weeks, DOY,
+                  plot17aspect, plot17slope, GDD_cum, col_year, nlcdclass_num)
+imcdiag(vars_mat, all7sp_dat$sp_abund, method="VIF") 
+```
+
+Canopy height and NLCD class are highly correlated because canopy height is 0 in the tundra. NLCD class is useful in model building since we can vary the intercept by this categorical variable. 
+
+Day of year and growing degree-day are highly correlated. Both capture seasonal variation. 
+
+We don't have enough information right now to select which variable to rule out of each pair. Model fitting with these variables can help us decide. Let's take a step in this direction by utilizing Melissa's `stepGAM` function to compare model AIC values for every iteration of these variables combined. 
+
+Second, use Melissa's stepGAM(), a wrapper function for stepAIC that is compatible with GAMs, to see which predictor variables are important in model fit. 
+
+The effects of plot, trap within plot, canopy height, and slope/aspect are strong for both species. For *Cymindis unicolor* we also see the interaction of day of year and precipitation as an important effect. 
+
+```{r, echo = FALSE, results=FALSE, message = FALSE, warning = FALSE}
+load("data_derived/stepGAM_output_cartae.Rdata")
+load("data_derived/stepGAM_output_cymuni.Rdata")
+
+allAIC_cartae_filt <- allAIC_cartae %>% 
+    filter(!is.na(AIC)) %>% arrange(AIC) %>%
+    mutate(rank=seq(1:length(AIC))) %>% 
+    mutate(AIC=as.numeric(AIC)
+           , Dev.expl = as.numeric(Dev.expl)
+           , REML = as.numeric(REML))# %>%
+    #filter(AIC<500)
+
+allAIC_cartae_plot <- allAIC_cartae_filt %>% 
+    gather(-c(AIC, REML, Dev.expl, formula,rank), key=Predictor, value=WithPredictor) %>% 
+  select(AIC, REML, Dev.expl, Predictor, WithPredictor) %>%
+  mutate(WithPredictor = ifelse(WithPredictor==0, F, T)) %>%
+  ggplot() + 
+    geom_violin(aes(x=WithPredictor, y=AIC), col="dodgerblue")  +  
+    ggtitle("Carabus taedatus") +
+    facet_wrap(.~Predictor) 
+
+
+allAIC_cymuni_filt <- allAIC_cymuni %>% 
+    filter(!is.na(AIC)) %>% arrange(AIC) %>%
+    mutate(rank=seq(1:length(AIC))) %>% 
+    mutate(AIC=as.numeric(AIC)
+           , Dev.expl = as.numeric(Dev.expl)
+           , REML = as.numeric(REML))# %>%
+    #filter(AIC<500)
+ 
+allAIC_cymuni_plot <- allAIC_cymuni_filt %>% 
+    gather(-c(AIC, REML, Dev.expl, formula,rank), key=Predictor, value=WithPredictor) %>% 
+  select(AIC, REML, Dev.expl, Predictor, WithPredictor) %>%
+  mutate(WithPredictor = ifelse(WithPredictor==0, F, T)) %>%
+  ggplot() + 
+    geom_violin(aes(x=WithPredictor, y=AIC), col="dodgerblue")  +  
+    ggtitle("Cymindis unicolor") +
+    facet_wrap(.~Predictor) 
+
+grid.arrange(allAIC_cartae_plot,allAIC_cymuni_plot,nrow=1)
+```
+
+#### Model selection
+
+Now that we've identified what are the possible key predictor variables to include in modeling, let's compare a few modeling approaches. We found that GAMMs performed better than GLMMs as they capture well the seasonal flux in carabid abundance. We used the `mgcv` package for fitting GAMMs. Our initial efforts used a poisson or negative binomial distribution to model carabid abundance. However, predictions were severely biased toward 0, so we should next try a zero-inflated poisson model. While we have a number of environmental variables at our disposal to use as predictors, we learned from Harris et al. 2018 that simply an average model may yield the best predictions, even if it's not the best fit model. For this reason, we will compare the model results from the best baseline (variance partitioning) and negative binomial models. First, we iterated through models with many combinations of environmental predictors. 
+
+The best fit model for each species utilized distinct environmental predictor variables. Since we observe clear differences in abundance between NLCD class types for each species, we had the models fit different smooths of continuous variables to each type of NLCD class.  Models for both species used grouping variables that are artifacts of the sampling structure:  
+* collection date (24 total)  
+* collection year (4 total)  
+* plot (10 across site)  
+* traps within plots (4 per plot)  
+
+For *Carabus taedatus*, the following environmental predictors were used:  
+* day of year  
+* canopy height  
+* accumulated precipitation over collection period  
+* interaction of precipitation and day of year  
+* interaction of slope and aspect  
+
+For *Cymindis unicolor*, the following environmental predictors were used:  
+* cummulative growing degree days  
+* LAI  
+* accumulated precipitation over collection period  
+* interaction of slope and aspect  
+* interaction of precipitation and day of year  
+* interaction of growing degree days and precipitation  
+
+```{r, echo = FALSE}
+load("data_derived/final_mod_cartae.Rdata")
+load("data_derived/final_mod_cymuni.Rdata")
+
+# View selected model formulae
+cartae_mod$formula
+cymuni_mod$formula
+```
+
 
 
 
 # Results & Interpretation
 
 ## Biological interpretation
-<!-- interpret plots of gams biologically. do these make sense? Interpret model results with biology in mind... do these results make sense given that this species is more abundant in the tundra?... -->
+Many of the models we selected between had comparable AIC values, so we chose ones that would be most easily interpreted biologically. Now let's interpret them. 
 
-<!-- # Did not find strong spatial effect, but did find noticeable temporal effects -->
+First, let's look at the output of the variance partition model for each species to see where the variability in the data sit.Note that the variance partition model explains over half of the deviance in the data already!
 
-## Simulation
-compare 'best fit' model to 'base' model
+```{r}
+load("data_derived/vp_mod_cartae.Rdata")
+load("data_derived/vp_mod_cymuni.Rdata")
+summary(vp_mod_cymuni)
+```
 
-{then simulate results - how good is our model - Grant: simulation results}
+Now let's look at the best-fit GAMM result plots.
+
+```{r}
+summary(cartae_mod)
+plot(cartae_mod, pages = 5, rug = TRUE, residuals = TRUE, shade=TRUE, shade.col = "lightblue", all.terms = TRUE, seWithMean = TRUE, shift = coef(cartae_mod)[1], scheme=2)
+
+```
+
+```{r}
+summary(cymuni_mod)
+plot(cymuni_mod, pages = 5, rug = TRUE, residuals = TRUE, shade=TRUE, shade.col = "lightblue", all.terms = TRUE, seWithMean = TRUE, shift = coef(cymuni_mod)[1], scheme=2)
+```
 
 
 ## Prediction
-Research Q3. Leave out one plot or one from each biome from training set (predict plot 13) (base model vs model that fits data best) - validate on testing data
+Given the limited size of the carabid dataset over 4 years and at one site, we will validate our models on data from a single plot in a single year. We trained our models on the rest of the data. Remember that in our last sampling year, 2018, NEON swapped out plot 4 for plot 13. We thought it would be interesting to predict beetle abundance at this new plot, given what we know about the other plots and their abundances. 
+
+```{r, warning=F}
+val_dat <- all7sp_dat %>% 
+  filter(plotID == "NIWO_013" & col_year == 2018) 
+
+vp_cartae_pred <- cbind(val_dat %>% filter(para_sciname == "Carabus taedatus") %>% select(sp_abund), data.frame(predict(vp_mod_cartae, newdata = val_dat %>% filter(para_sciname == "Carabus taedatus"), type = "response", se.fit= TRUE)))
+
+vp_cymuni_pred <- cbind(val_dat %>% filter(para_sciname == "Cymindis unicolor") %>% select(sp_abund), data.frame(predict(vp_mod_cymuni, newdata = val_dat %>% filter(para_sciname == "Cymindis unicolor"), type = "response", se.fit= TRUE)))
+
+cartae_pred <- cbind(val_dat %>% filter(para_sciname == "Carabus taedatus") %>% select(sp_abund), data.frame(predict(cartae_mod, newdata = val_dat %>% filter(para_sciname == "Carabus taedatus"), type = "response", se.fit= TRUE)))
+
+cymuni_pred <- cbind(val_dat %>% filter(para_sciname == "Cymindis unicolor") %>% select(sp_abund), data.frame(predict(cymuni_mod, newdata = val_dat %>% filter(para_sciname == "Cymindis unicolor"), type = "response", se.fit= TRUE)))
+
+plot_vp_cartae_pred <- vp_cartae_pred %>%
+  ggplot(aes(x=fit, y=sp_abund)) +
+  geom_jitter(col="dodgerblue") +
+  geom_abline(slope = 1, intercept = 0, col="dodgerblue") +
+  ggtitle("Var. Part. model for Carabus taedatus") +
+  xlim(0,5) +  ylim(0,5) +
+  ylab("Observed count" ) +
+  xlab("Predicted count")
+plot_vp_cymuni_pred <- vp_cymuni_pred %>%
+  ggplot(aes(x=fit, y=sp_abund)) +
+  geom_jitter(col="dodgerblue") +
+  geom_abline(slope = 1, intercept = 0, col="dodgerblue") +
+  ggtitle("Var. Part. model for Cymindis unicolor") +
+  xlim(0,5) +  ylim(0,5) +
+  ylab("Observed count" ) +
+  xlab("Predicted count")
+plot_cartae_pred <- cartae_pred %>%
+  ggplot(aes(x=fit, y=sp_abund)) +
+  geom_jitter(col="dodgerblue") +
+  geom_abline(slope = 1, intercept = 0, col="dodgerblue") +
+  ggtitle("Best fit model for Carabus taedatus") +
+  xlim(0,5) +  ylim(0,5) +
+  ylab("Observed count" ) +
+  xlab("Predicted count")
+plot_cymuni_pred <- cymuni_pred %>%
+  ggplot(aes(x=fit, y=sp_abund)) +
+  geom_jitter(col="dodgerblue") +
+  geom_abline(slope = 1, intercept = 0, col="dodgerblue") +
+  ggtitle("Best fit model for Cymindis unicolor") +
+  xlim(0,5) +  ylim(0,5) +
+  ylab("Observed count" ) +
+  xlab("Predicted count")
+
+grid.arrange(plot_vp_cartae_pred,plot_vp_cymuni_pred,plot_cartae_pred,plot_cymuni_pred,nrow=2)
+
+```
+
+Our models can predict absence or low abundance, but not more. This is support for trying a zero-inflated poisson next. 
 
 
 ## Cross-validation
-We chose the K-fold cross validation method
-<!-- will add details about this method --> 
-We were not able to get the code to run smoothly before the end of the semester. If we had more time, this would be the next step in our project. 
+We chose the K-fold cross validation method. 
+```{r}
+# all7sp_dat_cartae_k <- all7sp_dat %>% 
+#   filter(para_sciname=="Carabus taedatus") %>%
+#   mutate(k = sample(1:20, 960, replace=T))
+# all7sp_dat_cymuni_k <- all7sp_dat %>% 
+#   filter(para_sciname=="Cymindis unicolor" ) %>%
+#   mutate(k = sample(1:20, 960, replace=T))
+# 
+# err_cartae <- rep(NA,960)
+# for (i in 1:20 ) {
+#     gamcartae_loo <- gam(formula = sp_abund ~ nlcdClass + s(DOY, bs = "cc", k = 3) + 
+#                            s(precip_2weeks, by = nlcdClass, bs = "ts", k = 3) + 
+#                            s(plot_CHM,bs = "ts", k = 3) + 
+#                            te(DOY, precip_2weeks, by = nlcdClass, bs = c("cc", "ts"), k = 3) +
+#                            te(plot17aspect, plot17slope, bs = c("ts", "ts"), k = 3) + 
+#                            s(collectDate, bs = "re") + s(col_year_fac, bs = "re") + 
+#                            s(plot_trap, bs = "re") + s(plotID, bs = "re"), family = nb, 
+#                          data = all7sp_dat_cartae_k %>% filter(k != i), method = "REML")
+#       
+#     err_temp <- ( predict(gamcartae_loo,newdata=all7sp_dat_cartae_k %>% filter(k == i)) -
+#                          all7sp_dat_cartae_k %>% filter(k == i) %>% select(sp_abund) )^2 #MSE
+#     err_cartae <- rbind(err_cartae, err_temp)
+#     rm(gamcartae_loo, err_temp)
+# }
+# err_cartae <- err_cartae[-1,]
+# CV_cartae <- mean(err_cartae)
+# 
+# err_cymuni <-rep(NA,960)
+# for (i in 1:20 ) {
+#     gamcymuni_loo <- gam(formula = sp_abund ~ nlcdClass + s(GDD_cum, bs = "ts", k = 1) + 
+#                            s(LAI_1718avg, bs = "ts", k = 1) + 
+#                            s(precip_2weeks, bs = "ts", k = 1) + 
+#                            te(GDD_cum, precip_2weeks, bs = c("ts", "ts"), k = 3) + 
+#                            te(plot17aspect, plot17slope, by = nlcdClass, bs = c("ts", "ts"), k = 5) +
+#                            te(DOY, precip_2weeks, bs = c("cc", "ts"), k = 4) + 
+#                            s(collectDate, bs = "re") + s(col_year_fac, bs = "re") + 
+#                            s(plot_trap, bs = "re") + s(plotID, bs = "re"), family = nb, 
+#                          data = all7sp_dat_cymuni_k %>% filter(k != i), method = "REML")
+#       
+#     err_temp <- ( predict(gamcymuni_loo,newdata=all7sp_dat_cymuni_k %>% filter(k == i)) -
+#                          all7sp_dat_cymuni_k %>% filter(k == i) %>% select(sp_abund) )^2 #MSE
+#     err_cymuni <- rbind(err_cymuni, err_temp)
+#     rm(gamcymuni_loo, err_temp)
+# }
+# err_cymuni <- err_cymuni[-1,]
+# CV_cymuni <- mean(err_cymuni)
+# 
+# err_cartae <- rep(NA,960)
+# for (i in 1:20 ) {
+#     gamcartae_vp_loo <- gam(formula = sp_abund ~
+#                            s(collectDate, bs = "re") + s(col_year_fac, bs = "re") + 
+#                            s(plot_trap, bs = "re") + s(plotID, bs = "re"), family = nb, 
+#                          data = all7sp_dat_cartae_k %>% filter(k != i), method = "REML")
+#       
+#     err_temp <- ( predict(gamcartae_vp_loo,newdata=all7sp_dat_cartae_k %>% filter(k == i)) -
+#                          all7sp_dat_cartae_k %>% filter(k == i) %>% select(sp_abund) )^2 #MSE
+#     err_cartae <- rbind(err_cartae, err_temp)
+#     rm(gamcartae_vp_loo, err_temp)
+# }
+# err_cartae <- err_cartae[-1,]
+# CV_cartae_vp <- mean(err_cartae)
+# 
+# err_cymuni <-rep(NA,960)
+# for (i in 1:20 ) {
+#     gamcymuni_vp_loo <- gam(formula = sp_abund ~
+#                            s(collectDate, bs = "re") + s(col_year_fac, bs = "re") + 
+#                            s(plot_trap, bs = "re") + s(plotID, bs = "re"), family = nb, 
+#                          data = all7sp_dat_cymuni_k %>% filter(k != i), method = "REML")
+#       
+#     err_temp <- ( predict(gamcymuni_vp_loo,newdata=all7sp_dat_cymuni_k %>% filter(k == i)) -
+#                          all7sp_dat_cymuni_k %>% filter(k == i) %>% select(sp_abund) )^2 #MSE
+#     err_cymuni <- rbind(err_cymuni, err_temp)
+#     rm(gamcymuni_vp_loo, err_temp)
+# }
+# err_cymuni <- err_cymuni[-1,]
+# CV_cymuni_vp <- mean(err_cymuni)
+# 
+# # Compare models
+# save(CV_cartae, CV_cymuni, CV_cartae_vp, CV_cymuni_vp, file="data_derived/cv_output.Rdata")
+
+load("data_derived/cv_output.Rdata")
+CV_mat <- matrix(c(CV_cartae, CV_cymuni, CV_cartae_vp, CV_cymuni_vp), nrow=2, byrow=T)
+rownames(CV_mat) <- c("best fit", "var par")
+colnames(CV_mat) <- c("Car tae", "Cym uni")
+CV_mat
+```
 
 
 # Discussion - Did we do what we set out to do?
@@ -307,8 +577,6 @@ This was scaled back quite a bit from our early aspirations. And we did not meet
 ## Future work
 
 If we had more time (and data), we'd include the following items: 
-
-* Cross-validate the best-fit model for each species ( = get the code to run)
 
 * Once the 2019 carabid data is identified, we'd try to predict our two species for 2019 at all plots and collection dates
 
