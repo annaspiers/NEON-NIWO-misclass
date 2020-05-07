@@ -1,7 +1,7 @@
 ---
-title: "final_pres"
-author: "Anna Spiers"
-date: "4/30/2020"
+title: "Forecasting Carabid Beetle Abundance at Niwot Ridge"
+author: "Anna Spiers, Christa Torrens, Grant Vagle"
+date: "5/07/2020"
 output: html_document
 ---
 
@@ -9,42 +9,97 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-to hide text in knitted md, 
-<! –– and the comment closes with ––>
+## Project Goals - Big Picture
 
-# Brainstorming for forecasting final presentation
+* To use NEON data, including AOP lidar data, to accurately forecast the abundance of carabid beetles across the landscape, using training data from Niwot Ridge. 
 
-# Premise - Christa
+* To be able to forecast changes to carabid beetle distribution under changing climate conditions 
 
-##### Carabids
-Why carabids? They're good indicators of environmental change, so creating accurate forecasts of them is helpful for understanding impacts of environmental change.  
-
-##### Research questions
-What were our questions
-Hypothesized strong spatial/microhabitat effects
-Predict when is peak abundance for each species in 2019. Assess based on timing and magnitude of peak. {Area under curve for total seasonal abundance}
-Here, we focus on two species. Carabus taedatus (more in tundra) and Cymindis unicolor (more in fores) are the only two species present in both nlcdClass
-
-Research questions we brainstormed earlier in the semester:  
-1. For each species respectively, what are the key predictor variables (e.g. environmental, canopy cover, etc.)? (answered by collinearity and stepGAM)
-2. What model best predicts species abundance spatially? (actually found most variation in temporal scale)
-3. Leave out one plot or one from each biome from training set (predict plot 13) (base model vs model that fits data best)
-4. Cross-validate chosen model. Which cross-validation method to use?
-5. What model best predicts species abundance in the 2019 collection season? 
+* To use our forecast model to determine "how much data is enough?" for accurate forcasting at different timesteps
+    + Assume the predicted data are real - run model 25 years into future
+    + Test model accuracy with 1, 3, 5, 10, 15, 20 years of “real” data
 
 
-<!-- # Out of these accurately id abundant species, many were present in only one -->
-<!-- # habitat, only these two were present in both, wanted to explore more. through -->
-<!-- # the sampling - neon found that one of the plots had low abundance (4) so -->
-<!-- # switched out for plot 13, can we predict the abundance for plot 13 in 2018 for -->
-<!-- # these two species??? given that we were intereste in these two species, we dug -->
-<!-- # into their biology....natural history of both species chosen....for these -->
-<!-- # reasons, we chose these explanatory variables to include....this is what the -->
-<!-- # process was like to summarize each predictor variable for our model (e.g. -->
-<!-- # defining buffer for canopy height)...heres a visual of the two species through -->
-<!-- # time...this is what our model was...questions: what predictors are most -->
-<!-- # important for explaining abundance of these species...what was our prediction -->
-<!-- # of the abundance, how accurate, how well does it match the raw data?... -->
+## Project Goals - This Semester
+
+* To create and validate a working model to accurately predict the abundance of 1-2 carabid spp. at NEON's Niwot carabid traps 
+    + *either* a temporal prediction (2019 season)
+    + *or* spatial prediction (one of the traps, 2018 season).
+
+
+## Why Carabids?
+
+Ground beetles (Carabidae) are an excellent sentinel taxon, and can be used to understand the consequences of global climate change in high mountain areas. 
+
+* They are abundant, found across many biomes, and are relatively easy to identify
+
+* They are sensitive to habitat change, thus are predicted to serve as useful bioindicators of environmental and land use change 
+    + Numerous studies have shown that carabid beetle richness and/or assemblage composition change along altitudinal gradients, with vegetation type, and/ or land use type 
+    
+* Their presence/ absence impacts other ecosystem components: 
+    + They are an important component of terrestrial food webs and can influence trophic structure 
+(Hoekman et al. 2017, Hiramatsu and Usio 2018)
+
+Available data: The NEON data suite includes carabid abundance since 2015, as well as many of our target predictor variables. 
+
+
+## Research Questions (initial)
+
+* Which carabid species are 'best' to focus on for our semester goals?
+
+* What are the key predictor variables for each species?
+
+* Which model type will best predict species abundance?
+
+* Are spatial or temporal variables more important?
+    + Note: We initially focused on spatial predictions, but found temporal variance was a stronger influence on carabid abundance
+
+
+## Carabid selection
+
+First we determined that there were seven abundant and well-identified species in NEON's Niwot data.
+
+```{r, echo=FALSE, out.width = 600}
+knitr::include_graphics("images/Carabid ID_7circled.png")
+```
+
+Then we looked at abundance by sampling plot and collection date
+
+```{r, echo=FALSE}
+knitr::include_graphics("output/species_through_years.png")
+```
+
+Looking at the abundance data, we chose two of those seven: *Carabus taedatus* and *Cymindis unicolor*.
+
+```{r, echo=FALSE}
+knitr::include_graphics("output/abund_collectDate_twospp.png")
+```
+
+<!-- find code to create the distribution by nlcd class and spp image --> 
+
+Both species were consistently present in both of Niwot's landscape classes: tundra and evergreen forest. *C. unicolor* was more abundant in the forested plots and *C. taedatus* was more abundant in the tundra plots. This combination allows us to test our model's accuracy for high and low abundance levels in both habitats.
+
+
+## Species traits
+
+This information was sparse for our selected species - therefore some of the "specific" phenology information is for the family or genus level. 
+
+In general, carabids are ground-dwelling beetles that prefer moist conditions; note that both of our selected species are xerophilous. Most species are omnivorous as larvae and adults, commonly eating both other arthropods and seeds. The life cycle is 1 year long for most species, with adults living 2-4 years. Most taxa have three instars. Pupation is in the ground.  
+
+### *Carabus taedatus* 
+```{r, echo=FALSE, out.width = 100}
+knitr::include_graphics("images/CARTAE.png")
+```
+
+**Range**: Nearctic; **Habitat**: Boreal forests. Prefers dry, well-drained environments with thin, low vegetation; **Diet**: both larvae and adults are predatory; **Phenology**: probably overwinters as an adult; **Reproduction**: (genus) Females lay their eggs in specially-constructed cells made of mud, twigs and leaves. 
+
+### *Cymindis unicolor*
+```{r, echo=FALSE, out.width = 100}
+knitr::include_graphics("images/CYMUNI.png")
+```
+
+**Range**: Holarctic; **Habitat**: An arctic-alpine species occurring in tundra and tundra-forest transition zones; prefers dry, treeless, well-drained environments;  **Diet**: no specific information found; **Phenology**: Little known: In Canada, most specimens were found in June and July, but also found as late as October; **Reproduction**: (genus) Females use ovipositors to create cavities in the earth then deposit their eggs. **Remarks**: The species is relatively rare. The *Lebiini* tribe is found in all the major zoogeographical regions of the world; this genus ranges from Costa Rica to arctic tundra.
+
 
 
 # EDA - Grant
