@@ -9,7 +9,9 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Project Goals - Big Picture
+# Project overview and background
+
+## Project goals - big picture
 
 * To use NEON data, including AOP lidar data, to accurately forecast the abundance of carabid beetles across the landscape, using training data from Niwot Ridge. 
 
@@ -20,7 +22,7 @@ knitr::opts_chunk$set(echo = TRUE)
     + Test model accuracy with 1, 3, 5, 10, 15, 20 years of “real” data
 
 
-## Project Goals - This Semester
+## Project goals - this semester
 
 * To create and validate a working model to accurately predict the abundance of 1-2 carabid spp. at NEON's Niwot carabid traps 
     + *either* a temporal prediction (2019 season)
@@ -43,25 +45,28 @@ Ground beetles (Carabidae) are an excellent sentinel taxon, and can be used to u
 Available data: The NEON data suite includes carabid abundance since 2015, as well as many of our target predictor variables. 
 
 
-## Research Questions (initial)
+## Research questions (initial)
 
-* Which carabid species are 'best' to focus on for our semester goals?
+1. Which carabid species are 'best' to focus on for our semester goals?
 
-* What are the key predictor variables for each species?
-
-* Which model type will best predict species abundance?
-
-* Are spatial or temporal variables more important?
+2. Initial exploration of variables (EDA)
++ Based on the literature, what are likely to be important variables driving carabid presence/ absence? 
     + Note: We initially focused on spatial predictions, but found temporal variance was a stronger influence on carabid abundance
 
+3. What are the key predictor variables for each species?  (Model building)
+    
+4. Which model type will best predict species abundance? (Model testing)
 
-## Carabid selection
 
-First we determined that there were seven abundant and well-identified species in NEON's Niwot data.
+## Q1: Carabid species selection
+
+First we determined that there were seven abundant and well-identified species in NEON's Niwot data.  
 
 ```{r, echo=FALSE, out.width = 600}
 knitr::include_graphics("images/Carabid ID_7circled.png")
 ```
+
+(the next section will go into details on sampling design and analysis)
 
 Then we looked at abundance by sampling plot and collection date
 
@@ -102,7 +107,7 @@ knitr::include_graphics("images/CYMUNI.png")
 
 
 
-# EDA - Grant
+# Q2: EDA
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 library(knitr)
@@ -235,11 +240,12 @@ knitr::include_graphics("output/degree_days_cumulative.png")
 
 
 
-# Model building and selection - Anna
+# Q3 and 4: Model building and selection
+<!-- updated Q numbers based on actual #s from Intro --> 
 
-Research Q1. For each species respectively, what are the key predictor variables (e.g. environmental, canopy cover, etc.)? (answered by collinearity and stepGAM)
+Research Q3. For each species respectively, what are the key predictor variables (e.g. environmental, canopy cover, etc.)? (answered by collinearity and stepGAM)
 
-Research Q2. What model best predicts species abundance? 
+Research Q4. What model best predicts species abundance? 
 
 GAMMs performed better than GLMMs (lower AIC) AND we wanted to use a spline to capture DOY (seasonality)
 
@@ -255,8 +261,9 @@ ending with one model that we deem the best for each species
 
 
 
-#### Results & Interpretation
+# Results & Interpretation
 
+## Biological interpretation
 interpret plots of gams biologically. do these make sense? Interpret model results with biology in mind... do these results make sense given that this species is more abundant in the tundra?...
 
 compare 'best fit' model to 'base' model
