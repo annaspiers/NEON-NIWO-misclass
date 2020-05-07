@@ -77,7 +77,7 @@ knitr::include_graphics("output/species_through_years.png")
 Looking at the abundance data, we chose two of those seven: *Carabus taedatus* and *Cymindis unicolor*.
 
 ```{r, echo=FALSE}
-knitr::include_graphics("output/abund_collectDate_twospp.png")
+knitr::include_graphics("output/abund_DateClass_twospp.png")
 ```
 
 <!-- find code to create the distribution by nlcd class and spp image --> 
