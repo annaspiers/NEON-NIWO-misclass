@@ -46,6 +46,13 @@ Available data: The NEON data suite includes carabid abundance since 2015, as we
 
 
 ## Research questions (initial)
+<<<<<<< HEAD
+=======
+
+* Which carabid species are 'best' to focus on for our semester goals?
+
+* What are the key predictor variables for each species?
+>>>>>>> da94ad7b62c164ae542707d49b0a4ebbf765f547
 
 1. Which carabid species are 'best' to focus on for our semester goals?
 
@@ -106,6 +113,12 @@ knitr::include_graphics("images/CYMUNI.png")
 **Range**: Holarctic; **Habitat**: An arctic-alpine species occurring in tundra and tundra-forest transition zones; prefers dry, treeless, well-drained environments;  **Diet**: no specific information found; **Phenology**: Little known: In Canada, most specimens were found in June and July, but also found as late as October; **Reproduction**: (genus) Females use ovipositors to create cavities in the earth then deposit their eggs. **Remarks**: The species is relatively rare. The *Lebiini* tribe is found in all the major zoogeographical regions of the world; this genus ranges from Costa Rica to arctic tundra.
 
 
+<<<<<<< HEAD
+=======
+
+# EDA
+
+>>>>>>> da94ad7b62c164ae542707d49b0a4ebbf765f547
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 library(knitr)
 ```
