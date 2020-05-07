@@ -9,7 +9,9 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Project Goals - Big Picture
+# Project overview and background
+
+## Project goals - big picture
 
 * To use NEON data, including AOP lidar data, to accurately forecast the abundance of carabid beetles across the landscape, using training data from Niwot Ridge. 
 
@@ -20,7 +22,7 @@ knitr::opts_chunk$set(echo = TRUE)
     + Test model accuracy with 1, 3, 5, 10, 15, 20 years of “real” data
 
 
-## Project Goals - This Semester
+## Project goals - this semester
 
 * To create and validate a working model to accurately predict the abundance of 1-2 carabid spp. at NEON's Niwot carabid traps 
     + *either* a temporal prediction (2019 season)
@@ -43,7 +45,7 @@ Ground beetles (Carabidae) are an excellent sentinel taxon, and can be used to u
 Available data: The NEON data suite includes carabid abundance since 2015, as well as many of our target predictor variables. 
 
 
-## Research Questions (initial)
+## Research questions (initial)
 
 * Which carabid species are 'best' to focus on for our semester goals?
 
@@ -102,7 +104,7 @@ knitr::include_graphics("images/CYMUNI.png")
 
 
 
-# EDA - Grant
+# EDA
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 library(knitr)
