@@ -15,10 +15,9 @@ jags_misclass_fn <- function(){
                          alpha = alpha,
                          n = n,
                          M = M )) #bundle data
-    z_init <- Z
-    JAGSinits <- function(){list(z = z_init, 
+    JAGSinits <- function(){list(Z = Z, 
                                  theta = theta) }
-    JAGSparams <- c("psi", "lambda", "theta", "p", "phi", "gamma", "n.occ", "growth", "turnover") #params monitored
+    JAGSparams <- c("psi", "lambda", "theta", "Z", "p", "phi", "gamma", "n.occ", "growth", "turnover") #params monitored
     nc <- 4 #MCMC chains
    # ni <- 20000 #MCMC iterations
     nb <- 4000 #MCMC burnin
@@ -44,9 +43,9 @@ jags_misclass_fn <- function(){
 # Use  realistic values for n (number of species k identified by expert taxonomist) and include cases where no expert data are available (n[k]=0 for species k)
 # AIS This model assumes closure for Z and M throughout the season. 
 
-nsite <- 8 
-nsurv <- 3
-nspec <- 2
+nsite <- 5 
+nsurv <- 5
+nspec <- 4
 nyear <- 3
 
 
@@ -54,28 +53,23 @@ nyear <- 3
 # The parameters below assume only a parataxonomist's classification is available
 
 # Set initial occupancy and demographic parameters
-# Psi: occupancy probability. dim: nspec x nyear
-# P:  detection probability. dim: nspec x nyear
-# Phi:  survival probability. dim: nspec x nyear
-# Gamma:  colonization probability. dim:  nspec x nyear
-psi     <- matrix(NA, nrow=nspec, ncol=nyear)
-p       <- matrix(NA, nrow=nspec, ncol=nyear)
-phi     <- matrix(NA, nrow=nspec, ncol=nyear)
-gamma   <- matrix(NA, nrow=nspec, ncol=nyear)
-psi[,1] <- rbeta(nspec, 3, 4) #occ prob in first year
-for (l in 1:nyear) {
-    p[,l]       <- rbeta(nspec, 3, 4)  #chose to be somewhere in the middle %
-    phi[,l]     <- rbeta(nspec, 8, 2)  #chose to be high %
-    gamma[,l]   <- rbeta(nspec, 1, 15) #chose to be low %
-}
+# Psi: occupancy probability. dim: nspec 
+# P:  detection probability. dim: nspec
+# Phi:  survival probability. dim: nspec 
+# Gamma:  colonization probability. dim: nspec 
+psi     <- rbeta(nspec, 3, 4) 
+p       <- rbeta(nspec, 3, 4)  #chose to be somewhere in the middle %
+phi     <- rbeta(nspec, 8, 2)  #chose to be high %
+gamma   <- rbeta(nspec, 1, 15) #chose to be low %
+# AIS these should not vary by year (?)
 
 
 # Z: true occupancy at site i of species k (latent). dim = nsite, nspec, nyear
 Z <- array(NA, dim = c(nsite=nsite, nspec=nspec, nyear=nyear))
 for (i in 1:nsite) {
-    Z[i, ,1] <- rbinom(nspec, 1, psi[,1])
+    Z[i, ,1] <- rbinom(nspec, 1, psi)
     for (l in 2:nyear) {
-        Z[i, ,l] <- rbinom(nspec, 1, Z[i, ,l-1]*phi[,l-1] + (1-Z[i, ,l-1])*gamma[,l-1])
+        Z[i, ,l] <- rbinom(nspec, 1, Z[i, ,l-1]*phi + (1-Z[i, ,l-1])*gamma)
 	}
 }
 
@@ -111,16 +105,14 @@ for (k in 1:nspec) {
     theta[k, ] <- MCMCpack::rdirichlet(1, alpha[k, ])
     M[k, ]     <- rmultinom(1, size=n[k], prob=theta[k, ])
 }
-image(theta, main="Simulated Theta")
-image(M, main="Simulated M")
 
 
 # Combine occupancy and misclassification models to simulate observed data --------
 
-# C: C[i,j,k] is a vector of counts for species k (expert) classified as species 1,...,K whose elements sum to Y[i,j,k]. dim = [KxK], rows are expert species ID's, columns are parataxonomist species ID's
-# c_obs: c_obs[i,j,k,k'] are the elements of vector C, and represent the number of individuals that were actually of species k (expert) classified as k'
-c_obs   <- array(NA, dim = c(nrow=nsite, ncol=nsurv, n3d=nspec))
-C       <- array(NA, dim = c(dim(c_obs), n4d=nspec))
+# C: C[i,j,k] is a vector of counts for species classified as species 1,...,K whose elements sum to Y[i,j,k]. dim = [KxK], rows are expert species ID's, columns are parataxonomist species ID's
+# c_obs: c_obs[i,j,k'] are the elements of vector C, and represent the number of individuals that were classified as k'
+c_obs   <- array(NA, dim = c(nsite=nsite, nsurv=nsurv, nspec=nspec))
+C       <- array(NA, dim = c(dim(c_obs), nspec=nspec))
 for (i in 1:nsite) {
     for (j in 1:nsurv) {
         for (k in 1:nspec) { # actual species
@@ -140,56 +132,39 @@ out <- jags_misclass_fn()
 
 # How well does the model estimate specified parameters?
 print(out, dig=2)
-plot(out)
+traceplot(out, parameters="psi")
 
 # Compare true and recaptured psi 
 psi
 out$mean$psi
 
 # Compare true and recaptured lambda 
-par(mfrow=c(2,2))
-image(lambda[,,1], main="Observed lambda for species 1")
-image(out$mean$lambda[,,1], main="Predicted lambda for species 1")
-image(lambda[,,2], main="Observed lambda for species 2")
-image(out$mean$lambda[,,2], main="Predicted lambda for species 2")
-
-# Compare true and recaptured theta 
-par(mfrow=c(1,2))
-image(theta, main="Observed theta")
-image(out$mean$theta, main="Predicted theta")
-
-par(mfrow=c(1,1))
-plot(NA,xlim=c(0,1),ylim=c(0,1),
-     xlab="Predicted",ylab="Observed",main="Theta comparison")
+plot(NA,xlim=c(0,max(lambda)),ylim=c(0,max(lambda)),
+     xlab="Observed",ylab="Predicted",main="Lambda comparison")
 abline(0,1)
-for (i in 1:nspec) {
-    points(x=out$mean$theta[i,],
-         y=theta[i,],
-         col=i)
+for (i in 1:dim(Z)[1]) {
+    for (k in 1:dim(Z)[2]) {
+        for (l in 1:dim(Z)[3])
+            points(c(lambda[i,,k,l]), c(out$mean$lambda[i,,k,l]), main="Lambda", 
+                   col=ifelse( round(out$mean$Z[i,k,l])==0,"red","black")) 
+    }
 }
 
-# Visualize predictions of species unobserved by expert taxonomist
-par(mfrow=c(1,1))
-plot(NA,xlim=c(0,1),ylim=c(0,1),
-     xlab="Predicted",ylab="Observed",main="Theta comparison for species without expert ID")
+
+# Compare true and recaptured theta 
+plot(c(theta), c(out$mean$theta), main="Theta")
 abline(0,1)
-points(x=out$mean$theta[nspec,],y=theta[nspec,],col="red")
 
+# Compare true and recaptured Z 
+plot(c(Z), c(out$mean$Z), main="Z")
+abline(0,1)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# Visualize predictions of species unobserved by expert taxonomist
+#par(mfrow=c(1,1))
+#plot(NA,xlim=c(0,1),ylim=c(0,1),
+#     xlab="Predicted",ylab="Observed",main="Theta comparison for species without expert ID")
+#abline(0,1)
+#points(x=out$mean$theta[nspec,],y=theta[nspec,],col="red")
 
 # Plot apparent occupancy 
     psi.app <- apply(apply(y, c(1,3), max), 2, mean) 

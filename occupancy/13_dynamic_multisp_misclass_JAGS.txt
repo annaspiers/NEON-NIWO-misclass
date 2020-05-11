@@ -4,24 +4,24 @@ model {
   #mu_logit_p    ~ dnorm(0, 1)
   #sd_logit_p    ~ dunif(0, 5)
   #tau_logit_p   <- pow(sd_logit_p, -2)
-  lambda_shape  ~ dunif(0,20) 
-  lambda_scale  ~ dunif(0,20)
-  lambda_rate   <- 1/lambda_scale 
+  lambda_shape  ~ dgamma(5,1) 
+  lambda_rate   ~ dgamma(1,1)
   
   for (n in 1:2) {
-    psi_beta[n]   ~ dunif(0, 20)
+    #psi_beta[n]   ~ dunif(0, 20)
     p_beta[n]     ~ dunif(0, 20)
-    phi_beta[n]   ~ dunif(0, 20)
-    gamma_beta[n] ~ dunif(0, 20)
+    #phi_beta[n]   ~ dunif(0, 20)
+    #gamma_beta[n] ~ dunif(0, 20)
   }
   
     # Parameter priors. Each species has its own occupancy prob, classification prob vector, and expected number of detections
+    
   for (k in 1:nspec) {
-    psi1[k]   ~ dbeta(psi_beta[1], psi_beta[2]) 
+    psi1[k]   ~ dbeta(3,4)    #dbeta(psi_beta[1], psi_beta[2]) 
     #logit(p[k]) ~ dnorm(mu_logit_p, tau_logit_p)
     p[k]      ~ dbeta(p_beta[1], p_beta[2])
-    phi[k]    ~ dbeta(phi_beta[1], phi_beta[2])
-    gamma[k]  ~ dbeta(gamma_beta[1], gamma_beta[2])
+    phi[k]    ~ dbeta(8,2)    #dbeta(phi_beta[1], phi_beta[2])
+    gamma[k]  ~ dbeta(1,15)    #dbeta(gamma_beta[1], gamma_beta[2])
     theta[k,1:nspec] ~ ddirch(alpha[k,1:nspec])
     
     for (l in 1:nyear) {
@@ -35,13 +35,13 @@ model {
   }
   
   # State model
-  # z dimensions: nsite, nspec, nyear
+  # Z dimensions: nsite, nspec, nyear
   for (i in 1:nsite) {
     for (k in 1:nspec) {
-      z[i,k,1] ~ dbern(psi1[k])
+      Z[i,k,1] ~ dbern(psi1[k])
       for (l in 2:nyear) {
-        z[i,k,l]    ~ dbern(z[i,k,l-1]*phi[k] + 
-                        (1 - z[i,k,l-1])*gamma[k]) 
+        Z[i,k,l]    ~ dbern(Z[i,k,l-1]*phi[k] + 
+                        (1 - Z[i,k,l-1])*gamma[k]) 
       }
     }
   }
@@ -53,11 +53,12 @@ model {
   for (i in 1:nsite) {
     for (j in 1:nsurv) {
       for (k_prime in 1:nspec) {
-        for (l in 1:nyear) {
-           <- sum(z[i, ,l] * lambda[i,j, ,l] )
-        }
-        c_obs[i,j,k_prime] ~ dpois(  * theta[ ,k_prime])
+        #for (l in 1:nyear) {
+        #  blah[l] <- sum(Z[i, ,l] * lambda[i,j, ,l] )
+        #}
+        #c_obs[i,j,k_prime] ~ dpois( blah[l] * theta[ ,k_prime])
         # AIS does this look right?
+        c_obs[i,j,k_prime] ~ dpois( sum(Z[i, , ] * lambda[i,j, , ]) * sum(theta[ ,k_prime])) 
       }
     }
   }
@@ -65,13 +66,14 @@ model {
   # Derived parameters
   for (k in 1:nspec) {
     psi[k,1] <- psi1[k]
-    n.occ[k,1]  <- sum(z[1:nsite,k,1])
+    n.occ[k,1]  <- sum(Z[1:nsite,k,1])
     for (l in 2:nyear) {
       psi[k,l]        <- psi[k,l-1]*phi[k] + 
                           (1 - psi[k,l-1])*gamma[k] 
-      n.occ[k,l]      <- sum(z[1:nsite,k,l])
+      n.occ[k,l]      <- sum(Z[1:nsite,k,l])
       growth[k,l]     <- psi[k,l]/psi[k,l-1] 
       turnover[k,l-1] <- (1 - psi[k,l-1])*gamma[k]/psi[k,l] 
     }
   }
 } #model
+
