@@ -19,20 +19,19 @@ jags_misclass_fn <- function(){
                                  theta = theta) }
     JAGSparams <- c("psi", "lambda", "theta", "Z", "p", "phi", "gamma", "n.occ", "growth", "turnover") #params monitored
     nc <- 4 #MCMC chains
-   # ni <- 20000 #MCMC iterations
+    ni <- 8000 #MCMC iterations
     nb <- 4000 #MCMC burnin
     nt <- 1  #MCMC thin
     
     # JAGS model
-    jags_out <- autojags(data = JAGSdata,
+    jags_out <- jags(data = JAGSdata,
                      inits = JAGSinits,
                      parameters.to.save = JAGSparams,
                      model.file = "occupancy/13_dynamic_multisp_misclass_JAGS.txt", 
                      n.chains = nc,
-                     #n.iter = ni,
+                     n.iter = ni,
                      n.burnin = nb,
-                     n.thin = nt,
-                     Rhat.limit = 1.05)
+                     n.thin = nt)
     return(jags_out)
 }
 
@@ -43,10 +42,10 @@ jags_misclass_fn <- function(){
 # Use  realistic values for n (number of species k identified by expert taxonomist) and include cases where no expert data are available (n[k]=0 for species k)
 # AIS This model assumes closure for Z and M throughout the season. 
 
-nsite <- 5 
+nsite <- 8 
 nsurv <- 5
-nspec <- 4
-nyear <- 3
+nspec <- 2
+nyear <- 4
 
 
 # Dynamic occupancy model --------------------------------------------------
@@ -61,7 +60,6 @@ psi     <- rbeta(nspec, 3, 4)
 p       <- rbeta(nspec, 3, 4)  #chose to be somewhere in the middle %
 phi     <- rbeta(nspec, 8, 2)  #chose to be high %
 gamma   <- rbeta(nspec, 1, 15) #chose to be low %
-# AIS these should not vary by year (?)
 
 
 # Z: true occupancy at site i of species k (latent). dim = nsite, nspec, nyear
@@ -109,17 +107,19 @@ for (k in 1:nspec) {
 
 # Combine occupancy and misclassification models to simulate observed data --------
 
-# C: C[i,j,k] is a vector of counts for species classified as species 1,...,K whose elements sum to Y[i,j,k]. dim = [KxK], rows are expert species ID's, columns are parataxonomist species ID's
-# c_obs: c_obs[i,j,k'] are the elements of vector C, and represent the number of individuals that were classified as k'
-c_obs   <- array(NA, dim = c(nsite=nsite, nsurv=nsurv, nspec=nspec))
+# C: C[i,j,k,l] is a vector of counts for species classified as species 1,...,K whose elements sum to Y[i,j,k]. dim = [KxK], rows are expert species ID's, columns are parataxonomist species ID's
+# c_obs: c_obs[i,j,k',l] are the elements of vector C, and represent the number of individuals that were classified as k'
+c_obs   <- array(NA, dim = c(nsite=nsite, nsurv=nsurv, nspec=nspec, nyear=nyear))
 C       <- array(NA, dim = c(dim(c_obs), nspec=nspec))
 for (i in 1:nsite) {
     for (j in 1:nsurv) {
-        for (k in 1:nspec) { # actual species
-        	C[i,j,k, ] <- rmultinom(1, Y[i,j,k, ], theta[k, ])
-    	}
-        for (k_prime in 1:nspec) {
-            c_obs[i,j,k_prime] <- sum(C[i,j, ,k_prime]) #observed data
+        for (l in 1:nyear) {
+            for (k in 1:nspec) { # actual species
+        	    C[i,j,k,l, ] <- rmultinom(1, Y[i,j,k,l], theta[k, ])
+    	    }
+            for (k_prime in 1:nspec) {
+                c_obs[i,j,k_prime,l] <- sum(C[i,j, ,l,k_prime]) #observed data
+            }
         }
 	}
 }
@@ -132,7 +132,7 @@ out <- jags_misclass_fn()
 
 # How well does the model estimate specified parameters?
 print(out, dig=2)
-traceplot(out, parameters="psi")
+traceplot(out, parameters="Z")
 
 # Compare true and recaptured psi 
 psi

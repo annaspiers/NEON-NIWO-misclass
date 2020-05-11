@@ -1,34 +1,44 @@
 model {
 
   # Parameter argument priors
-  #mu_logit_p    ~ dnorm(0, 1)
-  #sd_logit_p    ~ dunif(0, 5)
-  #tau_logit_p   <- pow(sd_logit_p, -2)
+  mu_psi1   ~ dnorm(0,1)
+  mu_p      ~ dnorm(0,1)
+  mu_phi    ~ dnorm(1.5,1)
+  mu_gamma  ~ dnorm(-2,1)
+  
+  sd_psi1   ~ dunif(0, 10)
+  sd_p      ~ dunif(0, 10)
+  sd_phi    ~ dunif(0, 10)
+  sd_gamma  ~ dunif(0, 10)
+  
+  tau_psi1  <- pow(sd_psi1, -2)
+  tau_p     <- pow(sd_p, -2)
+  tau_phi   <- pow(sd_phi, -2)
+  tau_gamma <- pow(sd_gamma, -2)
+  #AIS think through why sd/tau should (not) be different for each parameter
+  # I would suppose that tau for detection could be larger than tau for occupancy or survival
+  # I also bet that tau for persistence/colonization would be small
+  
   lambda_shape  ~ dgamma(5,1) 
   lambda_rate   ~ dgamma(1,1)
-  
-  for (n in 1:2) {
-    #psi_beta[n]   ~ dunif(0, 20)
-    p_beta[n]     ~ dunif(0, 20)
-    #phi_beta[n]   ~ dunif(0, 20)
-    #gamma_beta[n] ~ dunif(0, 20)
-  }
-  
-    # Parameter priors. Each species has its own occupancy prob, classification prob vector, and expected number of detections
     
   for (k in 1:nspec) {
-    psi1[k]   ~ dbeta(3,4)    #dbeta(psi_beta[1], psi_beta[2]) 
-    #logit(p[k]) ~ dnorm(mu_logit_p, tau_logit_p)
-    p[k]      ~ dbeta(p_beta[1], p_beta[2])
-    phi[k]    ~ dbeta(8,2)    #dbeta(phi_beta[1], phi_beta[2])
-    gamma[k]  ~ dbeta(1,15)    #dbeta(gamma_beta[1], gamma_beta[2])
+    e_psi1[k]  ~ dnorm(0,tau_psi1)
+    e_p[k]     ~ dnorm(0,tau_p)
+    e_phi[k]   ~ dnorm(0,tau_phi)
+    e_gamma[k] ~ dnorm(0,tau_gamma)
+  
+    logit(psi1[k])  = mu_psi1 + e_psi1[k]
+    logit(p[k])     = mu_p + e_p[k]
+    logit(phi[k])   = mu_phi + e_phi[k]
+    logit(gamma[k]) = mu_gamma + e_gamma[k]
+    
     theta[k,1:nspec] ~ ddirch(alpha[k,1:nspec])
     
     for (l in 1:nyear) {
       for (i in 1:nsite) {
         for (j in 1:nsurv) {
           lambda[i,j,k,l] ~ dgamma(lambda_shape, lambda_rate) 
-          #AIS does this change through years? Observed, yes, but would the expectation change?
         }
       }
     }
@@ -53,12 +63,9 @@ model {
   for (i in 1:nsite) {
     for (j in 1:nsurv) {
       for (k_prime in 1:nspec) {
-        #for (l in 1:nyear) {
-        #  blah[l] <- sum(Z[i, ,l] * lambda[i,j, ,l] )
-        #}
-        #c_obs[i,j,k_prime] ~ dpois( blah[l] * theta[ ,k_prime])
-        # AIS does this look right?
-        c_obs[i,j,k_prime] ~ dpois( sum(Z[i, , ] * lambda[i,j, , ]) * sum(theta[ ,k_prime])) 
+        for (l in 1:nyear) {
+          c_obs[i,j,k_prime,l] ~ dpois( sum(Z[i, ,l] * lambda[i,j, ,l] * theta[ ,k_prime])) 
+        }
       }
     }
   }
