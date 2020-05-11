@@ -16,7 +16,7 @@ jags_misclass_fn <- function(){
                          M = M )) #bundle data
     JAGSinits <- function(){list(Z = Z, 
                                  theta = theta) }
-    JAGSparams <- c("psi", "lambda", "theta", "z") #params monitored
+    JAGSparams <- c("psi", "lambda", "theta", "Z") #params monitored
     nc <- 4 #MCMC chains
     #ni <- 20000 #MCMC iterations
     nb <- 4000 #MCMC burnin
