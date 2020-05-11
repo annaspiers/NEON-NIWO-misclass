@@ -14,12 +14,11 @@ jags_misclass_fn <- function(){
                          alpha = alpha,
                          n = n,
                          M = M )) #bundle data
-    z_init <- Z
-    JAGSinits <- function(){list(z = z_init, 
+    JAGSinits <- function(){list(Z = Z, 
                                  theta = theta) }
     JAGSparams <- c("psi", "lambda", "theta", "z") #params monitored
     nc <- 4 #MCMC chains
-    ni <- 20000 #MCMC iterations
+    #ni <- 20000 #MCMC iterations
     nb <- 4000 #MCMC burnin
     nt <- 1  #MCMC thin
     
@@ -43,8 +42,8 @@ jags_misclass_fn <- function(){
 # AIS This model assumes closure for Z and M throughout the season. 
 
 nsite <- 10 
-nsurv <- 2
-nspec <- 2 
+nsurv <- 4
+nspec <- 3 
 
 
 # Static occupancy model --------------------------------------------------
@@ -56,9 +55,9 @@ psi <- rbeta(nspec, 3,4) #one value per species
 # Z: true occupancy at site i of species k (latent). dim = nsite rows, nspec columns
 # Lambda: expected number of detections at an occupied site (latent). dim = nsite rows, nsurv columns, nspec matrices
 # Y: actual number of detections at site i for species k on visit j, conditional on Z (latent)
-Z       <- array(NA, dim = c(nrow=nsite, ncol=nspec))
-lambda  <- array(NA, dim = c(nrow=nsite, ncol=nsurv, n3d=nspec))
-Y       <- array(NA, dim = c(nrow=nsite, ncol=nsurv, n3d=nspec))
+Z       <- array(NA, dim = c(nsite=nsite, nspec=nspec))
+lambda  <- array(NA, dim = c(nsite=nsite, nsurv=nsurv, nspec=nspec))
+Y       <- array(NA, dim = c(nsite=nsite, nsurv=nsurv, nspec=nspec))
 for (i in 1:nsite) {
     Z[i, ] <- rbinom(nspec, 1, psi)
     for (j in 1:nsurv) {
@@ -91,10 +90,10 @@ image(M, main="Simulated M")
 
 # Combine occupancy and misclassification models to simulate observed data --------
 
-# C: C[i,j,k] is a vector of counts for species k (expert) classified as species 1,...,K whose elements sum to Y[i,j,k]. dim = [KxK], rows are expert species ID's, columns are parataxonomist species ID's
+# C: C[i,j,k] is a vector of counts for species classified as species 1,...,K whose elements sum to Y[i,j,k]. dim = [KxK], rows are expert species ID's, columns are parataxonomist species ID's
 # c_obs: c_obs[i,j,k'] are the elements of vector C, and represent the number of individuals that were classified as k'
-c_obs   <- array(NA, dim = c(nrow=nsite, ncol=nsurv, n3d=nspec))
-C       <- array(NA, dim = c(dim(c_obs), n4d=nspec))
+c_obs   <- array(NA, dim = c(nsite=nsite, nsurv=nsurv, nspec=nspec))
+C       <- array(NA, dim = c(dim(c_obs), nspec=nspec))
 for (i in 1:nsite) {
     for (j in 1:nsurv) {
     	for (k in 1:nspec) { # actual species
@@ -114,24 +113,22 @@ out <- jags_misclass_fn()
 
 # How well does the model estimate specified parameters?
 print(out, dig=2)
-traceplot(out, parameters="z")
+traceplot(out, parameters="psi")
 
 # Compare true and recaptured psi 
 psi
 out$mean$psi
 
 # Compare true and recaptured lambda 
-par(mfrow=c(2,2))
-image(lambda[,,1], main="Observed lambda for species 1")
-image(out$mean$lambda[,,1], main="Predicted lambda for species 1")
-image(lambda[,,2], main="Observed lambda for species 2")
-image(out$mean$lambda[,,2], main="Predicted lambda for species 2")
-# plot(c(lambda), c(out$mean$lambda)). we'll see 1-1 line 
-
-# Compare true and recaptured theta 
-par(mfrow=c(1,2))
-image(theta, main="Observed theta")
-image(out$mean$theta, main="Predicted theta")
+plot(c(lambda), c(out$mean$lambda), main="Lambda") #we'll see 1-1 line 
+abline(0,1)
+for (i in 1:nrow(Z)) {
+    for (k in 1:ncol(Z)) {
+        points(c(lambda[i,,k]), c(out$mean$lambda[i,,k]), main="Lambda", 
+             col=ifelse( round(out$mean$z[i,k])==0,"red","black")) 
+    }
+}
+abline(0,1)
 
 par(mfrow=c(1,1))
 plot(NA,xlim=c(0,1),ylim=c(0,1),
@@ -139,9 +136,17 @@ plot(NA,xlim=c(0,1),ylim=c(0,1),
 abline(0,1)
 for (i in 1:nspec) {
     points(x=out$mean$theta[i, ],
-         y=theta[i,],
-         col=i)
+           y=theta[i,],
+           col=i)
 }
+
+# Compare true and recaptured theta 
+plot(c(theta), c(out$mean$theta), main="Theta")
+abline(0,1)
+
+# Compare true and recaptured Z 
+plot(c(Z), c(out$mean$z), main="Theta")
+abline(0,1)
 
 # Visualize predictions of species unobserved by expert taxonomist
 par(mfrow=c(1,1))
@@ -149,5 +154,3 @@ plot(NA,xlim=c(0,1),ylim=c(0,1),
      xlab="Predicted",ylab="Observed",main="Theta comparison for species without expert ID")
 abline(0,1)
 points(x=out$mean$theta[nspec,],y=theta[nspec,],col="red")
-
-#started at 20:22

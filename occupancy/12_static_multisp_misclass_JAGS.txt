@@ -20,7 +20,7 @@ model {
   # State model
   for (k in 1:nspec) {
     for (i in 1:nsite) {
-      z[i,k] ~ dbern(psi[k])
+      Z[i,k] ~ dbern(psi[k])
     }
   }
 
@@ -32,7 +32,7 @@ model {
   for (i in 1:nsite) {
     for (j in 1:nsurv) {
       for (k_prime in 1:nspec) {
-        c_obs[i,j,k_prime] ~ dpois( sum(z[i, ] * lambda[i,j, ] * theta[ ,k_prime]) )
+        c_obs[i,j,k_prime] ~ dpois( sum(Z[i, ] * lambda[i,j, ] * theta[ ,k_prime]) )
       }
 	  }
   }
