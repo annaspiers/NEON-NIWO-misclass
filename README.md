@@ -1,5 +1,6 @@
 # niwot_NEON_carabids
-Prediction of carabid species distributions at Niwot Ridge
+Prediction of carabid species abundance at Niwot Ridge.
+End-of-semester (Spring 2020) presentation: [.md](https://github.com/EBIO6100Spring2020/niwot_NEON_carabids/blob/master/final_pres_done.md), [.Rmd](https://github.com/EBIO6100Spring2020/niwot_NEON_carabids/blob/master/final_pres_done.Rmd)
 
 Subdirectories
 
