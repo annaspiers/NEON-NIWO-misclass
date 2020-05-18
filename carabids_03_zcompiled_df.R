@@ -44,8 +44,10 @@ model_df_by_ind <- bet_parataxonomistID %>%
     left_join(distinct(bet_fielddata %>% #join carabid field data columns: nlcdClass, lat, long, elev
             dplyr::select(sampleID, plotID, trapID, collectDate, trappingDays, decimalLatitude, decimalLongitude, elevation, nlcdClass))) %>%
     left_join(def.extr.geo.os(data = carabid_abund$bet_fielddata, 'namedLocation', locOnly=T) %>% #join plot soil type
-            dplyr::select("plotID" = Value.for.Plot.ID, "soilOrder" = api.soilTypeOrder))
-
+            dplyr::select("plotID" = Value.for.Plot.ID, "soilOrder" = api.soilTypeOrder)) %>%
+  left_join(bet_expertTaxonomistIDProcessed %>%
+              select(scientificName,individualID)) %>%
+  mutate(expert_sciname = scientificName)
 
 
 # II. Create df where each row is a species in a trap from a sing --------
@@ -60,7 +62,7 @@ model_df_by_sample <- model_df_by_ind %>%
               summarize(sp_abund = n()) ) %>% # add in non-zero species abundance
   mutate(sp_abund = ifelse(is.na(sp_abund),0,sp_abund)) %>% # turn NA abundance into 0
   left_join(model_df_by_ind %>% 
-              dplyr::select(siteID,plotID,plot_lat=decimalLatitude,plot_long=decimalLongitude,elev=elevation,nlcdClass,soilOrder) %>%
+              dplyr::select(siteID,plotID,plot_lat=decimalLatitude,plot_long=decimalLongitude,elev=elevation,nlcdClass,soilOrder,expert_sciname) %>%
               distinct()) %>% # attach useful spatial variables from model_df_by_ind
   left_join(model_df_by_ind %>% 
               dplyr::select(collectDate,col_year,col_month,col_day,DOY=dayofyear) %>%
