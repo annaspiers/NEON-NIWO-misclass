@@ -1,6 +1,6 @@
 # In building up to a full misclassification model using NEON carabid data, we first build a simpler misclassificaiton models. See this resource for a full description: 
     # https://www.overleaf.com/project/5e938b1d9eb3590001f3e5e5
-# Here, we combine scripts 10_ and 11_ to create a static occupancy model estimating misclassification probabilities with simulated data. 
+# Here, we extend the static occupancy model with misclassification in script 12_ with simulated data. 
 
 library(MCMCpack) #rdirchlet
 library(jagsUI)
