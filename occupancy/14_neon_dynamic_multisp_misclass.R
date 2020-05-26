@@ -3,14 +3,19 @@
 #library(MCMCpack) #rdirchlet
 library(jagsUI)
 library(dplyr)
+library(lubridate)
 library(reshape2)
 library(gridExtra) #gridarrange
 
 # Load NEON Niwot Ridge carabid data 
 sample_dat  <- read.csv("data_derived/model_df_by_species_in_sample.csv", header = TRUE) %>%
-    mutate(collectDate = as.Date(collectDate))# each row is a sample. All samples are represented. One sample is a species at a trap on a collection day
+    mutate(collectDate = as.Date(collectDate)) %>%
+    filter(collectDate <= as.Date("2018-12-31")) 
+    # each row is a sample. All samples are represented. One sample is a species at a trap on a collection day
 ind_dat     <- read.csv("data_derived/model_df_by_individual_beetle.csv", header = TRUE) %>%
-    mutate(expert_sciname = as.factor(ifelse(is.na(expert_sciname) == T, "zno_exp_ID", as.character(expert_sciname)))) # each row is a beetle identified by a parataxonomist
+    mutate(collectDate = as.Date(collectDate)) %>%
+    filter(collectDate <= as.Date("2018-12-31")) #AIS I updated this df with the latest NEON data, so remove 2019 data since it's incomplete
+    # each row is a beetle identified by a parataxonomist
 
 
 # Misclassification model -------------------------------------------------
@@ -18,7 +23,7 @@ ind_dat     <- read.csv("data_derived/model_df_by_individual_beetle.csv", header
 
 # n[k]: expert taxonomist's count of individuals of species k 
 n <- ind_dat %>%
-    filter(expert_sciname != "zno_exp_ID") %>%
+    filter(!is.na(expert_sciname)) %>%
     group_by(expert_sciname) %>%
     summarize(n=n()) %>% 
     pull(n)
@@ -30,35 +35,59 @@ diag(alpha) <- 15 #place higher probability mass on parataxonomist getting the c
 
 # M_k: M[k,k'] is the number of individuals from species k (according to expert) that were identified as species k' by parataxonomist [KxK]
 M <- ind_dat %>%
+    filter(expert_sciname != "zno_exp_ID") %>% # AIS we want leave out the NA expert IDs, right?
     reshape2::acast(expert_sciname ~ para_sciname)
-# AIS there are no morphospecies for these 7 species. How unlikely. That means theta and M stay square
+# AIS there are no morphospecies for these 7 species. That means theta and M stay square
 
 
 # Combine occupancy and misclassification models to simulate observed data --------
 
-# c_obs: c_obs[i,j,k',l] are the elements of vector C, and represent the number of individuals that were classified as k'
+# c_obs: c_obs[i,j,k',l] are the elements of vector C, and represent the number of individuals that were classified as k'. dim: nsite x nsurv x nspec x nyear
 c_obs   <- sample_dat %>%
-    reshape2::acast(plot_trap ~ col_index ~ para_sciname ~ col_year, 
-                    value.var = "occ")
-str(c_obs) # nsite x nsurv x nspec x nyear
+    reshape2::acast(plotID ~ col_index ~ para_sciname ~ col_year,
+                    fun.aggregate=sum, fill=-999, value.var = "sp_abund")
+c_obs[c_obs == -999] <- NA
 
-# Initialize occupancy array. dim: nsite x nspec x nyear
-Z <-  apply(c_obs, c(1,3,4), max, na.rm = TRUE) 
-Z[Z == "-Inf"] <- NA #this happens where a plot isn't sampled across years 
+# Occupancy array. dim: nsite x nspec x nyear
+# Create Z data. Use expert identifications to incorporate partly observed presence
+Z.dat <- ind_dat %>% #ind_dat df has expert IDs
+    filter(!is.na(expert_sciname)) %>%
+    mutate(occ = 1) %>%
+    reshape2::acast(plotID ~ expert_sciname ~ col_year,
+                    fill=-999, drop=F, value.var = "occ")
+Z.dat[Z.dat == -999] <- NA
+Z.dat[Z.dat > 0] <- 1 #no expert ID's for 2018 collections
+
+# Initialize Z
+Z.init <- Z.dat
+Z.init[is.na(Z.init)==T] <- sample(c(0,1), replace=TRUE, size=length(Z.init[is.na(Z.init)==T])) #where Z.dat was NA, fill in initial values of 0 or 1
+# Check that where c_obs>0 for a species, Z.init>0 for that species/site/year combo
+for (i in 1:dim(Z.init)[1]) {
+    for (k in 1:dim(Z.init)[2]) {
+        for (l in 1:dim(Z.init)[3]) {
+            if (sum(c_obs[i,,k,l], na.rm = TRUE) > 0 ) {
+                if (Z.init[i,k,l] == 0) {
+                    Z.init[i,k,l] <- 1
+                }
+            }
+        }
+    }
+}
 
 # JAGS model --------------------------------------------------------------
 
 # Define function to run JAGS model
 jags_misclass_fn <- function(){
-    str(JAGSdata <- list(nsite = dim(c_obs)[1], #AIS although there are 44 unique traps, there are only 40 traps surveyed per year
-                         nsurv = dim(c_obs)[2], #AIS is it alright that survey effort is unequal across years?
+    str(JAGSdata <- list(nsite = dim(c_obs)[1], 
+                         nsurv = dim(c_obs)[2], 
                          nspec = dim(c_obs)[3],
                          nyear = dim(c_obs)[4], 
                          n = n,
                          alpha = alpha,
                          M = M,
-                         c_obs = c_obs)) #bundle data
-    JAGSinits <- function(){list(Z = Z) }
+                         c_obs = c_obs,
+                         Z = Z.dat)) #bundle data
+    JAGSinits <- function(){list(Z = Z.init) }
     JAGSparams <- c("psi", "lambda", "theta", "Z", "p", "phi", "gamma", "n.occ", "growth", "turnover") #params monitored
     nc <- 4 #MCMC chains
     ni <- 4000 #MCMC iterations
