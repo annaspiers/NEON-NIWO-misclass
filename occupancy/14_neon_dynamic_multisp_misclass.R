@@ -73,7 +73,9 @@ for (i in 1:dim(Z.init)[1]) {
         }
     }
 }
-# Model wouldn't run when both data and initial values are specified for Z. Try creating Z.init where Z.init==NA where Z.dat==1 and then assign 0 or 1 to Z.init where Z.dat==NA
+# Model wouldn't run when both data and initial values are specified for Z. 
+# [doesn't work] create two Z variables in the Jags script. Assign the Z.dat one to Z
+# [] Try creating Z.init where Z.init==NA where Z.dat==1 and then assign 0 or 1 to Z.init where Z.dat==NA
 
 
 # JAGS model --------------------------------------------------------------
