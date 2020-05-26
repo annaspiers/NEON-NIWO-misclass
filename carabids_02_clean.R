@@ -18,8 +18,8 @@ remove_NA_cols <- function(list_of_lists){
 
 ### Load raw data ###
 
-# load("data_raw/carabids_NIWO.Rdata")
-# # load("data_raw/soil_wc_NIWO.Rdata")
+load("data_raw/carabids_NIWO.Rdata")
+# load("data_raw/soil_wc_NIWO.Rdata")
 # load("data_raw/woody_veg_NIWO.Rdata")
 # load("data_raw/litter_woodfall_NIWO.Rdata")
 # load("data_raw/ir_bio_temp_NIWO.Rdata")
@@ -42,10 +42,10 @@ forest_niwot_all = read.csv("data_raw/PP_plot_data_1982-2016.tv.data.csv") #just
 ### Clean data ###
 
 # Remove columns with NAs from every data package
-# all_data_packages <- c(carabid_abund, carabid_barcode, woody_veg, litter_woodfall,
-#                        ir_bio_temp, precip, rad_net, rad_short_dir_diff) #soil_temp, soil_wc
+all_data_packages <- c(carabid_abund, carabid_barcode, woody_veg, litter_woodfall,
+                      ir_bio_temp, precip, rad_net, rad_short_dir_diff) #soil_temp, soil_wc
 
-all_data_packages <- c(air_temp) #cleaning missing packages
+# all_data_packages <- c(air_temp) #cleaning missing packages
 
 for (i in 1:length(all_data_packages)) {
     all_data_packages[i] <- remove_NA_cols(all_data_packages[i])
