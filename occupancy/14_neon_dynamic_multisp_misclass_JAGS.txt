@@ -46,6 +46,7 @@ model {
   
   # State model
   # Z dimensions: nsite, nspec, nyear
+  Z <- Z.dat
   for (i in 1:nsite) {
     for (k in 1:nspec) {
       Z[i,k,1] ~ dbern(psi1[k])

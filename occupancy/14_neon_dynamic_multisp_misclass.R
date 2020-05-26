@@ -56,7 +56,7 @@ Z.dat <- ind_dat %>% #ind_dat df has expert IDs
     reshape2::acast(plotID ~ expert_sciname ~ col_year,
                     fill=-999, drop=F, value.var = "occ")
 Z.dat[Z.dat == -999] <- NA
-Z.dat[Z.dat > 0] <- 1 #no expert ID's for 2018 collections
+Z.dat[Z.dat > 0] <- 1
 
 # Initialize Z
 Z.init <- Z.dat
@@ -73,6 +73,8 @@ for (i in 1:dim(Z.init)[1]) {
         }
     }
 }
+# Model wouldn't run when both data and initial values are specified for Z. Try creating Z.init where Z.init==NA where Z.dat==1 and then assign 0 or 1 to Z.init where Z.dat==NA
+
 
 # JAGS model --------------------------------------------------------------
 
@@ -86,7 +88,7 @@ jags_misclass_fn <- function(){
                          alpha = alpha,
                          M = M,
                          c_obs = c_obs,
-                         Z = Z.dat)) #bundle data
+                         Z.dat = Z.dat)) #bundle data
     JAGSinits <- function(){list(Z = Z.init) }
     JAGSparams <- c("psi", "lambda", "theta", "Z", "p", "phi", "gamma", "n.occ", "growth", "turnover") #params monitored
     nc <- 4 #MCMC chains
