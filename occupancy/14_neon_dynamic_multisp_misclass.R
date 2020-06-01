@@ -1,22 +1,26 @@
 # Here we extend the dynamic occupancy model with misclassification in script 13_ to run on actual NEON carabid data from Niwot Ridge. Here, we first we run the model with the 7 most abundant species. These 7 species are perfectly identified by the parataxonomists. Not every individual beetle has an expert identification. Later we will try the model on all species entirely
 
-#library(MCMCpack) #rdirchlet
 library(jagsUI)
+library(MCMCpack)
+library(MCMCvis)
+library(ggmcmc)
 library(dplyr)
-library(lubridate)
 library(reshape2)
-library(gridExtra) #gridarrange
+library(gridExtra)
+library(ggplot2)
+options(digits = 3)
 
 # Load NEON Niwot Ridge carabid data 
+# Each row is a beetle identified by a parataxonomist
+ind_dat     <- read.csv("data_derived/model_df_by_individual_beetle.csv", header = TRUE) %>%
+    mutate(collectDate = as.Date(collectDate)) %>%
+    filter(collectDate <= as.Date("2018-12-31")) #AIS updated with the latest NEON data, so remove 2019 data since it's incomplete
+
+# Each row is a sample. One sample is a species at a trap on a collection day   
 sample_dat  <- read.csv("data_derived/model_df_by_species_in_sample.csv", header = TRUE) %>%
     mutate(collectDate = as.Date(collectDate)) %>%
     filter(collectDate <= as.Date("2018-12-31")) 
-    # each row is a sample. All samples are represented. One sample is a species at a trap on a collection day
-ind_dat     <- read.csv("data_derived/model_df_by_individual_beetle.csv", header = TRUE) %>%
-    mutate(collectDate = as.Date(collectDate)) %>%
-    filter(collectDate <= as.Date("2018-12-31")) #AIS I updated this df with the latest NEON data, so remove 2019 data since it's incomplete
-    # each row is a beetle identified by a parataxonomist
-
+    
 
 # Misclassification model -------------------------------------------------
 # The parameters below assume both a parataxonomist's and an expert taxonomist's classification is available
@@ -31,17 +35,23 @@ n <- ind_dat %>%
 # Alpha: dirichlet concentration parameter
 alpha <- matrix(1, nrow=length(n), 
                 ncol=length(unique(ind_dat$para_sciname)) ) #AIS every individual has a para_sciname ID, so there are no morphospecies. However, when we extend the model to all species, then we will need to add the number of unique morphospecies to the alpha columns
-diag(alpha) <- 15 #place higher probability mass on parataxonomist getting the correct classification
+diag(alpha) <- 15 
+
+# Theta: misclassification probability matrix [KxK]
+theta <- array(NA, dim=dim(alpha))
+for (k in 1:ncol(theta)) {
+    theta[k, ] <- MCMCpack::rdirichlet(1, alpha[k, ])
+}
+
 
 # M_k: M[k,k'] is the number of individuals from species k (according to expert) that were identified as species k' by parataxonomist [KxK]
 M <- ind_dat %>%
-    filter(expert_sciname != "zno_exp_ID") %>% # AIS we want leave out the NA expert IDs, right?
+    filter(is.na(expert_sciname)==F) %>% 
     reshape2::acast(expert_sciname ~ para_sciname)
 # AIS there are no morphospecies for these 7 species. That means theta and M stay square
 
 
 # Combine occupancy and misclassification models to simulate observed data --------
-
 # c_obs: c_obs[i,j,k',l] are the elements of vector C, and represent the number of individuals that were classified as k'. dim: nsite x nsurv x nspec x nyear
 c_obs   <- sample_dat %>%
     reshape2::acast(plotID ~ col_index ~ para_sciname ~ col_year,
@@ -60,22 +70,25 @@ Z.dat[Z.dat > 0] <- 1
 
 # Initialize Z
 Z.init <- Z.dat
-Z.init[is.na(Z.init)==T] <- sample(c(0,1), replace=TRUE, size=length(Z.init[is.na(Z.init)==T])) #where Z.dat was NA, fill in initial values of 0 or 1
+for (i in 1:dim(Z.init)[1]) {
+    for (l in 1:dim(Z.init)[3]) {
+        Z.init[i,,l] <- sample(c(0,1), replace=TRUE, size=dim(Z.init)[2])
+    }
+}
+
+# initialize known values as NA, otherwise model will throw error
+Z.init[Z.dat == 1] <- NA
+
 # Check that where c_obs>0 for a species, Z.init>0 for that species/site/year combo
 for (i in 1:dim(Z.init)[1]) {
     for (k in 1:dim(Z.init)[2]) {
         for (l in 1:dim(Z.init)[3]) {
             if (sum(c_obs[i,,k,l], na.rm = TRUE) > 0 ) {
-                if (Z.init[i,k,l] == 0) {
-                    Z.init[i,k,l] <- 1
-                }
+                ifelse(Z.init[i,k,l] == 0, 1, Z.init[i,k,l])
             }
         }
     }
 }
-# Model wouldn't run when both data and initial values are specified for Z. 
-# [doesn't work] create two Z variables in the Jags script. Assign the Z.dat one to Z
-# [] Try creating Z.init where Z.init==NA where Z.dat==1 and then assign 0 or 1 to Z.init where Z.dat==NA
 
 
 # JAGS model --------------------------------------------------------------
@@ -90,12 +103,12 @@ jags_misclass_fn <- function(){
                          alpha = alpha,
                          M = M,
                          c_obs = c_obs,
-                         Z.dat = Z.dat)) #bundle data
+                         Z = Z.dat)) #bundle data
     JAGSinits <- function(){list(Z = Z.init) }
-    JAGSparams <- c("psi", "lambda", "theta", "Z", "p", "phi", "gamma", "n.occ", "growth", "turnover") #params monitored
+    JAGSparams <- c("psi", "lambda", "theta", "Z", "phi", "gamma", "n.occ", "growth", "turnover") #params monitored
     nc <- 4 #MCMC chains
-    ni <- 4000 #MCMC iterations
-    nb <- 1000 #MCMC burnin
+    ni <- 10000 #MCMC iterations
+    nb <- 200 #MCMC burnin
     nt <- 1  #MCMC thin
     
     # JAGS model
@@ -111,58 +124,69 @@ jags_misclass_fn <- function(){
 }
 
 # Run model in JAGS. 
-out <- jags_misclass_fn()
+out <- jags_misclass_fn() #started Fri 7:35
 #save(out,file="occupancy/script14_jags_output.Rdata")
+load("occupancy/script14_jags_output.Rdata")
 
 # How well does the model estimate specified parameters?
 print(out, dig=2)
-traceplot(out, parameters="theta")
 
-# Did the model converge?
-# Yes. With 4000 iterations, incuding 1000 for burnin, the model converged
-
-
-# Do the modeled values make sense?
 
 # Look at raw numbers
 # phi - survival probability
 print(out$summary[grep("phi", row.names(out$summary)), c(1, 2, 3, 7)], dig = 2) 
-# Seem reasonable at first glance
+MCMCtrace(out, params = 'phi', type = 'density', ind = F, pdf=F)
 
 # gamma - colonization probability
-print(out$summary[grep("gamma", row.names(out$summary)), c(1, 2, 3, 7)], dig = 2) 
+print(out$summary[grep("gamma", row.names(out$summary)), c(1, 2, 3, 7)], dig = 2)
 # Good, these should be low. Higher for Amara quenseli(2) and Pterrostichus restrictus(7), the species that popped up after the first year of sampling
 
-# p - detection probability
-print(out$summary[grep("p", row.names(out$summary)), c(1, 2, 3, 7)], dig = 2) 
-# Funny that these are all around 50% - as good as a coin toss
-
 # psi - occupancy prob.
-print(out$summary[grep("psi", row.names(out$summary)), c(1, 2, 3, 7)], dig = 2) # nspec x nyear
-# Pretty low occupancy - none exceed 0.5. This makes sense with the sparse distributions at Niwot. reasonably small sd 
+print(out$summary[grep("psi", row.names(out$summary)), c(1, 2, 3, 7)], dig = 2) 
+# Pretty low occupancy. This makes sense with the sparse distributions at Niwot. reasonably small sd 
 # Plot all species' occupancy through seasons
 plot(NA, xlim = c(1,dim(c_obs)[4]), ylim=c(0,1), main="Occupancy by species", xlab = "Year", ylab = "Occupancy probability", frame.plot = FALSE)
 for (k in 1:dim(c_obs)[3]) {
     lines(1:dim(c_obs)[4], out$mean$psi[k,], type = "l", col=k+7,  lwd = 2, lty = 1, las = 1)
 }
+# Why do they seem to converge?
 
 # lambda - expected abundance, given occupancy, dim: nsite x nsurv x nspec x nyear
 print(out$summary[grep("lambda", row.names(out$summary)), c(1, 2, 3, 7)], dig = 2) 
 range(out$mean$lambda)
-# AIS hmm, this doesn't look right. Why are all of the values 0.4?
 
 # theta
-print(out$summary[grep("theta", row.names(out$summary)), c(1, 2, 3, 7)], dig = 2) 
-out$mean$theta
-# Makes sense. There were no misidentifications by the parataxonomist. I wonder why some species are in the 80s% though
+#ggs_density(out_df %>% filter(grepl("theta\\[\\d,\\d\\]", Parameter)))
+theta_post_df <- data.frame(post_samps = numeric(), 
+                            prior = numeric(),
+                            index = character())
+for (i in 1:dim(out$sims.list$theta)[2]) {
+    for (j in 1:dim(out$sims.list$theta)[3]) {
+        temp_df <- data.frame(out$sims.list$theta[ ,i,j]) %>%
+            rename(post_samps = out.sims.list.theta...i..j.) %>%
+            mutate(prior = theta[i,j],
+                   index = paste0("theta[",i,",",j,"]"))
+        theta_post_df <- rbind(theta_post_df, temp_df)
+    }
+}
+#AIS is there a good way to do this not in a for-loop?
+
+# Plot matrix of theta prior and poserior densities
+ggplot(theta_post_df, aes(x=post_samps,y=..scaled..)) +
+    geom_density() + 
+    facet_wrap( ~ index, scales="free_x") +
+    geom_vline(aes(xintercept = prior), theta_post_df,
+               linetype="dotted", color = "red", size=1.2) +
+    xlab("Theta value") + scale_y_continuous(breaks=seq(0, 1, 0.5))
 
 # Z
 out$mean$Z
+plot(Z.init, out$mean$Z)
 plot(apply(c_obs, c(1,3,4), max, na.rm = TRUE), out$mean$Z)
-# not sure what to make of this. Not bad, not great
+# not sure what to make of this
 
 # n.occ
-print(out$summary[grep("n.occ", row.names(out$summary)), c(1, 2, 3, 7)], dig = 2) 
+print(out$summary[grep("n.occ", row.names(out$summary)), c(1, 2, 3, 7)], dig = 2)
 # Yep, make sense. Low numbers for Amara quenseli in first year and for Pterostichus restrictus in first 2 years.
 
 # growth
@@ -183,7 +207,7 @@ for (k in 1:length(species)) {
     p1 <- ggplot(data = sample_dat %>% filter(para_sciname == k_spec)) + 
         geom_col(aes(x=collectDate,y=sp_abund)) +
         ggtitle(k_spec) + xlab("Collection Date") + ylab("Abundance")
-    p2 <- ggplot(data = left_join(sample_dat %>% select(col_year) %>% distinct(),
+    p2 <- ggplot(data = left_join(sample_dat %>% dplyr::select(col_year) %>% distinct(),
                                   sample_dat %>% filter(para_sciname==k_spec, sp_abund > 0) %>% group_by(col_year) %>% summarize(n=n()))) + 
         geom_line(aes(x=col_year, y=n),) +
         geom_line(aes(x=col_year,y=out$mean$n.occ[k,]),col="red") +
