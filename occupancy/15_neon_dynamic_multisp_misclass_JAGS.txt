@@ -19,7 +19,7 @@ model {
   lambda_shape  ~ dgamma(5,1) 
   lambda_rate   ~ dgamma(1,1)
     
-  for (k in 1:nspec) {
+  for (k in 1:nspec_exp) {
     e_psi1[k]  ~ dnorm(0,tau_psi1)
     e_phi[k]   ~ dnorm(0,tau_phi)
     e_gamma[k] ~ dnorm(0,tau_gamma)
@@ -28,7 +28,7 @@ model {
     logit(phi[k])   = mu_phi + e_phi[k]
     logit(gamma[k]) = mu_gamma + e_gamma[k]
     
-    theta[k,1:nspec] ~ ddirch(alpha[k,1:nspec])
+    theta[k,1:nspec_para] ~ ddirch(alpha[k,1:nspec_para])
     
     for (l in 1:nyear) {
       for (i in 1:nsite) {
@@ -40,9 +40,9 @@ model {
   }
   
   # State model
-  # Z dimensions: nsite, nspec, nyear
+  # Z dimensions: nsite, nspec_exp, nyear
   for (i in 1:nsite) {
-    for (k in 1:nspec) {
+    for (k in 1:nspec_exp) {
       Z[i,k,1] ~ dbern(psi1[k])
       for (l in 2:nyear) {
         Z[i,k,l]    ~ dbern(Z[i,k,l-1]*phi[k] + 
@@ -52,12 +52,12 @@ model {
   }
 
   # Observation model
-  for (k in 1:nspec) {
+  for (k in 1:nspec_exp) {
         M[k, ] ~ dmulti(theta[k, ], n[k])
   }
   for (i in 1:nsite) {
     for (j in 1:nsurv) {
-      for (k_prime in 1:nspec) {
+      for (k_prime in 1:nspec_para) {
         for (l in 1:nyear) {
           c_obs[i,j,k_prime,l] ~ dpois( sum(Z[i, ,l] * lambda[i,j, ,l] * theta[ ,k_prime])) 
         }
@@ -66,7 +66,7 @@ model {
   }
   
   # Derived parameters
-  for (k in 1:nspec) {
+  for (k in 1:nspec_exp) {
     psi[k,1] <- psi1[k]
     n.occ[k,1]  <- sum(Z[1:nsite,k,1])
     for (l in 2:nyear) {
