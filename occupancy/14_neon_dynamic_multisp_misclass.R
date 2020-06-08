@@ -38,9 +38,12 @@ alpha <- matrix(1, nrow=length(n),
 diag(alpha) <- 15 
 
 # Theta: misclassification probability matrix [KxK]
-theta <- array(NA, dim=dim(alpha))
+nc <- 4 #MCMC chains
+ni <- 8000 #MCMC iterations
+nb <- 2000 #MCMC burnin
+theta <- array(NA, dim=c(nc*(ni - nb), dim(alpha)) ) #same dimensions as theta output from model
 for (k in 1:ncol(theta)) {
-    theta[k, ] <- MCMCpack::rdirichlet(1, alpha[k, ])
+    theta[ ,k, ] <- MCMCpack::rdirichlet(dim(theta)[1], alpha[k, ])
 }
 
 
@@ -75,7 +78,6 @@ for (i in 1:dim(Z.init)[1]) {
         Z.init[i,,l] <- sample(c(0,1), replace=TRUE, size=dim(Z.init)[2])
     }
 }
-
 # initialize known values as NA, otherwise model will throw error
 Z.init[Z.dat == 1] <- NA
 
@@ -106,9 +108,7 @@ jags_misclass_fn <- function(){
                          Z = Z.dat)) #bundle data
     JAGSinits <- function(){list(Z = Z.init) }
     JAGSparams <- c("psi", "lambda", "theta", "Z", "phi", "gamma", "n.occ", "growth", "turnover") #params monitored
-    nc <- 4 #MCMC chains
-    ni <- 10000 #MCMC iterations
-    nb <- 200 #MCMC burnin
+    #nc, ni, nb defined above with theta
     nt <- 1  #MCMC thin
     
     # JAGS model
@@ -124,7 +124,7 @@ jags_misclass_fn <- function(){
 }
 
 # Run model in JAGS. 
-out <- jags_misclass_fn() #started Fri 7:35
+out <- jags_misclass_fn() #started Thurs 7:51
 #save(out,file="occupancy/script14_jags_output.Rdata")
 load("occupancy/script14_jags_output.Rdata")
 
@@ -150,33 +150,57 @@ for (k in 1:dim(c_obs)[3]) {
     lines(1:dim(c_obs)[4], out$mean$psi[k,], type = "l", col=k+7,  lwd = 2, lty = 1, las = 1)
 }
 # Why do they seem to converge?
+# Plot posterior vs prior for each species in each year
+psi_df <- data.frame(value = numeric(), 
+                            post_prior = character(),
+                            index = character())
+for (i in 1:dim(out$sims.list$psi)[2]) {
+    for (j in 1:dim(out$sims.list$psi)[3]) {
+        post_df <- data.frame(out$sims.list$psi[ ,i,j]) %>%
+            rename(value = out.sims.list.psi...i..j.) %>%
+            mutate(post_prior = "posterior",
+                   index = paste0("psi[",i,",",j,"]"))
+        prior_df <- data.frame(psi[ ,i,j]) %>%
+            rename(value = psi...i..j.) %>%
+            mutate(post_prior = "prior",
+                   index = paste0("psi[",i,",",j,"]"))
+        psi_df <- rbind(psi_df, post_df, prior_df)
+    }
+}
+
+# Plot matrix of theta prior and poserior densities
+ggplot(psi_df, aes(x=value,y=..scaled..)) +
+    geom_density(aes(color=post_prior)) + 
+    facet_wrap( ~ index, scales="free_x") +
+    xlab("Theta value") + scale_y_continuous(breaks=seq(0, 1, 0.5))
+
 
 # lambda - expected abundance, given occupancy, dim: nsite x nsurv x nspec x nyear
 print(out$summary[grep("lambda", row.names(out$summary)), c(1, 2, 3, 7)], dig = 2) 
 range(out$mean$lambda)
 
 # theta
-#ggs_density(out_df %>% filter(grepl("theta\\[\\d,\\d\\]", Parameter)))
-theta_post_df <- data.frame(post_samps = numeric(), 
-                            prior = numeric(),
+theta_df <- data.frame(value = numeric(), 
+                            post_prior = character(),
                             index = character())
 for (i in 1:dim(out$sims.list$theta)[2]) {
     for (j in 1:dim(out$sims.list$theta)[3]) {
-        temp_df <- data.frame(out$sims.list$theta[ ,i,j]) %>%
-            rename(post_samps = out.sims.list.theta...i..j.) %>%
-            mutate(prior = theta[i,j],
+        post_df <- data.frame(out$sims.list$theta[ ,i,j]) %>%
+            rename(value = out.sims.list.theta...i..j.) %>%
+            mutate(post_prior = "posterior",
                    index = paste0("theta[",i,",",j,"]"))
-        theta_post_df <- rbind(theta_post_df, temp_df)
+        prior_df <- data.frame(theta[ ,i,j]) %>%
+            rename(value = theta...i..j.) %>%
+            mutate(post_prior = "prior",
+                   index = paste0("theta[",i,",",j,"]"))
+        theta_df <- rbind(theta_df, post_df, prior_df)
     }
 }
-#AIS is there a good way to do this not in a for-loop?
 
 # Plot matrix of theta prior and poserior densities
-ggplot(theta_post_df, aes(x=post_samps,y=..scaled..)) +
-    geom_density() + 
+ggplot(theta_df, aes(x=value,y=..scaled..)) +
+    geom_density(aes(color=post_prior)) + 
     facet_wrap( ~ index, scales="free_x") +
-    geom_vline(aes(xintercept = prior), theta_post_df,
-               linetype="dotted", color = "red", size=1.2) +
     xlab("Theta value") + scale_y_continuous(breaks=seq(0, 1, 0.5))
 
 # Z
@@ -208,8 +232,8 @@ for (k in 1:length(species)) {
         geom_col(aes(x=collectDate,y=sp_abund)) +
         ggtitle(k_spec) + xlab("Collection Date") + ylab("Abundance")
     p2 <- ggplot(data = left_join(sample_dat %>% dplyr::select(col_year) %>% distinct(),
-                                  sample_dat %>% filter(para_sciname==k_spec, sp_abund > 0) %>% group_by(col_year) %>% summarize(n=n()))) + 
-        geom_line(aes(x=col_year, y=n),) +
+                                  sample_dat %>% filter(para_sciname==k_spec, sp_abund > 0) %>% group_by(col_year) %>% summarize(n_plots=n_distinct(plotID)))) + 
+        geom_line(aes(x=col_year, y=n_plots),) +
         geom_line(aes(x=col_year,y=out$mean$n.occ[k,]),col="red") +
         annotate("text", x=2017, y=50, label = "Predicted occupied (n.occ)", col="red") +
         annotate("text", x=2017, y=45, label = "Observed") +
@@ -233,9 +257,31 @@ for (k in 1:length(species)) {
 par(mfrow=c(1,1)) #reset plotting
 
 
-# Visualize predictions of species unobserved by expert taxonomist
-#par(mfrow=c(1,1))
-#plot(NA,xlim=c(0,1),ylim=c(0,1),
-#     xlab="Predicted",ylab="Observed",main="Theta comparison for species without expert ID")
-#abline(0,1)
-#points(x=out$mean$theta[nspec,],y=theta[nspec,],col="red")
+# # this code won't work since some parameters were initialized in this script, whereas other have priors from the model
+# # Create fn to plot a parameter's prior and posterior density
+# plot_dens <- function(param) { #e.g. theta, dim(out$sims.list$theta)
+#     # for now, only works with parameters with 3 dimensions (e.g. theta, psi)
+#     # AIS expand to parameters of any dimension... create a new fn, taking number of dimensions as an arg?
+#     
+#     # do I need this? n_sims <- dim(out$sims.list$param)[1]
+#     
+#     param_df <- data.frame(value = numeric(), 
+#                            post_prior = character(),
+#                            index = character())
+#     
+#     for (i in 1:dim(out$sims.list$param)[2]) {
+#         for (j in 1:dim(out$sims.list$param)[3]) {
+#             post_df <- data.frame(out$sims.list$param[ ,i,j]) %>%
+#                 rename(value = paste0("out.sims.list.",param,"...i..j.")) %>%     
+#                 mutate(post_prior = "posterior",
+#                        index = paste0(param,"[",i,",",j,"]"))   
+#             prior_df <- data.frame(param[ ,i,j]) %>%
+#                 rename(value = paste0(param,"...i..j.")) %>%                 
+#                 mutate(post_prior = "prior",
+#                        index = paste0(param,"[",i,",",j,"]"))   
+#             param_df <- rbind(param_df, post_df, prior_df)
+#         }
+#     }
+#     
+#     return(param_df)
+# }
