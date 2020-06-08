@@ -16,13 +16,16 @@ list2env(carabid_abund, .GlobalEnv)
 
 model_df_by_ind <- bet_parataxonomistID %>%
     dplyr::select(individualID, siteID, plotID, trapID, collectDate, taxonRank, morphospeciesID, "para_sciname" = scientificName) %>% #select desired columns
+   mutate(para_morph = ifelse(is.na(morphospeciesID), #combine parataxonomist ID and morphospecies
+                               as.character(para_sciname), 
+                               paste0(as.character(para_sciname),"/", morphospeciesID,sep=""))) %>%
   mutate(col_year = lubridate::year(collectDate), 
            col_month = lubridate::month(collectDate), 
            col_day = lubridate::day(collectDate),
            dayofyear = as.numeric(strftime(collectDate, format = "%j"))) %>%
   left_join(distinct(bet_expertTaxonomistIDProcessed %>% 
             mutate(expert_sciname = paste(genus, specificEpithet)) %>%
-            dplyr::select(individualID, expert_sciname, taxonID, sex))) 
+            dplyr::select(individualID, expert_sciname, taxonID))) 
 
 model_df_by_ind <- model_df_by_ind %>%
   left_join(model_df_by_ind %>% 
@@ -35,11 +38,11 @@ model_df_by_ind <- model_df_by_ind %>%
 
 # Initialize df organized by each species by collectionDate by trap by plot
 model_df_by_sample <- model_df_by_ind %>%
-  distinct(plotID, trapID, collectDate, para_sciname) %>%
-  arrange(plotID, trapID, collectDate, para_sciname) %>%
-  complete(plotID, trapID, collectDate, para_sciname) %>%
+  distinct(plotID, trapID, collectDate, para_morph) %>%
+  arrange(plotID, trapID, collectDate, para_morph) %>%
+  complete(plotID, trapID, collectDate, para_morph) %>%
   left_join(model_df_by_ind %>% 
-              group_by(plotID,trapID,collectDate,para_sciname) %>%
+              group_by(plotID,trapID,collectDate,para_morph) %>%
               summarize(sp_abund = n()) ) %>% # add in non-zero species abundance
   mutate(sp_abund = ifelse(is.na(sp_abund),0,sp_abund)) %>% # turn NA abundance into 0
   left_join(model_df_by_ind %>% 
