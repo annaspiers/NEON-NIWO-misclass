@@ -1,6 +1,7 @@
 # Here we extend the dynamic occupancy model with misclassification in script 13_ to run on actual NEON carabid data from Niwot Ridge. Here, we run the data on all samples from Niwot Ridge
 
 library(jagsUI)
+library(dclone)
 library(MCMCpack)
 library(MCMCvis)
 library(ggmcmc)
@@ -18,17 +19,9 @@ ind_dat <- read.csv("occupancy/model_df_by_individual_beetle.csv", header = TRUE
     dplyr::select(-c(X))
 
 # Each row is a sample. One sample is a para_morph at a trap on a collection day   
-sample_dat  <- read.csv("occupancy/model_df_by_species_in_sample.csv", header = TRUE) %>%
-    mutate(collectDate = as.Date(collectDate)) %>%
-    filter(collectDate <= as.Date("2018-12-31")) %>%
+sample_dat  <- read.csv("occupancy/model_df_by_species_in_sample_2015-2018.csv", header = TRUE) %>%
     dplyr::select(-c(X))
 
-# The two df's above have a different number of distinct values in the para_morph column, but I can't seem to ID them. Check this bamboozler out:
-ind <- ind_dat %>% select(para_morph) %>% distinct() 
-samp <- sample_dat %>% select(para_morph) %>% distinct() 
-nrow(ind)
-nrow(samp)
-setdiff(ind, samp)
 
 # EDA ---------------------------------------------------------------------
 
@@ -44,9 +37,7 @@ ind_dat %>%
     group_by(para_sciname) %>%
     summarize(n=n()) %>% 
     arrange(-n) %>% data.frame()
-# 46 unique IDs, no NAs
-# Carabidae spp. (215)? AIS should we just make this Carabidae sp.?
-# AIS What to do with paratax IDs with an alternative genus in parentheses?
+# 45 unique IDs, no NAs
 
 # How individuals for each morphospecies ID?
 ind_dat %>%
@@ -153,43 +144,46 @@ for (i in 1:dim(Z.init)[1]) {
 
 # JAGS model --------------------------------------------------------------
 
-# Define function to run JAGS model
-jags_misclass_fn <- function(){
-    str(JAGSdata <- list(nsite = dim(c_obs)[1], 
-                         nsurv = dim(c_obs)[2], 
-                         nspec_exp = dim(alpha)[1], #species ID'd by expert
-                         nspec_para = dim(alpha)[2], #paratax ID's and morphospecies
-                         nyear = dim(c_obs)[4], 
-                         n = n,
-                         alpha = alpha,
-                         M = M,
-                         c_obs = c_obs,
-                         Z = Z.dat)) #bundle data
-    JAGSinits <- function(){list(Z = Z.init) }
-    JAGSparams <- c("psi", "lambda", "theta", "Z", "phi", "gamma", "n.occ", "growth", "turnover") #params monitored
-    #nc, ni, nb defined above with theta
-    nt <- 1  #MCMC thin
-    
-    # JAGS model
-    jags_out <- jags(data = JAGSdata,
-                     inits = JAGSinits,
-                     parameters.to.save = JAGSparams,
-                     model.file = "occupancy/15_neon_dynamic_multisp_misclass_JAGS.txt", 
-                     n.chains = nc,
-                     n.iter = ni,
-                     n.burnin = nb,
-                     n.thin = nt)
-    return(jags_out)
-}
-
 # Run model in JAGS. 
-out <- jags_misclass_fn() 
+JAGSdata <- list(nsite = dim(c_obs)[1], 
+                 nsurv = dim(c_obs)[2], 
+                 nspec_exp = dim(alpha)[1], #species ID'd by expert
+                 nspec_para = dim(alpha)[2], #paratax ID's and morphospecies
+                 nyear = dim(c_obs)[4], 
+                 n = n,
+                 alpha = alpha,
+                 M = M,
+                 c_obs = c_obs,
+                 Z = Z.dat) #bundle data
+JAGSinits <- function(){ list(Z = Z.init) }
+JAGSparams <- c("psi", "lambda", "theta", "Z", "phi", "gamma", "n.occ", "growth", "turnover") 
+#nc, ni, nb defined above with theta
+nt <- 1  #MCMC thin
+
+
+
+# JAGS model
+out <- jags.parfit(cl = makeCluster(2),
+                data = JAGSdata,
+                inits = JAGSinits,
+                params = JAGSparams,
+                model = "occupancy/15_neon_dynamic_multisp_misclass_JAGS.txt", 
+                n.chains = nc,
+                n.iter = ni,
+                n.burnin = nb,
+                n.thin = nt)
+stopCluster(cl)
+#started Monday at 15:11 then crashed Tuesday night. Restarted Wednesday 8:53
+# AIS try parallelizing with R2jags::jags.parallel or dclone
+
 #save(out,file="occupancy/script15_jags_output.Rdata")
-load("occupancy/script15_jags_output.Rdata")
+load("occupancy/script15_jags_output.Rdata") #output from jags.parfit()
+out_15 <- out
+load("occupancy/script14_jags_output.Rdata") #output from jags()
 
 # How well does the model estimate specified parameters?
-print(out, dig=2)
-
+out_mcmcsumm <- MCMCsummary(out_15)
+save(out_15, out_mcmcsumm, file="occupancy/script15_jags_output.Rdata")
 
 # Look at raw numbers
 # phi - survival probability
@@ -321,3 +315,31 @@ par(mfrow=c(1,1)) #reset plotting
 #     xlab="Predicted",ylab="Observed",main="Theta comparison for species without expert ID")
 #abline(0,1)
 #points(x=out$mean$theta[nspec,],y=theta[nspec,],col="red")
+
+
+# Core and chain time trial -----------------------------------------------
+# 
+# ###############
+# alpha <- matrix(1, nrow=5,ncol=5)
+# diag(alpha) <- 5 
+# M <- matrix(0, nrow=5,ncol=5)
+# diag(M) <- 7
+# c_obs <- array(1:8,c(5,3,5,2))
+# Z.init <- array(0:1,c(5,5,2))
+# JAGSdata <- list(nsite = 5, 
+#                  nsurv = 3, 
+#                  nspec_exp = 5, #species ID'd by expert
+#                  nspec_para = 5, #paratax ID's and morphospecies
+#                  nyear = 2, 
+#                  n = rep(7,5),
+#                  alpha = alpha,
+#                  M = M,
+#                  c_obs = c_obs) #bundle data
+# JAGSinits <- function(){ list(Z = Z.init) }
+# JAGSparams <- c("psi", "lambda", "theta", "Z", "phi", "gamma", "n.occ", "growth", "turnover") 
+# #nc, ni, nb defined above with theta
+# nt <- 1  #MCMC thin
+# #######################
+# #4 chains: 38/37sec on 4 cores, 50sec on 3 cores, 38sec/38sec on 2 cores, 72sec on 1 core
+# #3 chains on 2 and 4 cores
+# #3 chains: on 4 cores is 28sec, and on 2 cores is 37/42sec
