@@ -111,3 +111,16 @@ with higher elevation
 
 #### Carabid sampling periods (2015-2017)
 1: late June (27th-28th); 2: mid-July (11th-14th); 3: late July (25th-28th); 4: mid-August (8th-11th); 5: late August (22nd-25th); 6: early September (5th-8th)
+
+#### Post-semester follow-up ideas
+* model based on abundance from previous years  
+* zero-inflated poisson model  
+* try modeling occupancy  
+* visualize plots in 3D model  
+* spatial models, temporal, spatiotemporal.... see Scott and Tom's project  
+    * how did scott see that no environmental variable could explain geom density?  
+* go back to GLMM  
+* how much data do we need to predict well  
+* Bayesian implementation of model  
+* cross-validate by grouping by plots rather than randomly  
+
