@@ -1,6 +1,3 @@
-
-
-
 # Here we extend the dynamic occupancy model with misclassification in script
 # 14_ to run on actual NEON carabid data from Niwot Ridge. Here, we run the data
 # on all samples from Niwot Ridge
@@ -88,44 +85,59 @@ ind_dat %>%
 # The parameters below assume both a parataxonomist's and an expert taxonomist's
 # classification is available
 
-# List the unique expert taxonomist ID's and the parataxonomist IDs that the
+# List 1) the unique expert taxonomist ID's and 2) the parataxonomist IDs that the
 # expert taxonomist didn't use. 
-# These identifications will be the rownames of theta and M
-rownames <- %>% arrange(expert_sciname)
+# These identifications will be the row names of theta and M
+rownames <- c(ind_dat %>%   #1) the unique expert taxonomist ID's
+                    select(expert_sciname) %>%
+                    filter(!is.na(expert_sciname)) %>%
+                    mutate_if(is.factor, as.character) %>%
+                    distinct() %>%
+                    pull(expert_sciname),
+              ind_dat %>%   #2) the parataxonomist IDs that the expert taxonomist didn't use. 
+                select(para_sciname) %>%
+                filter(!para_sciname %in% unique(ind_dat$expert_sciname)) %>% 
+                mutate_if(is.factor, as.character) %>%
+                distinct() %>%
+                pull(para_sciname) ) 
+rownames <- sort(rownames)
 
-ind_dat %>%
-    select(para_sciname) %>%
-    filter(!para_sciname %in% unique(ind_dat$expert_sciname)) %>% 
-    mutate_if(is.factor, as.character) %>%
-    distinct()
+# List 1) the unique parataxonomist and morphospecies ID's and 2) the expert taxonomist IDs that the
+# parataxonomist didn't use. 
+# These identifications will be the column names of theta and M
+extra_colnames <- c(ind_dat %>%   #1) the unique parataxonomist and morphospecies ID's
+                       select(para_morph) %>%
+                       mutate_if(is.factor, as.character) %>%
+                       distinct() %>%
+                       pull(para_morph),
+                     ind_dat %>%   #2) the expert taxonomist IDs that the parataxonomist didn't use. 
+                       select(expert_sciname) %>%
+                       filter(!is.na(expert_sciname),
+                         !expert_sciname %in% unique(ind_dat$para_morph)) %>% 
+                       mutate_if(is.factor, as.character) %>%
+                       distinct() %>%
+                       pull(expert_sciname) ) 
+extra_colnames <- sort(extra_colnames)
+extra_indices <- which(!extra_colnames %in% rownames)
+colnames <- c(rownames, extra_colnames[extra_indices])
+rm(extra_colnames, extra_indices)
 
-ind_dat %>% 
-    select(expert_sciname) %>% 
-    filter(!is.na(expert_sciname)) %>%
-    distinct() 
-# List all unique unique taxonomist ID's total
-allNames    <- unique(unique(ind_dat$para_morph, na.rm=T), expertnames)
-, ) %>%
-    distinct()
-
-ind_dat %>%
-    filter(!is.na(expert_sciname)) %>%
-    select(expert_sciname) %>%
-    distinct() %>% 
-    mutate_if(is.factor, as.character) %>%
-    arrange(expert_sciname) %>%
-    pull(expert_sciname) 
 
 # n[k]: expert taxonomist's count of individuals of species k 
-n <- ind_dat %>%
-    filter(!is.na(expert_sciname)) %>%
-    group_by(expert_sciname) %>%
-    summarize(n=n()) %>% 
-    pull(n) #alphabetical
+n <- left_join(data.frame(rownames) %>%
+                 rename("expert_sciname" = rownames) %>%
+                 mutate_if(is.factor, as.character) ,
+               ind_dat %>%
+                 filter(!is.na(expert_sciname)) %>%
+                 group_by(expert_sciname) %>%
+                 summarize(n=n()) %>%
+                 mutate_if(is.factor, as.character) ) %>% 
+    pull(n) 
+n[is.na(n)] <- 0
 
 # Alpha: dirichlet concentration parameter
-alpha <- matrix(1, nrow=length(n), 
-                ncol=(length(unique(ind_dat$para_morph) ) ) )
+alpha <- matrix(1, nrow=length(rownames), 
+                ncol=(length(colnames ) ) )
 diag(alpha) <- 20 
 
 # Theta: misclassification probability matrix [KxK]
@@ -144,86 +156,95 @@ for (k in 1:nrow(alpha)) {
 
 # M_k: M[k,k'] is the number of individuals from species k (according to expert)
 # that were identified as species k' by parataxonomist [KxK]
-M_sq <- ind_dat %>%
-    filter(!is.na(expert_sciname)) %>%
-    reshape2::acast(expert_sciname ~ para_morph) 
 
-colnames(M_sq) %in% expertnames
-which(colnames(M_sq) %in% expertnames)
+# create an empty df with the columns and rownames that I want
+M <- matrix(0, ncol = length(colnames), nrow = length(rownames))
+M <- data.frame(M, row.names = rownames)
+colnames(M) <- colnames
 
-test_sq<- M_sq[,which(colnames(M_sq) %in% expertnames)]
+# Grab values from casted M matrix and fill in values in final M matrix
+M_cast <- ind_dat %>%
+  filter(is.na(expert_sciname)==F) %>% 
+  reshape2::acast(expert_sciname ~ para_morph)
 
-M_sq_tib <- tibble(M_sq)
-as.tibble() %>%
-    dplyr::select(expertnames)
+for(col in colnames(M_cast)) {
+  for(row in row.names(M_cast)) {
+    M[row,col] <- M_cast[row,col]
+  }
+}
+rm(col, row, M_cast)
 
-M_sq <- ind_dat %>%
-    filter(!is.na(expert_sciname) |
-               para_morph %in% expertnames) %>%
-    reshape2::acast(expert_sciname ~ para_morph)
-
-#filter(is.na(expert_sciname)==F) %>% 
-#filter(as.character(para_sciname) == as.character(expert_sciname)) %>%
-#mutate_if(is.factor, as.character)  %>%
-reshape2::acast(expert_sciname ~ para_sciname)
-
-dplyr::select(all_of(expertnames))
-
-vars_select(colnames(M_sq), .include = expertnames)
-
-M <- ind_dat %>%
-    filter(is.na(expert_sciname)==F) %>% 
-    reshape2::acast(expert_sciname ~ para_morph)
+# Convert M into matrix
+M <- data.matrix(M)
 
 
-
-c(ind_dat %>%
-      filter(!is.na(expert_sciname)) %>%
-      select(expert_sciname) %>%
-      distinct() %>%
-      mutate_if(is.factor, as.character) %>% pull(expert_sciname) ) )
-
-
-select(ind_dat %>%
-           filter(!is.na(expert_sciname)) %>%
-           select(expert_sciname) %>%
-           distinct() %>%
-           mutate_if(is.factor, as.character) %>% pull(expert_sciname) )
-
-M <- ind_dat %>%
-    filter(is.na(expert_sciname)==F) %>% 
-    reshape2::acast(expert_sciname ~ para_morph)
-# Reorder M so that first para_morph names match expert_scinames
-
-#try creating M as a square matrix, then left_join full rectangular matrix
 
 # Combine occupancy and misclassification models to simulate observed data --------
 # c_obs: c_obs[i,j,k',l] are the elements of vector C, and represent the number
 # of individuals that were classified as k'. dim: nsite x nsurv x nspec x nyear
-c_obs   <- sample_dat %>%
-    reshape2::acast(plotID ~ col_index ~ para_morph ~ col_year,
-                    fun.aggregate=sum, fill=-999, value.var = "sp_abund")
-c_obs[c_obs == -999] <- NA
+c_obs <- array(NA, dim = c(length(unique(ind_dat$plotID)),length(unique(ind_dat$col_index)),
+                           length(colnames),length(unique(ind_dat$col_year))),
+                 dimnames = list(c(sort(as.character(unique(ind_dat$plotID)))), #plots
+                                 c(as.character(unique(ind_dat$col_index))), #surveys
+                                 c(colnames), #para_morphs
+                                 c(unique(ind_dat$col_year)))) #year
+
+# Grab values from casted c_obs array and fill in values in final c_obs array
+c_obs_cast   <- sample_dat %>%
+  reshape2::acast(plotID ~ col_index ~ para_morph ~ col_year,
+                  fun.aggregate=sum, fill=-999, value.var = "sp_abund")
+c_obs_cast[c_obs_cast == -999] <- NA
+
+for(plot in dimnames(c_obs_cast)[[1]]) {
+  for(surv in dimnames(c_obs_cast)[[2]]) {
+    for(morph in dimnames(c_obs_cast)[[3]]) {
+      for(year in dimnames(c_obs_cast)[[4]]) {
+        c_obs[plot,surv,morph,year] <- c_obs_cast[plot,surv,morph,year]
+      }
+    }
+  }
+}
+c_obs[is.na(c_obs)] <- 0
+rm(plot, surv, morph, year, c_obs_cast)
+#AIS does it matter whether the missing values are 0 or NA?
+
 
 # Occupancy array. dim: nsite x nspec x nyear
 # Create Z data. Use expert identifications to incorporate partly observed presence
-Z.dat <- ind_dat %>% #ind_dat df has expert IDs
-    filter(!is.na(expert_sciname)) %>%
-    mutate(occ = 1) %>%
-    reshape2::acast(plotID ~ expert_sciname ~ col_year,
-                    fill=-999, drop=F, value.var = "occ")
-Z.dat[Z.dat == -999] <- NA
-Z.dat[Z.dat > 0] <- 1
+Z.dat <- array(NA, dim = c(length(unique(ind_dat$plotID)),
+                           length(rownames),length(unique(ind_dat$col_year))),
+               dimnames = list(c(sort(as.character(unique(ind_dat$plotID)))), #plots
+                               c(rownames), #para_morphs
+                               c(unique(ind_dat$col_year)))) #year
+
+# Grab values from casted c_obs array and fill in values in final c_obs array
+Z.dat_cast <- ind_dat %>% #ind_dat df has expert IDs
+  filter(!is.na(expert_sciname)) %>%
+  mutate(occ = 1) %>%
+  reshape2::acast(plotID ~ expert_sciname ~ col_year,
+                  fill=-999, drop=F, value.var = "occ")
+Z.dat_cast[Z.dat_cast == -999] <- NA
+Z.dat_cast[Z.dat_cast > 0] <- 1
+
+for(plot in dimnames(Z.dat_cast)[[1]]) {
+  for(morph in dimnames(Z.dat_cast)[[2]]) {
+    for(year in dimnames(Z.dat_cast)[[3]]) {
+      Z.dat[plot,morph,year] <- Z.dat_cast[plot,morph,year]
+    }
+  }
+}
+rm(Z.dat_cast)
 
 # Initialize Z
 Z.init <- Z.dat
 for (i in 1:dim(Z.init)[1]) {
-    for (l in 1:dim(Z.init)[3]) {
-        Z.init[i,,l] <- sample(c(0,1), replace=TRUE, size=dim(Z.init)[2])
-    }
+  for (l in 1:dim(Z.init)[3]) {
+    Z.init[i,,l] <- sample(c(0,1), replace=TRUE, size=dim(Z.init)[2])
+  }
 }
 # initialize known values as NA, otherwise model will throw error
 Z.init[Z.dat == 1] <- NA
+
 
 # Check that where c_obs>0 for a species, Z.init>0 for that species/site/year combo
 for (i in 1:dim(Z.init)[1]) {
@@ -268,11 +289,11 @@ out <- jags.parfit(cl = cl,
                    thin = nt,
                    n.iter = 4000)
 # ran overnight, less than 11 hours
-# saveRDS(out, "occupancy/script15_jags_out.rds")
+saveRDS(out, "occupancy/script15_jags_out.rds")
 
 # How well does the model estimate specified parameters?
-# out_mcmcsumm <- MCMCsummary(out)
-# saveRDS(out_mcmcsumm, "occupancy/script15_mcmcsumm.rds")
+out_mcmcsumm <- MCMCsummary(out)
+saveRDS(out_mcmcsumm, "occupancy/script15_mcmcsumm.rds")
 
 
 # View JAGS output --------------------------------------------------------
