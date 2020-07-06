@@ -5,16 +5,16 @@ model {
   mu_phi    ~ dnorm(1.5,1)
   mu_gamma  ~ dnorm(-2,1)
   
-  sd_psi1   ~ dunif(0, 10)
-  sd_phi    ~ dunif(0, 10)
-  sd_gamma  ~ dunif(0, 10)
+  sd_psi1   ~ dnorm(0, 1)T(0, )
+  sd_phi    ~ dnorm(0, 1)T(0, )
+  sd_gamma  ~ dnorm(0, 1)T(0, )
   
   tau_psi1  <- pow(sd_psi1, -2)
   tau_phi   <- pow(sd_phi, -2)
   tau_gamma <- pow(sd_gamma, -2)
   
   mu_lambda ~ dnorm(0,1) #on log-link scale
-  sd_lambda ~ dunif(0,10)
+  sd_lambda ~ dnorm(0, 1)T(0, )
   tau_lambda <- pow(sd_lambda, -2)
   
   for (k in 1:nspec_exp) {
