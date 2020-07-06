@@ -13,10 +13,11 @@ model {
   tau_phi   <- pow(sd_phi, -2)
   tau_gamma <- pow(sd_gamma, -2)
   
-  lambda_shape  ~ dgamma(5,1) 
-  lambda_rate   ~ dgamma(1,1)
+  mu_lambda ~ dnorm(0,1) #on log-link scale
+  sd_lambda ~ dunif(0,10)
+  tau_lambda <- pow(sd_lambda, -2)
   
-    for (k in 1:nspec_exp) {
+  for (k in 1:nspec_exp) {
     e_psi1[k]  ~ dnorm(0,tau_psi1)
     e_phi[k]   ~ dnorm(0,tau_phi)
     e_gamma[k] ~ dnorm(0,tau_gamma)
@@ -27,13 +28,9 @@ model {
     
     theta[k,1:nspec_para] ~ ddirch(alpha[k,1:nspec_para])
     
-    for (l in 1:nyear) {
-      for (i in 1:nsite) {
-        for (j in 1:nsurv) {
-          lambda[i,j,k,l] ~ dgamma(lambda_shape, lambda_rate) 
-        }
-      }
-    }
+    e_lambda[k] ~ dnorm(0, tau_lambda)
+    log(lambda[k]) = mu_lambda + e_lambda[k]
+    
   }
   
   # State model
@@ -56,7 +53,7 @@ model {
     for (j in 1:nsurv) {
       for (k_prime in 1:nspec_para) {
         for (l in 1:nyear) {
-          c_obs[i,j,k_prime,l] ~ dpois( sum(Z[i, ,l] * lambda[i,j, ,l] * theta[ ,k_prime])) 
+          c_obs[i,j,k_prime,l] ~ dpois( sum(Z[i, ,l] * lambda[ ] * theta[ ,k_prime])) 
         }
       }
     }
