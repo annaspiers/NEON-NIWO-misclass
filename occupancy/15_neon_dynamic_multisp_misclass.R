@@ -1,27 +1,30 @@
-# Here we extend the dynamic occupancy model with misclassification in script
-# 14_ to run on actual NEON carabid data from Niwot Ridge. Here, we run the data
-# on all samples from Niwot Ridge
+# Here we create a dynamic occupancy model with misclassification using
+# actual NEON carabid data from Niwot Ridge. Here, we run the data
+# on all samples from Niwot Ridge 2015-2018
+# mcmc.list visualization resource: https://cran.r-project.org/web/packages/MCMCvis/vignettes/MCMCvis.html
 
-library(dclone) #alternative: R2jags::jags.paralle
+library(dclone) #alternative: R2jags::jags.parallel
 library(MCMCpack)
 library(MCMCvis)
 library(dplyr)
 library(ggplot2)
 library(tidyselect)
+library(tibble)
+library(assertthat)
+library(readr) #read_csv - faster, returns tibble, doesn't convert things to factors
 # library(mailR) #try troubleshooting dependencies later
 options(digits = 3)
 
 # Load NEON Niwot Ridge carabid data 
 # Each row is a beetle identified by a parataxonomist
-ind_dat <- read.csv("occupancy/model_df_by_individual_beetle.csv", header = TRUE) %>%
-    mutate(collectDate = as.Date(collectDate)) %>%
-    filter(collectDate <= as.Date("2018-12-31")) %>%
-    dplyr::select(-c(X))
+ind_dat <- read_csv("occupancy/model_df_by_individual_beetle.csv", col_names = TRUE) %>%
+    filter(collectDate <= "2018-12-31") %>%
+    dplyr::select(-c(X1))
 
 # Each row is a sample. One sample is a para_morph at a trap on a collection day   
-sample_dat  <- read.csv("occupancy/model_df_by_species_in_sample_2015-2018.csv", 
-                        header = TRUE) %>%
-    dplyr::select(-c(X))
+sample_dat <- read_csv("occupancy/model_df_by_species_in_sample_2015-2018.csv", 
+                        col_names = TRUE) %>%
+    dplyr::select(-c(X1))
 
 
 # EDA ---------------------------------------------------------------------
@@ -67,16 +70,14 @@ ind_dat %>%
 ind_dat %>%
     select(para_sciname) %>%
     filter(!para_sciname %in% unique(ind_dat$expert_sciname)) %>% #we want rows where the paratax ID is not an existing expert ID
-    mutate_if(is.factor, as.character) %>%
     distinct()
-# 14 parataxonomist IDs that the expert never ID'd
+# 13 parataxonomist IDs that the expert never ID'd
 
 # Are there species that the expert taxonomist ID’d, but that the parataxonomist never ID’d?
 ind_dat %>%
     select(expert_sciname) %>%
     filter(!is.na(expert_sciname),
            !expert_sciname %in% unique(ind_dat$para_sciname)) %>% #we want rows where the paratax ID is not an existing expert ID
-    mutate_if(is.factor, as.character) %>%
     distinct()
 # 7 expert tax IDs that the paratax never ID'd
 
@@ -91,13 +92,11 @@ ind_dat %>%
 rownames <- c(ind_dat %>%   #1) the unique expert taxonomist ID's
                     select(expert_sciname) %>%
                     filter(!is.na(expert_sciname)) %>%
-                    mutate_if(is.factor, as.character) %>%
                     distinct() %>%
                     pull(expert_sciname),
               ind_dat %>%   #2) the parataxonomist IDs that the expert taxonomist didn't use. 
                 select(para_sciname) %>%
                 filter(!para_sciname %in% unique(ind_dat$expert_sciname)) %>% 
-                mutate_if(is.factor, as.character) %>%
                 distinct() %>%
                 pull(para_sciname) ) 
 rownames <- sort(rownames)
@@ -107,14 +106,12 @@ rownames <- sort(rownames)
 # These identifications will be the column names of theta and M
 extra_colnames <- c(ind_dat %>%   #1) the unique parataxonomist and morphospecies ID's
                        select(para_morph) %>%
-                       mutate_if(is.factor, as.character) %>%
                        distinct() %>%
                        pull(para_morph),
                      ind_dat %>%   #2) the expert taxonomist IDs that the parataxonomist didn't use. 
                        select(expert_sciname) %>%
                        filter(!is.na(expert_sciname),
                          !expert_sciname %in% unique(ind_dat$para_morph)) %>% 
-                       mutate_if(is.factor, as.character) %>%
                        distinct() %>%
                        pull(expert_sciname) ) 
 extra_colnames <- sort(extra_colnames)
@@ -122,23 +119,29 @@ extra_indices <- which(!extra_colnames %in% rownames)
 colnames <- c(rownames, extra_colnames[extra_indices])
 rm(extra_colnames, extra_indices)
 
+assertthat::assert_that(all(rownames == colnames[1:length(rownames)]))
 
 # n[k]: expert taxonomist's count of individuals of species k 
-n <- left_join(data.frame(rownames) %>%
-                 rename("expert_sciname" = rownames) %>%
-                 mutate_if(is.factor, as.character) ,
+n_tib <- left_join(tibble(rownames) %>%
+                 rename("expert_sciname" = rownames),
                ind_dat %>%
                  filter(!is.na(expert_sciname)) %>%
                  group_by(expert_sciname) %>%
-                 summarize(n=n()) %>%
-                 mutate_if(is.factor, as.character) ) %>% 
-    pull(n) 
+                 summarize(n=n())) 
+n <- n_tib %>% pull(n) 
 n[is.na(n)] <- 0
 
+assertthat::assert_that(all(n_tib$expert_sciname == rownames))
+rm(n_tib)
+
 # Alpha: dirichlet concentration parameter
-alpha <- matrix(1, nrow=length(rownames), 
-                ncol=(length(colnames ) ) )
-diag(alpha) <- 20 
+alpha <- matrix(0.1, nrow=length(rownames),
+                ncol=length(colnames) ) 
+diag(alpha) <- 80
+
+test_alpha <- MCMCpack::rdirichlet(1000, c(80,rep(.1,73)))
+hist(test_alpha[,-1], xlim=c(0,1),col="red")
+hist(test_alpha[,1],  add=T)
 
 # Theta: misclassification probability matrix [KxK]
 # Theta has two parts. 
@@ -146,19 +149,17 @@ diag(alpha) <- 20
 # group 
 # Part 2: matrix appended as new columns on Theta that are “invalid” taxonomic
 # groups (all of the morphospecies)
-nc <- 4 #MCMC chains
-ni <- 4000 #MCMC iterations
-nb <- 2000 #MCMC burnin = adapt (1000) + update (1000)
-theta <- array(NA, dim=c(nc*(ni - nb), dim(alpha)) ) #same dimensions as theta output from model
-for (k in 1:nrow(alpha)) {
-    theta[ ,k, ] <- MCMCpack::rdirichlet(dim(theta)[1], alpha[k, ])
-}
+# theta <- array(NA, dim=c(nc*(ni - nb), length(rownames), length(colnames)) ) #same dimensions as theta output from model
+# for (k in 1:nrow(alpha)) {
+#     theta[ ,k, ] <- MCMCpack::rdirichlet(dim(theta)[1], alpha[k, ])
+# }
+
 
 # M_k: M[k,k'] is the number of individuals from species k (according to expert)
 # that were identified as species k' by parataxonomist [KxK]
 
 # create an empty df with the columns and rownames that I want
-M <- matrix(0, ncol = length(colnames), nrow = length(rownames))
+M <- matrix(0, nrow = length(rownames), ncol = length(colnames))
 M <- data.frame(M, row.names = rownames)
 colnames(M) <- colnames
 
@@ -173,10 +174,11 @@ for(col in colnames(M_cast)) {
   }
 }
 rm(col, row, M_cast)
-
 # Convert M into matrix
 M <- data.matrix(M)
 
+assertthat::assert_that(all(labels(M)[1][[1]] == rownames))
+assertthat::assert_that(all(labels(M)[2][[1]] == colnames))
 
 
 # Combine occupancy and misclassification models to simulate observed data --------
@@ -205,9 +207,9 @@ for(plot in dimnames(c_obs_cast)[[1]]) {
   }
 }
 c_obs[is.na(c_obs)] <- 0
-rm(plot, surv, morph, year, c_obs_cast)
-#AIS does it matter whether the missing values are 0 or NA?
+rm(c_obs_cast)
 
+assertthat::assert_that(all(labels(c_obs)[3][[1]] == colnames))
 
 # Occupancy array. dim: nsite x nspec x nyear
 # Create Z data. Use expert identifications to incorporate partly observed presence
@@ -233,7 +235,7 @@ for(plot in dimnames(Z.dat_cast)[[1]]) {
     }
   }
 }
-rm(Z.dat_cast)
+rm(Z.dat_cast,plot,morph,year,surv)
 
 # Initialize Z
 Z.init <- Z.dat
@@ -245,7 +247,6 @@ for (i in 1:dim(Z.init)[1]) {
 # initialize known values as NA, otherwise model will throw error
 Z.init[Z.dat == 1] <- NA
 
-
 # Check that where c_obs>0 for a species, Z.init>0 for that species/site/year combo
 for (i in 1:dim(Z.init)[1]) {
     for (k in 1:dim(Z.init)[2]) {
@@ -256,15 +257,15 @@ for (i in 1:dim(Z.init)[1]) {
         }
     }
 }
-
+rm(i,k,l)
 
 # JAGS model --------------------------------------------------------------
 
 # Run model in JAGS. 
 JAGSdata <- list(nsite = dim(c_obs)[1], 
                  nsurv = dim(c_obs)[2], 
-                 nspec_exp = dim(alpha)[1], #species ID'd by expert
-                 nspec_para = dim(alpha)[2], #paratax ID's and morphospecies
+                 nspec_exp = dim(M)[1], #species ID'd by expert
+                 nspec_para = dim(M)[2], #paratax ID's and morphospecies
                  nyear = dim(c_obs)[4], 
                  n = n,
                  alpha = alpha,
@@ -272,58 +273,104 @@ JAGSdata <- list(nsite = dim(c_obs)[1],
                  c_obs = c_obs,
                  Z = Z.dat) #bundle data
 JAGSinits <- function(){ list(Z = Z.init) }
-JAGSparams <- c("psi", "lambda", "theta", "Z", "phi", "gamma", "n.occ", "growth", "turnover") 
-#nc, ni, nb defined above with theta
-nt <- 1  #MCMC thin
+nc <- 4 #MCMC chains
+ni <- 8000 #MCMC iterations
+nt <- ni/1000  #MCMC thin
 
 # JAGS model
+JAGSparams <- c("psi", "lambda", "theta", "Z", "phi", "gamma", "n.occ", "growth", "turnover")
 cl <- makeCluster(4)
-out <- jags.parfit(cl = cl, 
+out <- jags.parfit(cl = cl,
                    data = JAGSdata,
                    params = JAGSparams,
-                   model = "occupancy/15_neon_dynamic_multisp_misclass_JAGS.txt", 
+                   model = "occupancy/15_neon_dynamic_multisp_misclass_JAGS.txt",
                    inits = JAGSinits,
                    n.chains = nc,
                    n.adapt = 2000,
                    n.update = 2000,
                    thin = nt,
-                   n.iter = 4000)
-# ran overnight, less than 11 hours
+                   n.iter = ni)
 saveRDS(out, "occupancy/script15_jags_out.rds")
+library(MCMCvis)
+out_mcmcsumm <- MCMCsummary(out)
+saveRDS(out_mcmcsumm, "occupancy/script15_mcmcsumm_out.rds")
 
 # How well does the model estimate specified parameters?
-out_mcmcsumm <- MCMCsummary(out)
-saveRDS(out_mcmcsumm, "occupancy/script15_mcmcsumm.rds")
-
+library(MCMCvis)
+out2_mcmcsumm <- MCMCsummary(out2)
+saveRDS(out2_mcmcsumm, "occupancy/script15_mcmcsumm_out2.rds")
 
 # View JAGS output --------------------------------------------------------
 
 out <- readRDS("occupancy/script15_jags_out.rds")
-out_mcmcsumm <- readRDS("occupancy/script15_mcmcsumm.rds")
+out_mcmcsumm <- readRDS("occupancy/script15_mcmcsumm_out.rds")
 
 # Did model converge?
-hist(out_mcmcsumm$Rhat)
+hist(out_mcmcsumm$Rhat, breaks=40)
 range(out_mcmcsumm$Rhat, na.rm=TRUE)
 
-# mcmc.list visualization resource: https://cran.r-project.org/web/packages/MCMCvis/vignettes/MCMCvis.html
+# Look at high Rhat values
+out_mcmcsumm <- rownames_to_column(out_mcmcsumm)
+out_mcmcsumm %>% filter(Rhat > 1.8)
 
 # Look at raw numbers
+# theta
+theta_summ <- MCMCsummary(out, params = 'theta', round=2)
+saveRDS(theta_summ, "occupancy/theta_summ.rds")
+theta_summ <- readRDS("occupancy/theta_summ.rds")
+hist(theta_summ$Rhat, breaks=20)
+range(theta_summ$Rhat)
+
+theta_summ <- rownames_to_column(theta_summ)
+theta_summ %>% filter(Rhat > 1.8)
+
+theta_summ
+range(theta_summ$mean)
+MCMCtrace(out, params = paste0('theta\\[47,5\\]'), type = 'both', ind = F, pdf=F, ISB=F) 
+MCMCtrace(out, params = paste0('theta\\[32,25\\]'), type = 'both', ind = F, pdf=F, ISB=F)
+MCMCtrace(out, params = paste0('theta\\[49,25\\]'), type = 'both', ind = F, pdf=F, ISB=F)
+MCMCtrace(out, params = paste0('theta\\[32,32\\]'), type = 'both', ind = F, pdf=F, ISB=F) 
+MCMCtrace(out, params = paste0('theta\\[38,41\\]'), type = 'both', ind = F, pdf=F, ISB=F)
+MCMCtrace(out, params = paste0('theta\\[49,49\\]'), type = 'both', ind = F, pdf=F, ISB=F)
+MCMCtrace(out, params = paste0('theta\\[32,59\\]'), type = 'both', ind = F, pdf=F, ISB=F)
+MCMCtrace(out, params = paste0('theta\\[49,62\\]'), type = 'both', ind = F, pdf=F, ISB=F)
+MCMCtrace(out, params = paste0('theta\\[32,64\\]'), type = 'both', ind = F, pdf=F, ISB=F) 
+MCMCsummary(out, params='theta\\[36,[0-9]+\\]', ISB=F)
+
+
+theta_df <- data.frame(expert_index = rep(1:dim(M)[1], dim(M)[2]) ,
+                       paramorph_index = rep(1:dim(M)[2], each = dim(M)[1]),
+                       expert_sciname = rep(rownames, dim(M)[2]),
+                       para_morph = rep(colnames, each = dim(M)[1]))  %>% 
+    mutate(theta_mean = theta_summ$mean)
+#make para_morph a factor to force plotting in order
+theta_df$para_morph = factor(theta_df$para_morph, levels=colnames) 
+
+# Plot heatmap of theta values
+ggplot(theta_df, aes(x=para_morph, y=expert_sciname, fill= theta_mean)) + 
+    geom_tile() +
+    scale_fill_gradient(low="darkblue", high="white") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    scale_y_discrete(limits = rev(levels(as.factor(theta_df$expert_sciname))))
+#consider on plotly: https://www.r-graph-gallery.com/79-levelplot-with-ggplot2.html
+
+
 # phi - survival probability
 MCMCsummary(out, params = 'phi', round=2)
 MCMCtrace(out, params = 'phi', type = 'density', ind = F, pdf=F)
-#phi[35] Rhat=1.35. 
-#phi indices 14,16,21,25,32 are bimodal
+#phi[47] Rhat=1.11. 
+#several indices are bimodal
 
 # gamma - colonization probability
 MCMCsummary(out, params = 'gamma', round=2)
 MCMCtrace(out, params = 'gamma', type = 'density', ind = F, pdf=F)
-#gamma[35] Rhat=1.26. same index as above for phi. 
+#gamma[47] Rhat=1.1. same index as above for phi. 
 #all densities peak close to 0 - makes sense
 
 # psi - occupancy prob.
 MCMCsummary(out, params = 'psi', round=2)
 MCMCtrace(out, params = 'psi', type = 'density', ind = F, pdf=F)
-# a few Rhat values > 1.1
+# a few Rhat values > 1.1. psi[49,1] has Rhat 3.09, psi[36,1] has Rhat 2.06
 #some have wide posterior densities.
 
 # Plot all species' occupancy through seasons
@@ -331,69 +378,55 @@ par(mfrow=c(1,1))
 plot(NA, xlim = c(1,dim(c_obs)[4]), ylim=c(0,1), main="Occupancy by species", 
      xlab = "Year", ylab = "Occupancy probability", frame.plot = FALSE)
 for (k in 1:dim(Z.dat)[2]) {
-    lines(1:dim(Z.dat)[3], MCMCsummary(out, params=paste0('psi\\[',k,',\\d\\]'), ISB=F)$mean,
-          type = "l", col=k+7,  lwd = 2, lty = 1, las = 1)
+  lines(1:dim(Z.dat)[3], MCMCsummary(out, params=paste0('psi\\[',k,',\\d\\]'), ISB=F)$mean,
+        type = "l", col=k+7,  lwd = 2, lty = 1, las = 1)
 }
 
 # lambda - expected abundance, given occupancy, dim: nsite x nsurv x nspec x nyear
-#lambda_summ <- MCMCsummary(out, params = 'lambda', round=2) #takes 5ish min
-#saveRDS(lambda_summ, "occupancy/lambda_summ.rds")
+lambda_summ <- MCMCsummary(out, params = 'lambda', round=2) #takes 5ish min
+saveRDS(lambda_summ, "occupancy/lambda_summ.rds")
 lambda_summ <- readRDS("occupancy/lambda_summ.rds")
+hist(lambda_summ$Rhat)
+range(lambda_summ$Rhat)
+lambda_summ
+range(lambda_summ$mean)
 MCMCtrace(out, params = 'lambda', type = 'density', ind = F, pdf=F)
 range(lambda_summ$mean)
-
-# theta
-#theta_summ <- MCMCsummary(out, params = 'theta', round=2)
-#saveRDS(theta_summ, "occupancy/theta_summ.rds")
-theta_summ <- readRDS("occupancy/theta_summ.rds")
-MCMCtrace(out, params = 'theta', type = 'density', ind = F, pdf=F)
-
-theta_df <- data.frame(expert_index = rep(1:dim(theta)[2], dim(theta)[3]) ,
-                       paramorph_index = rep(1:dim(theta)[3], each = dim(theta)[2]))  %>% 
-    left_join(ind_dat %>%
-                  filter(!is.na(expert_sciname)) %>%
-                  select(expert_sciname) %>%
-                  distinct() %>%
-                  mutate_if(is.factor, as.character) %>%
-                  arrange(expert_sciname) %>%
-                  mutate(expert_index = 1:dim(theta)[2]) )%>%
-    left_join(ind_dat %>%
-                  select(para_morph) %>%
-                  distinct() %>%
-                  mutate_if(is.factor, as.character) %>%
-                  arrange(para_morph) %>%
-                  mutate(paramorph_index = 1:dim(theta)[3]) ) %>%
-    mutate(theta_mean = theta_summ$mean)
-
-# Plot heatmap of theta values
-ggplot(theta_df, aes(para_morph, expert_sciname, fill= theta_mean)) + 
-    geom_tile() +
-    scale_fill_gradient(low="darkblue", high="white") +
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-    scale_y_discrete(limits = rev(levels(as.factor(theta_df$expert_sciname))))
-
-#consider on plotly: https://www.r-graph-gallery.com/79-levelplot-with-ggplot2.html
+#a good handful of Rhats > 1.1, as large as 3.32
 
 # Z
-out$mean$Z
-plot(Z.init, out$mean$Z)
+Z_summ <- MCMCsummary(out, params = 'Z', round=2)
+saveRDS(Z_summ, "occupancy/theta_summ.rds")
+#Z_summ <- readRDS("occupancy/theta_summ.rds")
+MCMCtrace(out, params = 'Z', type = 'density', ind = F, pdf=F)
+
+Z.dat[is.na(Z.dat)] <- 0
+Z.init[is.na(Z.init)] <- 0
+Z.prior <- Z.dat+Z.init
+plot(Z.prior, Z_summ$mean)
+#WORK ON ABOVE PLOT - MAKE SURE THEY PLOT 1-1 ACCURATELY, now it's not accurate
 plot(apply(c_obs, c(1,3,4), max, na.rm = TRUE), out$mean$Z)
-# not sure what to make of this
+
+
+
+
+
+
+
+
+
+
 
 # n.occ
 print(out$summary[grep("n.occ", row.names(out$summary)), c(1, 2, 3, 7)], dig = 2)
-# Yep, make sense. Low numbers for Amara quenseli in first year and for
-# Pterostichus restrictus in first 2 years.
 
 # growth
 print(out$summary[grep("growth", row.names(out$summary)), c(1, 2, 3, 7)], dig = 2) 
 out$mean$growth
-# Large growth values for species 2 and 7 - good
 
 # turnover
 print(out$summary[grep("turnover", row.names(out$summary)), c(1, 2, 3, 7)], dig = 2) 
 out$mean$turnover
-# numbers don't look crazy, but also not sure what to make of them
 
 # Look at psi, phi, gamma, growth, turnover, n.occ graphically
 species <- as.character(unique(sample_dat$para_sciname))
@@ -431,75 +464,8 @@ for (k in 1:length(species)) {
 par(mfrow=c(1,1)) #reset plotting
 
 # Visualize predictions of species unobserved by expert taxonomist
-#par(mfrow=c(1,1))
-#plot(NA,xlim=c(0,1),ylim=c(0,1),
-#     xlab="Predicted",ylab="Observed",main="Theta comparison for species without expert ID")
-#abline(0,1)
-#points(x=out$mean$theta[nspec,],y=theta[nspec,],col="red")
-
-
-# Scratch -----------------------------------------------------------------
-
-# Core and chain time trial -----------------------------------------------
-
-# alpha <- matrix(1, nrow=5,ncol=5)
-# diag(alpha) <- 5 
-# M <- matrix(0, nrow=5,ncol=5)
-# diag(M) <- 7
-# c_obs <- array(1:8,c(5,3,5,2))
-# Z.init <- array(0:1,c(5,5,2))
-# JAGSdata <- list(nsite = 5, 
-#                  nsurv = 3, 
-#                  nspec_exp = 5, #species ID'd by expert
-#                  nspec_para = 5, #paratax ID's and morphospecies
-#                  nyear = 2, 
-#                  n = rep(7,5),
-#                  alpha = alpha,
-#                  M = M,
-#                  c_obs = c_obs) #bundle data
-# JAGSinits <- function(){ list(Z = Z.init) }
-# JAGSparams <- c("psi", "lambda", "theta", "Z", "phi", "gamma", "n.occ",
-# "growth", "turnover")
-# #nc, ni, nb defined above with theta
-# nt <- 1  #MCMC thin
-# #######################
-# #4 chains: 38/37sec on 4 cores, 50sec on 3 cores, 38sec/38sec on 2 cores, 72sec on 1 core
-# #3 chains on 2 and 4 cores
-# #3 chains: on 4 cores is 28sec, and on 2 cores is 37/42sec
-
-# For a while, I used function arguments for jags() in jags.parfit() rather than
-# the proper arguments for jags.parfit(). Here are notes that describe the
-# errors I ran into
-#after 22 hours of running, this error was spat out: 
-#Error in unserialize(node$con) : error reading from connection
-#stackexchange says its due to running out of memory
-#bumping down to 2 cores now. Kicking off Monday 21:10
-# with 2 burnin and 10 iterations, took less than 2 hours - but this was using
-# jgas() arguments, not jags.parfit
-
-
-# Create matrix of mean theta posterior
-# theta_mat <- matrix(data=NA, nrow=dim(theta)[2], ncol=dim(theta)[3], byrow=T,
-#                     dimnames = list(c(ind_dat %>%
-#                                           filter(!is.na(expert_sciname)) %>%
-#                                           select(expert_sciname) %>%
-#                                           distinct() %>%
-#                                           mutate_if(is.factor, as.character) %>%
-#                                           arrange(expert_sciname) %>%
-#                                           pull(expert_sciname)),
-#                                     c(ind_dat %>%
-#                                           select(para_morph) %>%
-#                                           distinct() %>%
-#                                           mutate_if(is.factor, as.character) %>%
-#                                           arrange(para_morph) %>%
-#                                           pull(para_morph)) ) )
-# for (k in 1:dim(theta)[1]) {
-#     theta_mat[k,] <- MCMCsummary(out, params=paste0('theta\\[',k,',[0-9]+\\]'), 
-#                                  ISB=F)$mean
-# }
-# #why is it missing column 37?
-# theta_mat
-# heatmap(theta_mat, Colv = NA, Rowv = NA, scale = "none",
-#         col = heat.colors(100),
-#         xlab="expert taxonomist", ylab="parataxonomist", 
-#         main="Theta Posterior Means")
+par(mfrow=c(1,1))
+plot(NA,xlim=c(0,1),ylim=c(0,1),
+     xlab="Predicted",ylab="Observed",main="Theta comparison for species without expert ID")
+abline(0,1)
+points(x=out$mean$theta[nspec,],y=theta[nspec,],col="red")
