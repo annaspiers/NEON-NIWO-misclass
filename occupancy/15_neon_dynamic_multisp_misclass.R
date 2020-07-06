@@ -274,7 +274,7 @@ JAGSdata <- list(nsite = dim(c_obs)[1],
                  Z = Z.dat) #bundle data
 JAGSinits <- function(){ list(Z = Z.init) }
 nc <- 4 #MCMC chains
-ni <- 8000 #MCMC iterations
+ni <- 4000 #MCMC iterations
 nt <- ni/1000  #MCMC thin
 
 # JAGS model
@@ -319,22 +319,26 @@ theta_summ <- MCMCsummary(out, params = 'theta', round=2)
 saveRDS(theta_summ, "occupancy/theta_summ.rds")
 theta_summ <- readRDS("occupancy/theta_summ.rds")
 hist(theta_summ$Rhat, breaks=20)
-range(theta_summ$Rhat)
 
 theta_summ <- rownames_to_column(theta_summ)
-theta_summ %>% filter(Rhat > 1.8)
+theta_summ %>% filter(Rhat > 1.1) #3295/3774 rows
+theta_summ %>% filter(Rhat > 1.8) #10 rows
 
-theta_summ
-range(theta_summ$mean)
+# Look at some theta posteriors with high Rhat values
 MCMCtrace(out, params = paste0('theta\\[47,5\\]'), type = 'both', ind = F, pdf=F, ISB=F) 
 MCMCtrace(out, params = paste0('theta\\[32,25\\]'), type = 'both', ind = F, pdf=F, ISB=F)
 MCMCtrace(out, params = paste0('theta\\[49,25\\]'), type = 'both', ind = F, pdf=F, ISB=F)
 MCMCtrace(out, params = paste0('theta\\[32,32\\]'), type = 'both', ind = F, pdf=F, ISB=F) 
+ind_dat %>% filter(para_morph == rownames[32]) %>% select(para_sciname,expert_sciname)
+
 MCMCtrace(out, params = paste0('theta\\[38,41\\]'), type = 'both', ind = F, pdf=F, ISB=F)
 MCMCtrace(out, params = paste0('theta\\[49,49\\]'), type = 'both', ind = F, pdf=F, ISB=F)
+ind_dat %>% filter(para_morph == rownames[49]) %>% select(para_sciname,expert_sciname)
+
 MCMCtrace(out, params = paste0('theta\\[32,59\\]'), type = 'both', ind = F, pdf=F, ISB=F)
 MCMCtrace(out, params = paste0('theta\\[49,62\\]'), type = 'both', ind = F, pdf=F, ISB=F)
 MCMCtrace(out, params = paste0('theta\\[32,64\\]'), type = 'both', ind = F, pdf=F, ISB=F) 
+MCMCtrace(out, params = paste0('theta\\[49,64\\]'), type = 'both', ind = F, pdf=F, ISB=F) 
 MCMCsummary(out, params='theta\\[36,[0-9]+\\]', ISB=F)
 
 
