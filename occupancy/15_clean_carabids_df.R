@@ -1,5 +1,3 @@
-
-
 # This script compiles carabid abundance and richness data with variables
 # describing layers of data aggregation as well as environmental variables. 
 

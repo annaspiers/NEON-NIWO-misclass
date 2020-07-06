@@ -1,0 +1,19 @@
+model {
+
+  alpha_diag  ~ dnorm(30, .5)T(0,)
+  alpha_morph ~ dnorm(1, .5)T(0,)
+  
+  for (k in 1:nspec_exp) {
+    for (k_prime in 1:nspec_para) {
+      alpha[k, k_prime] = ifelse(k == k_prime, alpha_diag, 
+        ifelse(k_prime > nspec_exp, alpha_morph, 1))
+    }
+    
+    theta[k,1:nspec_para] ~ ddirch(alpha[k,1:nspec_para])
+    
+    M[k, ] ~ dmulti(theta[k, ], n[k])
+    
+  }
+    
+ 
+} #model
