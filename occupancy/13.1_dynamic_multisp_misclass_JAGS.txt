@@ -40,11 +40,13 @@ model {
   # Z dimensions: nsite, nspec, nyear
   for (i in 1:nsite) {
     for (k in 1:K) {
-        Z[i, k, 1] ~ dbern(psi1[k])
-        for (y in 2:nyear) {
-          Z[i,k,y]  ~ dbern(Z[i,k,y-1]*phi[k] + 
+      Z[i, k, 1] ~ dbern(psi1[k])
+      for (y in 2:nyear) {
+        Z[i,k,y]  ~ dbern(Z[i,k,y-1]*phi[k] + 
                         (1 - Z[i,k,y-1])*gamma[k]) 
-          zlam[i, k, y] = Z[i, k, y] * lambda[k, y]
+      }
+      for (y in 1:nyear) {
+        zlam[i, k, y] = Z[i, k, y] * lambda[k, y]
       }
     }
   }
@@ -53,15 +55,15 @@ model {
   for (i in 1:nsite) {
     for (j in 1:nsurv) {
       for (y in 1:nyear) {
-          L[i, j, y] ~ dpois(sum(zlam[i, , y]))
+          L[i, j, y] ~ dpois(sum(zlam[i, 1:K, y]))
       }
     }
   }
   
   # Derived parameters
   for (l in 1:Ltot) {
-    pi[l, 1:K] = zlam[site[l], 1:K, ] / sum(zlam[site[l], 1:K, ])
-    #AIS added a space for y-index in zlam
+    pi[l, 1:K] = zlam[site[l], 1:K, year[l]] / sum(zlam[site[l], 1:K, year[l]])
+    #AIS added a space for year-index in zlam. 
     k[l] ~ dcat(pi[l, 1:K])
     y[l] ~ dcat(Theta[k[l], 1:K])
   }
@@ -71,7 +73,6 @@ model {
     for (y in 2:nyear) {
       psi[k,y]        <- psi[k,y-1]*phi[k] + 
                           (1 - psi[k,y-1])*gamma[k] 
-      n.occ[k,y]      <- sum(Z[1:nsite,k,y])
       growth[k,y]     <- psi[k,y]/psi[k,y-1] 
       turnover[k,y-1] <- (1 - psi[k,y-1])*gamma[k]/psi[k,y] 
     }

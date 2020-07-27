@@ -7,7 +7,9 @@ library(tidyverse)
 library(gtools) 
 library(R2jags)
 library(MCMCpack) #rdirchlet
+library(MCMCvis)
 
+set.seed(1234567)
 nsite <- 8 
 nsurv <- 5
 nspec <- 2
@@ -118,6 +120,7 @@ jags_d <- list(nsite = nsite,
                alpha = alpha,
                Ltot = sum(L), 
                site = k_df$site, 
+               year = k_df$year,
                # if the individual was labeled by the expert, true ID is known
                k = ifelse(y_df$true_species_known, y_df$species, NA),
                # for all individuals, we get paratxonomist IDs
@@ -138,7 +141,7 @@ jm <- jags.parallel(
     data = jags_d, 
     inits = ji, 
     parameters.to.save = c("psi", "p", "phi", "gamma", "lambda", 
-                           "Theta", "pi", "k", "y"), 
+                           "Theta", "pi"), 
     model.file = "occupancy/13.1_dynamic_multisp_misclass_JAGS.txt", 
     n.chains = 6, 
     n.iter = 10000, 
@@ -146,14 +149,21 @@ jm <- jags.parallel(
     DIC = FALSE)
 
 # How well does the model estimate specified parameters?
-print(out, dig=2)
-traceplot(out, parameters="Z")
+jm_summ <- MCMCsummary(jm, dig=2)
+hist(jm_summ$Rhat, breaks=40)
+range(jm_summ$Rhat, na.rm=TRUE)
 
-# Compare true and recaptured psi 
-psi
-out$mean$psi
+# Look at high Rhat values
+jm_summ <- rownames_to_column(jm_summ)
+jm_summ %>% filter(Rhat > 3)
 
-# Compare true and recaptured lambda 
+# Compare true vs recaptured values
+# psi
+MCMCtrace(jm, params="Theta", type = 'both', ind = F, pdf=F, ISB=F, Rhat=T)
+
+# p
+# gamma
+# lambda
 plot(NA,xlim=c(0,max(lambda)),ylim=c(0,max(lambda)),
      xlab="Observed",ylab="Predicted",main="Lambda comparison")
 abline(0,1)
@@ -165,13 +175,11 @@ for (i in 1:dim(Z)[1]) {
     }
 }
 
-
-# Compare true and recaptured theta 
-plot(c(theta), c(out$mean$theta), main="Theta")
+# theta
+MCMCtrace(jm, params="Theta", type = 'both', ind = F, pdf=F, ISB=F, Rhat=T)
+plot(c(Theta_true), c(Theta_summ$mean$Theta), main="Theta",
+     xlim=c(0,1), ylim=c(0,1))
 abline(0,1)
 
-# Plot apparent occupancy 
-    psi.app <- apply(apply(y, c(1,3), max), 2, mean) 
-    lines(year, psi.app, type = "l", col = "black", lwd = 2) 
-    text(0.85*K, 0.06, 
-         labels = "red solid – true occupancy\n red dashed – detection probability\n black – observed occupancy")
+# pi
+pi_summ <- MCMCsummary(jm, params="pi", dig=2)
