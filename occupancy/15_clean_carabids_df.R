@@ -3,7 +3,6 @@
 
 library(dplyr)
 library(stringr) #word()
-library(geoNEON)
 library(ggplot2)
 library(forcats) #fct_reorder
 library(tidyr) #separate()
