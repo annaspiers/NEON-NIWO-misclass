@@ -125,11 +125,11 @@ jags_d <- list(nsite = nsite,
 
 init_fn_factory <- function(nsite, nspec, nyear) {
     function(){
-        list(z = matrix(1, nsite, nspec, nyear))
+        list(Z = array(1, dim = c(nsite, nspec, nyear)))
     } 
 }
 
-ji <- init_fn_factory(nsite = nsite, nspec = nspec, nyear)
+ji <- init_fn_factory(nsite = nsite, nspec = nspec, nyear = nyear)
 
 # initialize the function
 inits <- ji()
