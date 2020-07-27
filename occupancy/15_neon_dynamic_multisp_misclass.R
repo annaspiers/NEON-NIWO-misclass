@@ -80,9 +80,9 @@ assertthat::assert_that(all(n_tib$scientificName == rownames))
 rm(n_tib)
 
 # Alpha: dirichlet concentration parameter
-alpha <- matrix(3, nrow=length(rownames),
+alpha <- matrix(1.5, nrow=length(rownames),
                 ncol=length(colnames) ) 
-diag(alpha) <- 180
+diag(alpha) <- 200
 
 test_alpha <- MCMCpack::rdirichlet(1000, c(200,rep(1.5,15)))
 hist(test_alpha[,-1], xlim=c(0,1),col="red")
@@ -156,6 +156,8 @@ c_obs[is.na(c_obs)] <- 0
 rm(c_obs_cast)
 
 assertthat::assert_that(all(labels(c_obs)[3][[1]] == colnames))
+assertthat::assert_that(sum(c_obs) == sum(all_paratax_df$individualCount))
+
 
 # Occupancy array. dim: nsite x nspec x nyear
 # Create Z data. Use expert identifications to incorporate partly observed presence
@@ -222,7 +224,7 @@ JAGSdata <- list(nsite = dim(c_obs)[1],
                  Z = Z.dat) #bundle data
 JAGSinits <- function(){ list(Z = Z.init) }
 nc <- 4 #MCMC chains
-ni <- 40000
+ni <- 80000
 nt <- ni/2000
 
 # JAGS model
@@ -257,7 +259,7 @@ range(out_mcmcsumm$Rhat, na.rm=TRUE)
 
 # Look at high Rhat values
 out_mcmcsumm <- rownames_to_column(out_mcmcsumm)
-out_mcmcsumm %>% filter(Rhat > 1.4)
+out_mcmcsumm %>% filter(Rhat > 25)
 
 MCMCtrace(out, params = paste0('eps_spec\\[2,1\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
 MCMCtrace(out, params = paste0('eps_spec\\[2,2\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
