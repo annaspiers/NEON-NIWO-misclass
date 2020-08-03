@@ -32,7 +32,6 @@ model {
     for (y in 1:nyear) {
       log_lambda[k,y] ~ dnorm(1, 1)
       lambda[k,y] = exp(log_lambda[k,y])
-          #AIS why is lambda indexed by site, survey, and species in model description but not in the model itself? 
         }
       }
 
@@ -63,7 +62,6 @@ model {
   # Derived parameters
   for (l in 1:Ltot) {
     pi[l, 1:K] = zlam[site[l], 1:K, year[l]] / sum(zlam[site[l], 1:K, year[l]])
-    #AIS added a space for year-index in zlam. 
     k[l] ~ dcat(pi[l, 1:K])
     y[l] ~ dcat(Theta[k[l], 1:K])
   }

@@ -96,7 +96,7 @@ y_df <- k_df %>%
     ungroup %>%
     unnest(y) %>%
     mutate(idx = 1:n())
-#AIS here, species variable is the true ID while the y variable is the 
+# here, species variable is the true ID while the y variable is the 
 # imperfectly classified ID?
 
 # Simulating "ground truth" data
@@ -141,10 +141,10 @@ jm <- jags.parallel(
     data = jags_d, 
     inits = ji, 
     parameters.to.save = c("psi", "p", "phi", "gamma", "lambda", 
-                           "Theta", "pi"), 
+                           "Theta"), 
     model.file = "occupancy/13.1_dynamic_multisp_misclass_JAGS.txt", 
     n.chains = 6, 
-    n.iter = 10000, 
+    n.iter = 15000, 
     n.thin = 1,
     DIC = FALSE)
 
@@ -155,7 +155,7 @@ range(jm_summ$Rhat, na.rm=TRUE)
 
 # Look at high Rhat values
 jm_summ <- rownames_to_column(jm_summ)
-jm_summ %>% filter(Rhat > 3)
+jm_summ %>% filter(Rhat > 1.1)
 
 # Compare true vs recaptured values
 # psi
@@ -164,6 +164,8 @@ MCMCtrace(jm, params="Theta", type = 'both', ind = F, pdf=F, ISB=F, Rhat=T)
 # p
 # gamma
 # lambda
+lambda
+MCMCsummary(jm, params="lambda")
 plot(NA,xlim=c(0,max(lambda)),ylim=c(0,max(lambda)),
      xlab="Observed",ylab="Predicted",main="Lambda comparison")
 abline(0,1)
@@ -176,7 +178,10 @@ for (i in 1:dim(Z)[1]) {
 }
 
 # theta
+theta_summ <- MCMCsummary(jm, params="Theta")
 MCMCtrace(jm, params="Theta", type = 'both', ind = F, pdf=F, ISB=F, Rhat=T)
+Theta_true
+theta_summ %>% select(mean)
 plot(c(Theta_true), c(Theta_summ$mean$Theta), main="Theta",
      xlim=c(0,1), ylim=c(0,1))
 abline(0,1)
