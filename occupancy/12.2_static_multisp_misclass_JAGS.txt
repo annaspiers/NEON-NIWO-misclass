@@ -1,0 +1,27 @@
+model {
+  for (k in 1:K_exp) { 
+    psi[k] ~ dunif(0, 1)
+    log_lambda[k] ~ dnorm(1, 1)
+    lambda[k] = exp(log_lambda[k])
+    Theta[k, 1:K_para] ~ ddirch(alpha[k, 1:K_para])
+  }
+  
+  for (i in 1:nsite) {
+    for (k in 1:K_exp) {
+      z[i, k] ~ dbern(psi[k])
+      zlam[i, k] = z[i, k] * lambda[k]
+    }
+  }
+  
+  for (i in 1:nsite) {
+    for (j in 1:noccasion) {
+      L[i, j] ~ dpois(sum(zlam[i, 1:K_exp]))
+    }
+  }
+
+  for (l in 1:Ltot) {
+    pi[l, 1:K_exp] = zlam[site[l], 1:K_exp] / sum(zlam[site[l], 1:K_exp])
+    k[l] ~ dcat(pi[l, 1:K_exp])
+    y[l] ~ dcat(Theta[k[l], 1:K_para])
+  }
+}

@@ -7,159 +7,214 @@ library(reshape2)
 library(tidyverse) 
 library(gtools) 
 library(R2jags)
+library(dclone)
+library(MCMCvis)
 
-all_paratax_df <- readRDS("occupancy/all_paratax_df.rds")
-
-# Create df for disaggregated individual model. 
-# Modify bet_sorting such that each row is an individual beetle
-all_paratax_by_ind <- all_paratax_df %>%
-    uncount(individualCount) %>%
-    rownames_to_column()
-
-# Filter to one year for static model
-all_paratax_by_ind_2018 <- all_paratax_by_ind %>%
+# Load data
+# Filter for 1 year (static model)
+all_paratax_df_2018 <- readRDS("occupancy/all_paratax_df.rds") %>%
+    rename(para_morph_combo = scimorph_combo) %>%
     filter(col_year == "2018")
-    
-    
-set.seed(1234567)
-nsite <- 15
-nspecies <- 2
-noccasion <- 3
+pinned_df_2018 <- readRDS("occupancy/pinned_df.rds") %>%
+    filter(col_year == "2018")
+expert_df_2018 <- readRDS("occupancy/expert_df.rds") %>%
+    filter(col_year == "2018")
 
-psi <- runif(nspecies)
-lambda <- exp(rnorm(nspecies, mean =1, sd = 1))
+all_paratax_by_ind_2018 <- all_paratax_df_2018 %>%
+  uncount(individualCount) %>%
+  rownames_to_column() 
+all_paratax_by_ind_2018$exp_sciname <- NA
 
-z <- matrix(nrow = nsite, ncol = nspecies)
-for (i in 1:nsite) {
-    for (k in 1:nspecies) {
-        z[i, k] <- rbinom(1, 1, psi[k])
+# Generate names for parataxonomist and expert taxonomist that will be rows/columns in theta
+# List 1) the unique expert taxonomist ID's and 2) the parataxonomist IDs that the
+# expert taxonomist didn't use. 
+# These identifications will be the row names of theta and M
+rownames <- c(expert_df_2018 %>%   #1) the unique expert taxonomist ID's
+                distinct(scientificName) %>%
+                pull(scientificName),
+              all_paratax_df_2018 %>%   #2) the parataxonomist IDs that the expert taxonomist didn't use. 
+                distinct(scientificName) %>%
+                filter(!scientificName %in% unique(expert_df_2018$scientificName)) %>% 
+                pull(scientificName) ) 
+rownames <- sort(rownames)
+#AIS rather than using the parataxonomist scientific IDs that the expert taxonomist didn't use, 
+# wouldn't we want to instead use paratazonomist scientificname-morphospecies combo that the expert didn't use?
+
+# List 1) the unique parataxonomist and morphospecies ID's and 2) the expert taxonomist IDs that the
+# parataxonomist didn't use. 
+# These identifications will be the column names of theta and M
+extra_colnames <- c(all_paratax_df_2018 %>%   #1) the unique parataxonomist and morphospecies ID's
+                      distinct(para_morph_combo) %>%
+                      pull(para_morph_combo),
+                    expert_df_2018 %>%   #2) the expert taxonomist IDs that the parataxonomist didn't use. 
+                      distinct(scientificName) %>%
+                      filter(!scientificName %in% unique(all_paratax_df_2018$para_morph_combo)) %>% 
+                      pull(scientificName) ) 
+extra_colnames <- sort(extra_colnames)
+extra_indices <- which(!extra_colnames %in% rownames)
+colnames <- c(rownames, extra_colnames[extra_indices])
+rm(extra_colnames, extra_indices)
+
+assertthat::assert_that(all(rownames == colnames[1:length(rownames)]))
+
+
+# Join parataxonomist and expert ID tables ---------------------------
+# Ex: If parataxonomist counts 5 animals in one subsample & expert IDs two
+# individuals, assign known species IDs to 2 of the 5 rows at random (this is
+# valid because the 5 individuals are exchangeable)
+
+# initialize counter for for-loop
+subsamps <- pinned_df_2018 %>%
+    left_join(expert_df_2018 %>% 
+                  dplyr::select(individualID, exp_sciname = scientificName)) %>%
+    dplyr::select(subsampleID, exp_sciname) %>%
+    filter(!is.na(exp_sciname)) %>%
+    distinct(subsampleID) %>% pull(subsampleID)
+# para_new will replace the all_paratax_df since dplyr doesn't play nice in for-loops
+# (I couldn't assign to a filtered object)
+# initialize para_new with subsamples that the expert ID never looked at
+para_new <- all_paratax_by_ind_2018 %>% 
+    filter(!(subsampleID %in% subsamps)) 
+for (id in subsamps) {
+    temp_exp_df <- pinned_df_2018 %>%
+        left_join(expert_df_2018 %>% 
+                      dplyr::select(individualID, exp_sciname = scientificName)) %>%
+        dplyr::select(subsampleID, exp_sciname) %>%
+        filter(!is.na(exp_sciname),
+               subsampleID == id)
+    temp_para_df <- all_paratax_by_ind_2018 %>% 
+        filter(subsampleID == id)
+    for (row in 1:nrow(temp_exp_df)) {
+        # check whether exp_sciname is empty in first row of paratax-df
+        while (!is.na(temp_para_df$exp_sciname[row])) {
+            row = row + 1
+        } 
+        # assign exp_sciname from pinned-expert-combo-df to corresponding row of paratax-df
+        temp_para_df$exp_sciname[row] <- temp_exp_df$exp_sciname[row]
     }
+    para_new <- rbind(para_new, temp_para_df)
 }
 
-n <- array(dim = c(nsite, noccasion, nspecies))
-for (i in 1:nsite) {
-    for (j in 1:noccasion) {
-        for (k in 1:nspecies) {
-            n[i, j, k] <- rpois(1, z[i, k] * lambda[k])
-        }
-    }
-}
+# Sanity check
+assertthat::assert_that(sum(!is.na(para_new$exp_sciname)) == nrow(expert_df_2018))
+# Choose a subsample that has fewer expert IDs than sorting IDs: ta53RQUlpj5WhQksfJeD+QBAxMj6BQGBllkC8fUqt68=
+pinned_df_2018 %>%
+  left_join(expert_df_2018 %>% 
+              dplyr::select(individualID, exp_sciname = scientificName)) %>%
+  dplyr::select(subsampleID, exp_sciname) %>%
+  filter(!is.na(exp_sciname), subsampleID == "ta53RQUlpj5WhQksfJeD+QBAxMj6BQGBllkC8fUqt68=")
+para_new %>% filter(subsampleID == "ta53RQUlpj5WhQksfJeD+QBAxMj6BQGBllkC8fUqt68=")
+# We should see 6 out of 7 individuals in para_new have an assigned exp_sciname
 
-L <- apply(n, c(1, 2), sum)
+## Imperfect species classifications 
+# Probability vector `y` for with a record for each detection. 
+# Noisy classifier with skill that vary by species.
+y_df <- para_new %>%
+    dplyr::select(plotID, collectDate, parataxID = para_morph_combo, 
+                  expertID = exp_sciname)
+y_df <- y_df %>%
+  left_join(y_df %>%
+              group_by(plotID) %>%
+              summarize(n=n()) %>%
+              mutate(plotID_idx = 1:n()) %>%
+              dplyr::select(plotID, plotID_idx))
 
-# Now disaggregate the encounter counts to generate a record for each encounter.
-n_df <- reshape2::melt(n, varnames = c("site", "occasion", "species"))
-#AIS ^ this is where I'll need to modify bet_sorting so each row is an
-#individual. Right? but I thought n was true species, not observed species like
-#bet_sorting represents
-k_df <- n_df %>%
-    group_by(site, occasion, species) %>%
-    summarize(l = list(seq_len(value))) %>%
-    unnest(l) %>%
-    ungroup
+# Define L
+L <- reshape2::acast(para_new, plotID ~ collectDate)
 
-## Simulating imperfect species classifications Now, generate a probability
-#vector `y` for each of these detections. Assume that we have a noisy
-#classifier, and that the skill of the classifier might vary by species.
-alpha <- matrix(1, nrow = nspecies, ncol = nspecies)
+# Define alpha
+alpha <- matrix(1, nrow = length(rownames), ncol = length(colnames))
 diag(alpha) <- 10
 
-Theta_true <- matrix(nrow = nspecies, ncol = nspecies)
-for (k in 1:nspecies) {
-    Theta_true[k, ] <- rdirichlet(1, alpha[k, ])
+## "Ground truth" data
+# We have a subset of the data with known species IDs from expert identification
+# We partly observe k, the expertID column in y_df
+# We partly observe z
+z.dat <- array(NA, dim = c(length(unique(para_new$plotID)),
+                           length(rownames)),
+               dimnames = list(sort(unique(para_new$plotID)), #plots
+                               rownames)) #expert IDs
+# Grab values from casted z.dat array and fill in values in final z.dat array
+z.dat_cast <- expert_df_2018 %>% 
+  mutate(occ = 1) %>%
+  reshape2::acast(plotID ~ scientificName,
+                  fill=-999, drop=F, value.var = "occ")
+z.dat_cast[z.dat_cast == -999] <- NA
+z.dat_cast[z.dat_cast > 0] <- 1
+
+assertthat::assert_that(sum(z.dat_cast, na.rm=T) == nrow(expert_df_2018 %>% distinct(plotID, scientificName)))
+
+for(plot in dimnames(z.dat_cast)[[1]]) {
+  for(spec in dimnames(z.dat_cast)[[2]]) {
+    z.dat[plot,spec] <- z.dat_cast[plot,spec]
+  }
 }
-print(Theta_true)
+rm(z.dat_cast,plot,spec)
 
-noisy_classifier <- function(true_species, Theta_true) {
-    sample(nspecies, size = length(true_species), replace = TRUE, 
-           prob = Theta_true[true_species, ])
+# Initialize Z
+z.init <- z.dat
+for (i in 1:dim(z.init)[1]) {
+    z.init[i,] <- sample(c(0,1), replace=TRUE, size=dim(z.init)[2])
 }
+# initialize known values as NA, otherwise model will throw error
+z.init[z.dat == 1] <- NA
 
-# get probabilities from the classifier
-y_df <- k_df %>%
-    rowwise %>%
-    mutate(y = list(noisy_classifier(species, Theta_true))) %>%
-    ungroup %>%
-    unnest(y) %>%
-    mutate(idx = 1:n())
+# Check that where L>0 for a species, z.init>0 for that species/site/year combo
+for (i in 1:dim(z.init)[1]) {
+  for (k in 1:dim(z.init)[2]) {
+      if (sum(L[i,], na.rm = TRUE) > 0 ) {
+        ifelse(z.init[i,k] == 0, 1, z.init[i,k])
+    }
+  }
+}
+rm(i,k)
 
-# Simulating "ground truth" data
-# Assume that we have a subset of the data with known species IDs. 
-pct_known_species <- .3
-y_df <- y_df %>%
-    mutate(true_species_known = rbinom(n(), size = 1, prob = pct_known_species))
-
-# How many labeled examples do we have of each species?
-y_df %>%
-    group_by(species) %>%
-    summarize(n_known_species_IDs = sum(true_species_known))
 
 ## Model fitting
 # Fit the model and check convergence.
-jags_d <- list(nsite = nsite, 
-               K = nspecies, 
-               noccasion = noccasion, 
+jags_d <- list(nsite = length(unique(para_new$plotID)),
+               K_para = length(colnames),
+               K_exp = length(rownames), 
+               noccasion = length(unique(para_new$collectDate)), 
                L = L, 
                alpha = alpha,
                Ltot = sum(L), 
-               site = k_df$site, 
+               site = y_df$plotID_idx, #needs to be numeric
                # if the individual was labeled by the expert, true ID is known
-               k = ifelse(y_df$true_species_known, y_df$species, NA),
+               k = y_df$expertID,
                # for all individuals, we get paratxonomist IDs
-               y = y_df$y)
+               y = y_df$parataxID,
+               z = z.dat)
 
-init_fn_factory <- function(nsite, nspecies) {
-    function(){
-        list(z = matrix(1, nsite, nspecies))
-    } 
-}
+#ji <- function(){ list(z = z.init) }
 
-ji <- init_fn_factory(nsite = nsite, nspecies = nspecies)
+# jm <- jags.parallel(
+#     data = jags_d, 
+#     inits = list(z = z.init), #ji,
+#     parameters.to.save = c("psi", "p", "phi", "gamma", "lambda", 
+#                            "Theta"), 
+#     model.file = "occupancy/12.2_static_multisp_misclass_JAGS.txt", 
+#     n.chains = 6, 
+#     n.iter = 100000, 
+#     n.thin = 1,
+#     DIC = FALSE)
+JAGSinits <- function(){ list(z = z.init) }
+nc=4
+cl <- makeCluster(nc)
+jm <- jags.parfit(cl = cl,
+                   data = jags_d,
+                   params = c("psi", "p", "phi", "gamma", "lambda", "Theta"),
+                   model = "occupancy/12.2_static_multisp_misclass_JAGS.txt",
+                   inits = JAGSinits,
+                   n.chains = nc,
+                   n.adapt = 1000,
+                   n.update = 1000,
+                   thin = 1,
+                   n.iter = 10000)
 
-# initialize the function
-inits <- ji()
-
-jm <- jags.parallel(
-    data = jags_d, 
-    inits = ji, 
-    parameters.to.save = c("psi", "lambda", "Theta"), 
-    model.file = "occupancy/disagg-ind-mod.txt", 
-    n.chains = 6, 
-    n.iter = 100000, 
-    n.thin = 1,
-    DIC = FALSE)
-
-# Let's look at the trace plots.
-traceplot(jm, 
-          ask = FALSE, 
-          mfrow = c(4, 2), 
-          varname = c("psi", "lambda", "Theta"))
+jm_summ <- MCMCsummary(jm)
 
 # Check convergence
-jm_summ <- print(jm, dig=2)
 par(mfrow=c(1,1))
-hist(jm_summ$summary[,"Rhat"])
-
-## Compare true vs recaptured values -------
-# Theta - compare true and recaptured
-plot(c(Theta_true), c(jm_summ$mean$Theta), main="Theta",
-     xlim=c(0,1), ylim=c(0,1))
-abline(0,1)
-
-# lambda - compare true and recaptured  
-traceplot(jm, varname="lambda")
-plot(c(lambda), c(jm_summ$mean$lambda), main="Lambda",
-     xlim=c(0,max(lambda)), ylim=c(0,max(lambda))) 
-abline(0,1)
-# for (i in 1:nrow(Z)) {
-#     for (k in 1:ncol(Z)) {
-#         points(c(lambda[i,,k]), c(out$mean$lambda[i,,k]), main="Lambda", 
-#                col=ifelse( round(out$mean$z[i,k])==0,"red","black")) 
-#     }
-# }
-# abline(0,1)
-
-# psi - compare true and recaptured  
-traceplot(jm, varname="psi")
-plot(c(psi), c(jm_summ$mean$psi), main="Psi", xlim=c(0,1),ylim=c(0,1))
-abline(0,1)
+hist(jm_summ$Rhat)
+#yusssss
