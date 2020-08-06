@@ -1,9 +1,43 @@
 model {
-  for (k in 1:K_exp) { 
-    psi[k] ~ dunif(0, 1)
-    log_lambda[k] ~ dnorm(1, 1)
-    lambda[k] = exp(log_lambda[k])
-    Theta[k, 1:K_para] ~ ddirch(alpha[k, 1:K_para])
+
+#AIS now, 1) tracking occupancy parameters on their link scales, 2) these parameters
+# are indexed by species only, 3) correlated parameters
+  # Priors
+  for (i in 1:3) {
+    mu_spec[i] ~ dnorm(0, 1)
+    #mu_site[i] = 0
+  }
+  
+  Tau_spec[1:3, 1:3] ~ dwish(R[1:3, 1:3], 10)
+  for ( i in 1:K_exp) {
+    eps_spec[i, 1:3] ~ dmnorm(mu_spec, Tau_spec)
+  }
+  
+  #Tau_site[1:3, 1:3] ~ dwish(R[1:3, 1:3], 10)
+  #for (i in 1:nsite) {
+  #  eps_site[i, 1:3] ~ dmnorm(mu_site, Tau_site)
+  #}
+  
+  #for (i in 1:nsite){
+    for (k in 1:K_exp) {
+    
+      logit_psi[k]  = eps_spec[k, 1] #
+      psi[k]  = ilogit(logit_psi[k])
+    
+      logit_p[k]  = eps_spec[k, 2]
+      p[k]  = ilogit(logit_p[k])
+    
+      log_lambda[k] = eps_spec[k, 3]
+      lambda[k] = exp(log_lambda[k])
+      
+      # logit(psi[i, k])  = eps_site[i, 1] + eps_spec[k, 1]
+      # logit(p[i, k])  = eps_site[i, 2] + eps_spec[k, 2]
+      # log(lambda[i, k]) = eps_site[i, 3] + eps_spec[k, 3]
+    }
+  #}
+  
+  for (k in 1:K_exp) {
+    Theta[k,1:K_para] ~ ddirch(alpha[k,1:K_para])
   }
   
   for (i in 1:nsite) {
@@ -12,13 +46,13 @@ model {
       zlam[i, k] = z[i, k] * lambda[k]
     }
   }
-  
-  for (i in 1:nsite) {
+
+ for (i in 1:nsite) {
     for (j in 1:noccasion) {
       L[i, j] ~ dpois(sum(zlam[i, 1:K_exp]))
     }
   }
-
+  
   for (l in 1:Ltot) {
     pi[l, 1:K_exp] = zlam[site[l], 1:K_exp] / sum(zlam[site[l], 1:K_exp])
     k[l] ~ dcat(pi[l, 1:K_exp])
