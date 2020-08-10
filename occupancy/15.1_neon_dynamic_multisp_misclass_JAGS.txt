@@ -18,7 +18,7 @@ model {
   
   for (i in 1:nsite){
     for (k in 1:K_exp) {
-     
+   
       logit_psi1[i, k]  = eps_site[i, 1] + eps_spec[k, 1]
       psi1[i, k]  = ilogit(logit_psi1[i, k])
       

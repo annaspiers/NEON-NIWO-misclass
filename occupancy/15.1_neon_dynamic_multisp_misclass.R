@@ -31,7 +31,7 @@ common_morpho <- all_paratax_by_ind %>%
   group_by(para_morph_combo) %>%
   summarize(total = n()) %>%
   arrange(-total) %>%
-  filter(total > 20)
+  filter(total > 10)
 
 all_paratax_by_ind <- all_paratax_by_ind %>%
   filter(para_morph_combo %in% common_morpho$para_morph_combo)
@@ -138,8 +138,12 @@ y_df <- y_df %>%
 L <- reshape2::acast(para_new, plotID ~ collectDate ~ col_year)
 
 # Define alpha
-alpha <- matrix(1.5, nrow = length(rownames), ncol = length(colnames))
-diag(alpha) <- 100
+alpha <- matrix(2, nrow = length(rownames), ncol = length(colnames))
+diag(alpha) <- 80
+# visualize alpha
+test_alpha <- MCMCpack::rdirichlet(1000, c(alpha[1,1], rep(alpha[1,2], length(colnames)-1)))
+hist(test_alpha[,-1], xlim=c(0,1),col="red")
+hist(test_alpha[,1],  add=T)
 
 
 ## "Ground truth" data
@@ -213,7 +217,7 @@ jags_d <- list(nsite = dim(L)[1],
                R = diag(rep(1, 5)))
 JAGSinits <- function(){ list(z = z.init) }
 nc <- 4
-ni <- 80000
+ni <- 100000
 cl <- makeCluster(nc)
 jm <- jags.parfit(cl = cl,
                   data = jags_d,
@@ -222,8 +226,8 @@ jm <- jags.parfit(cl = cl,
                              "growth", "turnover"),
                   model = "occupancy/15.1_neon_dynamic_multisp_misclass_JAGS.txt",
                   n.chains = nc,
-                  n.adapt = 5000,
-                  n.update = 5000,
+                  n.adapt = 6000,
+                  n.update = 6000,
                   thin = ni/1000,
                   n.iter = ni) 
 saveRDS(jm, "occupancy/script15.1_jags_jm.rds")
@@ -242,18 +246,11 @@ range(jm_summ$Rhat, na.rm=TRUE)
 # Look at high Rhat values
 jm_summ <- rownames_to_column(jm_summ)
 jm_summ %>% filter(Rhat > 1.1)
-# year 2 and species 46 look sticky
-# rownames[46] is an expert ID, not ID'd by parataxonomist
 
-MCMCtrace(jm, params = paste0('eps_site\\[1,5\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
-MCMCtrace(jm, params = paste0('eps_site\\[2,5\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
-MCMCtrace(jm, params = paste0('eps_site\\[11,5\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
 MCMCtrace(jm, params = paste0('eps_spec\\[1,5\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
-MCMCtrace(jm, params = paste0('eps_spec\\[2,5\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
-MCMCtrace(jm, params = paste0('eps_spec\\[11,5\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
-MCMCtrace(jm, params = paste0('growth\\[1,2,2\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
-MCMCtrace(jm, params = paste0('growth\\[2,6,2\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
-MCMCtrace(jm, params = paste0('growth\\[8,2,2\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
+MCMCtrace(jm, params = paste0('eps_site\\[10,5\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
+MCMCtrace(jm, params = paste0('growth\\[11,12,2\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
+MCMCtrace(jm, params = paste0('growth\\[3,15,2\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
 
 # Look at raw numbers
 # theta
@@ -289,6 +286,9 @@ ggplot(theta_df, aes(x=para_morph, y=expert_sciname, fill= theta_mean)) +
     scale_y_discrete(limits = rev(levels(as.factor(theta_df$expert_sciname))))
 #consider on plotly: https://www.r-graph-gallery.com/79-levelplot-with-ggplot2.html
 
+#AIS do these results make sense?
+para_new %>% filter(para_morph_combo=="Amara sp.") #wouldn't we want a higher probability of expert ID for Amara lindrothi? Would we get this by shrinking the alpha diag weight? Should we include Amara sp. as an option for the expert IDs?
+expert_pinned_df %>% filter(exp_sciname=="Amara sp.") #none
 
 # phi - survival probability
 MCMCsummary(jm, params = 'phi', round=2)
