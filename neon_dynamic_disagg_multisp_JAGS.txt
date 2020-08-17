@@ -1,0 +1,84 @@
+model {
+
+  # Priors
+  for (i in 1:5) {
+    mu_spec[i] ~ dnorm(0, 1)
+    mu_site[i] = 0
+  }
+  
+  Tau_spec[1:5, 1:5] ~ dwish(R[1:5, 1:5], 10)
+  for ( i in 1:K_exp) {
+    eps_spec[i, 1:5] ~ dmnorm(mu_spec, Tau_spec)
+  }
+  
+  Tau_site[1:5, 1:5] ~ dwish(R[1:5, 1:5], 10)
+  for (i in 1:nsite) {
+    eps_site[i, 1:5] ~ dmnorm(mu_site, Tau_site)
+  }
+  
+  for (i in 1:nsite){
+    for (k in 1:K_exp) {
+   
+      logit_psi1[i, k]  = eps_site[i, 1] + eps_spec[k, 1]
+      psi1[i, k]  = ilogit(logit_psi1[i, k])
+      
+      logit_phi[i, k]   = eps_site[i, 2] + eps_spec[k, 2]
+      phi[i, k]  = ilogit(logit_phi[i, k])
+      
+      logit_p[i, k]     = eps_site[i, 3] + eps_spec[k, 3]
+      p[i, k]  = ilogit(logit_p[i, k])
+      
+      logit_gamma[i, k] = eps_site[i, 4] + eps_spec[k, 4]
+      gamma[i, k]  = ilogit(logit_gamma[i, k])
+      
+      for (t in 1:nyear) {
+        log_lambda[i, k, t] = eps_site[i, 5] + eps_spec[k, 5]
+        lambda[i, k, t] = exp(log_lambda[i, k, t])
+      }
+    }
+  }
+  
+  for (k in 1:K_exp) {
+    Theta[k,1:K_para] ~ ddirch(alpha[k,1:K_para])
+  }
+
+  for (i in 1:nsite) {
+    for (k in 1:K_exp) {
+      z[i, k, 1] ~ dbern(psi1[i, k])
+      for (t in 2:nyear) {
+        z[i, k, t]  ~ dbern(z[i,k,t-1]*phi[i, k] + 
+                        (1 - z[i,k,t-1])*gamma[i, k]) 
+      }
+      for (t in 1:nyear) {
+        zlam[i, k, t] = z[i, k, t] * lambda[i, k, t]
+      }
+    }
+  }
+  
+  for (i in 1:nsite) {
+    for (j in 1:nsurv) {
+      for (t in 1:nyear) {
+          L[i, j, t] ~ dpois(sum(zlam[i, 1:K_exp, t]))
+      }
+    }
+  }
+
+  for (l in 1:Ltot) {
+    pi[l, 1:K_exp] = zlam[site[l], 1:K_exp, year[l]] / sum(zlam[site[l], 1:K_exp, year[l]])
+    k[l] ~ dcat(pi[l, 1:K_exp])
+    y[l] ~ dcat(Theta[k[l], 1:K_para])
+  }
+  
+  # Derived parameters
+  for (i in 1:nsite) {
+    for (k in 1:K_exp) {
+      psi[i, k, 1] <- psi1[i, k]
+      for (t in 2:nyear) {
+        psi[i, k,t]        = psi[i, k, t-1]*phi[i, k] + 
+                          (1 - psi[i, k, t-1])*gamma[i, k] 
+        growth[i, k, t]     = psi[i, k, t]/psi[i, k, t-1] 
+        turnover[i, k, t-1] = (1 - psi[i, k, t-1])*gamma[i, k]/psi[i, k, t] 
+      }
+    }
+  }
+}
