@@ -1,4 +1,4 @@
-# We're revisiting the framing of this model and considering Andy Royal's 
+# We're revisiting the framing of this model and considering Andy Royle's 
 # disaggregated misclassification model. Here we create a dynamic occupancy 
 # model estimating misclassification probabilities with NEON Niwot Ridge carabid 
 # data 2015-2018
@@ -9,19 +9,22 @@ library(tibble) #rownames_to_column()
 library(dclone) #alternative: R2jags::jags.parallel
 library(MCMCvis)
 library(dplyr)
+library(patchwork)
+library(ggmcmc)
+library(readr)
 library(ggplot2)
 options(digits = 3)
 
 # Load NEON Niwot Ridge carabid data 
 # Load data
 # Filter for 1 year (static model)
-all_paratax_by_ind <- readRDS("occupancy/all_paratax_df.rds") %>%
+all_paratax_by_ind <- readRDS("data/all_paratax_df.rds") %>%
   rename(para_morph_combo = scimorph_combo)  %>%
   uncount(individualCount) %>%
   rownames_to_column() 
 all_paratax_by_ind$exp_sciname <- NA
-expert_df <- readRDS("occupancy/expert_df.rds") 
-pinned_df <- readRDS("occupancy/pinned_df.rds") 
+expert_df <- readRDS("data/expert_df.rds") 
+pinned_df <- readRDS("data/pinned_df.rds") 
 expert_pinned_df <- expert_df %>%
   rename(exp_sciname = scientificName) %>%
   left_join(pinned_df %>% dplyr::select(individualID, subsampleID, para_morph_combo = scimorph_combo))
@@ -221,23 +224,26 @@ ni <- 100000
 cl <- makeCluster(nc)
 jm <- jags.parfit(cl = cl,
                   data = jags_d,
-                  params = c("logit_psi", "logit_p", "log_phi", "logit_gamma",
-                             "log_lambda", "Theta","eps_site", "eps_spec",
-                             "growth", "turnover"),
-                  model = "occupancy/15.1_neon_dynamic_multisp_misclass_JAGS.txt",
+                  params = c("logit_psi1", "logit_phi", "logit_gamma",
+                             "psi",
+                             "lambda", "Theta",
+                             "eps_site", "eps_spec", "Tau_spec", "Tau_site",
+                             "log_growth", "turnover"),
+                  model = "neon_dynamic_disagg_multisp_JAGS.txt",
                   n.chains = nc,
                   n.adapt = 6000,
                   n.update = 6000,
                   thin = ni/1000,
                   n.iter = ni) 
-saveRDS(jm, "occupancy/script15.1_jags_jm.rds")
+dir.create("output", showWarnings = FALSE)
+saveRDS(jm, "output/script15.1_jags_jm.rds")
 jm_summ <- MCMCsummary(jm)
-saveRDS(jm_summ, "occupancy/script15.1_jm_mcmcsumm.rds")
+saveRDS(jm_summ, "output/script15.1_jm_mcmcsumm.rds")
 
 # View JAGS jmput --------------------------------------------------------
 
-jm <- readRDS("occupancy/script15.1_jags_jm.rds")
-jm_summ <- readRDS("occupancy/script15.1_jm_mcmcsumm.rds")
+jm <- readRDS("output/script15.1_jags_jm.rds")
+jm_summ <- readRDS("output/script15.1_jm_mcmcsumm.rds")
 
 # Did model converge?
 hist(jm_summ$Rhat, breaks=40)
@@ -247,16 +253,16 @@ range(jm_summ$Rhat, na.rm=TRUE)
 jm_summ <- rownames_to_column(jm_summ)
 jm_summ %>% filter(Rhat > 1.1)
 
-MCMCtrace(jm, params = paste0('eps_spec\\[1,5\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
-MCMCtrace(jm, params = paste0('eps_site\\[10,5\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
+MCMCtrace(jm, params = paste0('eps_spec\\[1,4\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
+MCMCtrace(jm, params = paste0('eps_site\\[10,4\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
 MCMCtrace(jm, params = paste0('growth\\[11,12,2\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
 MCMCtrace(jm, params = paste0('growth\\[3,15,2\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
 
 # Look at raw numbers
 # theta
 theta_summ <- MCMCsummary(jm, params = 'Theta', round=2)
-saveRDS(theta_summ, "occupancy/theta_summ_15.1.rds")
-theta_summ <- readRDS("occupancy/theta_summ_15.1.rds")
+saveRDS(theta_summ, "output/theta_summ_15.1.rds")
+theta_summ <- readRDS("output/theta_summ_15.1.rds")
 hist(theta_summ$Rhat)
 hist(theta_summ$mean)
 range(theta_summ$Rhat, na.rm=TRUE)
@@ -266,9 +272,7 @@ theta_summ <- rownames_to_column(theta_summ)
 MCMCtrace(jm, params = paste0('Theta\\[1,1\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
 theta_prior <- MCMCpack::rdirichlet(1000, c(100,rep(1.5,dim(alpha)[2]-1) ))
 plot(density(theta_prior[, 1]))
-# left_join(expert_df %>% select(individualID, expert=scientificName), pinned_df %>% select(individualID, para = scientificName)) %>% filter(scientificName==rownames[10])
-# MCMCtrace(jm, params = paste0('theta\\[5,16\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
-# MCMCsummary(jm, params='theta\\[36,[0-9]+\\]', ISB=F)
+
 
 theta_df <- data.frame(expert_index = rep(1:dim(alpha)[1], dim(alpha)[2]) ,
                        paramorph_index = rep(1:dim(alpha)[2], each = dim(alpha)[1]),
@@ -281,46 +285,264 @@ theta_df$para_morph = factor(theta_df$para_morph, levels=colnames)
 # Plot heatmap of theta values
 ggplot(theta_df, aes(x=para_morph, y=expert_sciname, fill= theta_mean)) + 
     geom_tile() +
-    scale_fill_gradient(limits=c(0,1),low="darkblue", high="white") +
+    scale_fill_viridis_c("Posterior\nmean") +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
     scale_y_discrete(limits = rev(levels(as.factor(theta_df$expert_sciname))))
-#consider on plotly: https://www.r-graph-gallery.com/79-levelplot-with-ggplot2.html
+
 
 #AIS do these results make sense?
 para_new %>% filter(para_morph_combo=="Amara sp.") #wouldn't we want a higher probability of expert ID for Amara lindrothi? Would we get this by shrinking the alpha diag weight? Should we include Amara sp. as an option for the expert IDs?
 expert_pinned_df %>% filter(exp_sciname=="Amara sp.") #none
 
 # phi - survival probability
-MCMCsummary(jm, params = 'phi', round=2)
-MCMCtrace(jm, params = 'phi', type = 'density', ind = F, pdf=F)
-#phi[47] Rhat=1.11. 
-#several indices are bimodal
+MCMCsummary(jm, params = 'logit_phi', round=2)
+MCMCtrace(jm, params = 'logit_phi', type = 'trace', ind = F, pdf=F)
 
 # gamma - colonization probability
-MCMCsummary(jm, params = 'gamma', round=2)
-MCMCtrace(jm, params = 'gamma', type = 'density', ind = F, pdf=F)
-#gamma[47] Rhat=1.1. same index as above for phi. 
-#all densities peak close to 0 - makes sense
+MCMCsummary(jm, params = 'logit_gamma', round=2)
+MCMCtrace(jm, params = 'logit_gamma', type = "trace", ind = F, pdf=F)
 
 # psi - occupancy prob.
-MCMCsummary(jm, params = 'psi', round=2)
-MCMCtrace(jm, params = 'psi', type = 'density', ind = F, pdf=F)
-# a few Rhat values > 1.1. psi[49,1] has Rhat 3.09, psi[36,1] has Rhat 2.06
-#some have wide posterior densities.
+(psi_summary <- MCMCsummary(jm, params = 'psi', round=2))
+MCMCtrace(jm, params = 'psi', type = 'trace', ind = F, pdf=F)
 
 # Plot all species' occupancy through seasons
-par(mfrow=c(1,1))
-plot(NA, xlim = c(1,dim(c_obs)[4]), ylim=c(0,1), main="Occupancy by species", 
-     xlab = "Year", ylab = "Occupancy probability", frame.plot = FALSE)
-for (k in 1:dim(Z.dat)[2]) {
-  lines(1:dim(Z.dat)[3], MCMCsummary(jm, params=paste0('psi\\[',k,',\\d\\]'), ISB=F)$mean,
-        type = "l", col=k+7,  lwd = 2, lty = 1, las = 1)
+rownames_to_column(psi_summary) %>%
+  as_tibble %>%
+  separate("rowname", into = c("site", "species", "year"), sep = ",") %>%
+  mutate_at(c('site', 'species', 'year'), readr::parse_number) %>%
+  mutate(site = dimnames(z.init)[[1]][site], 
+         species = dimnames(z.init)[[2]][species], 
+         year = dimnames(z.init)[[3]][year]) %>%
+  ggplot(aes(year, mean, group = site)) + 
+  geom_line() + 
+  facet_wrap(~species) + 
+  geom_ribbon(aes(ymin = `2.5%`, ymax = `97.5%`), color = NA, alpha = .05) +
+  xlab("Year") + 
+  ylab("Occupancy probability") + 
+  theme_minimal()
+
+
+# Visualize relationships among site and species level parameters ---------
+
+get_rho_df <- function(level) {
+  stopifnot(level %in% c("site", "spec"))
+  jm %>%
+    lapply(function(x) {
+      cols <- paste0("Tau_", level) %>%
+        grepl(colnames(x))
+      as.data.frame(x[, cols]) %>%
+        mutate(iter = 1:n()) %>%
+        pivot_longer(cols = -iter) %>%
+        separate(name, into = c("row", "col"), sep = ",") %>%
+        mutate_at(c("row", "col"), readr::parse_number)
+    }) %>%
+    bind_rows(.id="chain") %>%
+    unite("iter", c("chain", "iter"), sep = "_") %>%
+    split(.$iter) %>%
+    lapply(FUN = function(d) {
+      Tau <- reshape2::acast(data = select(d, -iter), row~col, value.var="value")
+      Sigma <- solve(Tau)
+      Rho <- cov2cor(Sigma)
+      reshape2::melt(Rho, varnames = c("row", "col"), value.name = "rho") %>%
+        as_tibble %>%
+        filter(row > col)
+    }) %>%
+    bind_rows(.id = "iter")
 }
+
+
+rho_site <- get_rho_df(level = "site")
+rho_spec <- get_rho_df(level = "spec")
+
+rho_site %>%
+  ggplot(aes(rho)) + 
+  geom_density() + 
+  facet_grid(row~col)
+
+rho_spec %>%
+  ggplot(aes(rho)) + 
+  geom_density() + 
+  facet_grid(row~col)
+
+eps_d <- ggmcmc::ggs(jm, family = "eps_") %>%
+  mutate(level = ifelse(grepl("site", Parameter), "site", "spec")) %>%
+  separate(Parameter, into = c("row", "col"), sep = ",") %>%
+  mutate_at(c('row', 'col'), parse_number) %>%
+  unite("iter", c("Iteration" , "Chain")) %>%
+  group_by(row, col, level) %>%
+  summarize(med = median(value)) %>%
+  ungroup %>%
+  mutate(param = c("e_psi1", "e_phi", "e_gamma", "e_lambda")[col])
+
+diag_hists <- function(lev, column, xmin=-5, xmax=5, binwidth=.25, 
+                       xlabel) {
+  stopifnot(lev %in% eps_d$level)
+  df <- eps_d %>%
+    filter(level == lev, 
+           col == column)
+  df %>%
+    ggplot(aes(x=med)) + 
+      geom_histogram(binwidth = binwidth, fill = "#1F968BFF") + 
+      xlab(xlabel) + 
+      ylab("") + 
+      xlim(xmin, xmax) + 
+      theme(axis.text.y = element_blank())
+}
+
+diag_hists(lev = "site", column = 1, 
+           xlabel = as.expression(bquote(epsilon^(psi[1]))))
+diag_hists(lev = "spec", column = 1, 
+           xlabel = as.expression(bquote(epsilon^(psi[1]))))
+
+lower_diag <- function(d1, d2, lev, xmin=-5, xmax=5) {
+  df <- eps_d %>%
+    select(-col) %>%
+    filter(level == lev) %>%
+    pivot_wider(names_from = param, values_from = med)
+  df$x <- df[[d1]]
+  df$y <- df[[d2]]
+  
+  df %>%
+    ggplot(aes(x, y)) + 
+    geom_point(color = "#482677FF") + 
+    xlab("") + 
+    ylab("") + 
+    xlim(xmin, xmax) + 
+    ylim(xmin, xmax)
+}
+
+lower_diag("e_psi1", "e_lambda", lev = "site")
+lower_diag("e_lambda", "e_psi1", lev = "site")
+
+
+upper_diag <- function(d, r, c, xlabel) {
+  stopifnot(r > c)
+  d %>%
+    filter(row == r, col == c) %>%
+    ggplot(aes(rho)) + 
+      geom_density(fill = "#482677FF", alpha = .7) + 
+      xlab(xlabel) + 
+      ylab("") + 
+      xlim(-1, 1) + 
+      theme(axis.text.y = element_blank())
+}
+
+upper_diag(rho_spec, r = 4, c = 3, 
+           xlabel = as.expression(bquote(R(epsilon^(lambda), epsilon^(phi)))))
+upper_diag(rho_site, r = 4, c = 3, 
+           xlabel = as.expression(bquote(R(epsilon^(lambda), epsilon^(phi)))))
+
+# Cobble together all of the panels (site level)
+site_xmin <- -1.7
+site_xmax <- 1.2
+
+wrap_plots(
+  list(
+    # Column 1
+    diag_hists(lev = "site", column = 1, 
+               xlabel = as.expression(bquote(epsilon^(psi[1]))), 
+               xmin = site_xmin, xmax = site_xmax), 
+    lower_diag("e_psi1", "e_phi", lev = "site", 
+               xmin = site_xmin, xmax = site_xmax),
+    lower_diag("e_psi1", "e_gamma", lev = "site", 
+               xmin = site_xmin, xmax = site_xmax),
+    lower_diag("e_psi1", "e_lambda", lev = "site", 
+               xmin = site_xmin, xmax = site_xmax),
+    # Column 2
+    upper_diag(rho_site, r = 2, c = 1, 
+               xlabel = as.expression(bquote(R(epsilon^(phi), epsilon^(psi[1]))))),
+    diag_hists(lev = "site", column = 2, 
+               xlabel = as.expression(bquote(epsilon^(phi))), 
+               xmin = site_xmin, xmax = site_xmax),
+    lower_diag("e_phi", "e_gamma", lev = "site", 
+               xmin = site_xmin, xmax = site_xmax),
+    lower_diag("e_phi", "e_lambda", lev = "site", 
+               xmin = site_xmin, xmax = site_xmax),
+    # Column 3
+    upper_diag(rho_site, r = 3, c = 1, 
+               xlabel = as.expression(bquote(R(epsilon^(gamma), epsilon^(psi[1]))))),
+    upper_diag(rho_site, r = 3, c = 2, 
+               xlabel = as.expression(bquote(R(epsilon^(gamma), epsilon^(phi))))),
+    diag_hists(lev = "site", column = 3, 
+               xlabel = as.expression(bquote(epsilon^(gamma))), 
+               xmin = site_xmin, xmax = site_xmax),
+    lower_diag("e_gamma", "e_lambda", lev = "site", 
+               xmin = site_xmin, xmax = site_xmax), 
+    # Column 4
+    upper_diag(rho_site, r = 4, c = 1, 
+               xlabel = as.expression(bquote(R(epsilon^(lambda), epsilon^(psi[1]))))),
+    upper_diag(rho_site, r = 4, c = 2, 
+               xlabel = as.expression(bquote(R(epsilon^(lambda), epsilon^(phi))))),
+    upper_diag(rho_site, r = 4, c = 3, 
+               xlabel = as.expression(bquote(R(epsilon^(lambda), epsilon^(gamma))))),
+    diag_hists(lev = "site", column = 4, 
+               xlabel = as.expression(bquote(epsilon^(lambda))), 
+               xmin = site_xmin, xmax = site_xmax)
+    ), 
+  nrow = 4, byrow = FALSE)
+dir.create("fig", showWarnings = FALSE)
+ggsave("fig/site-level-ranefs.pdf", width = 7, height = 5)
+
+# Cobble together all of the panels (species level)
+spec_xmin <- -4.7
+spec_xmax <- 1.8
+
+wrap_plots(
+  list(
+    # Column 1
+    diag_hists(lev = "spec", column = 1, 
+               xlabel = as.expression(bquote(epsilon^(psi[1]))), 
+               xmin = spec_xmin, xmax = spec_xmax), 
+    lower_diag("e_psi1", "e_phi", lev = "spec", 
+               xmin = spec_xmin, xmax = spec_xmax),
+    lower_diag("e_psi1", "e_gamma", lev = "spec", 
+               xmin = spec_xmin, xmax = spec_xmax),
+    lower_diag("e_psi1", "e_lambda", lev = "spec", 
+               xmin = spec_xmin, xmax = spec_xmax),
+    # Column 2
+    upper_diag(rho_spec, r = 2, c = 1, 
+               xlabel = as.expression(bquote(R(epsilon^(phi), epsilon^(psi[1]))))),
+    diag_hists(lev = "spec", column = 2, 
+               xlabel = as.expression(bquote(epsilon^(phi))), 
+               xmin = spec_xmin, xmax = spec_xmax),
+    lower_diag("e_phi", "e_gamma", lev = "spec", 
+               xmin = spec_xmin, xmax = spec_xmax),
+    lower_diag("e_phi", "e_lambda", lev = "spec", 
+               xmin = spec_xmin, xmax = spec_xmax),
+    # Column 3
+    upper_diag(rho_spec, r = 3, c = 1, 
+               xlabel = as.expression(bquote(R(epsilon^(gamma), epsilon^(psi[1]))))),
+    upper_diag(rho_spec, r = 3, c = 2, 
+               xlabel = as.expression(bquote(R(epsilon^(gamma), epsilon^(phi))))),
+    diag_hists(lev = "spec", column = 3, 
+               xlabel = as.expression(bquote(epsilon^(gamma))), 
+               xmin = spec_xmin, xmax = spec_xmax),
+    lower_diag("e_gamma", "e_lambda", lev = "spec", 
+               xmin = spec_xmin, xmax = spec_xmax), 
+    # Column 4
+    upper_diag(rho_spec, r = 4, c = 1, 
+               xlabel = as.expression(bquote(R(epsilon^(lambda), epsilon^(psi[1]))))),
+    upper_diag(rho_spec, r = 4, c = 2, 
+               xlabel = as.expression(bquote(R(epsilon^(lambda), epsilon^(phi))))),
+    upper_diag(rho_spec, r = 4, c = 3, 
+               xlabel = as.expression(bquote(R(epsilon^(lambda), epsilon^(gamma))))),
+    diag_hists(lev = "spec", column = 4, 
+               xlabel = as.expression(bquote(epsilon^(lambda))), 
+               xmin = spec_xmin, xmax = spec_xmax)
+  ), 
+  nrow = 4, byrow = FALSE)
+ggsave("fig/spec-level-ranefs.pdf", width = 7, height = 5)
+
+
+
+
+
 
 # lambda - expected abundance, given occupancy, dim: nsite x nsurv x nspec x nyear
 lambda_summ <- MCMCsummary(jm, params = 'lambda', round=2) #takes 5ish min
-saveRDS(lambda_summ, "occupancy/lambda_summ.rds")
-lambda_summ <- readRDS("occupancy/lambda_summ.rds")
+saveRDS(lambda_summ, "output/lambda_summ.rds")
+lambda_summ <- readRDS("output/lambda_summ.rds")
 hist(lambda_summ$Rhat)
 range(lambda_summ$Rhat)
 lambda_summ
@@ -331,8 +553,8 @@ range(lambda_summ$mean)
 
 # Z
 Z_summ <- MCMCsummary(jm, params = 'Z', round=2)
-saveRDS(Z_summ, "occupancy/Z_summ.rds")
-#Z_summ <- readRDS("occupancy/theta_summ.rds")
+saveRDS(Z_summ, "output/Z_summ.rds")
+#Z_summ <- readRDS("output/theta_summ.rds")
 MCMCtrace(jm, params = 'Z', type = 'density', ind = F, pdf=F)
 
 Z.dat[is.na(Z.dat)] <- 0
