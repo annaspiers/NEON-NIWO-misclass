@@ -1,12 +1,10 @@
-# We're revisiting the framing of this model and considering Andy Royle's 
-# disaggregated misclassification model. Here we create a dynamic occupancy 
-# model estimating misclassification probabilities with NEON Niwot Ridge carabid 
-# data 2015-2018
+# Here we create a Dynamic occupancy model with misclassification using
+# disaggregated individual-level data.This model estimates misclassification
+# probabilities with NEON Niwot Ridge carabid data 2015-2018
 
-# library(reshape2) 
 library(tidyr) #uncount()
 library(tibble) #rownames_to_column()
-library(dclone) #alternative: R2jags::jags.parallel
+library(dclone) #jags.parfit()
 library(MCMCvis)
 library(dplyr)
 library(patchwork)
@@ -16,8 +14,6 @@ library(ggplot2)
 options(digits = 3)
 
 # Load NEON Niwot Ridge carabid data 
-# Load data
-# Filter for 1 year (static model)
 all_paratax_by_ind <- readRDS("data/all_paratax_df.rds") %>%
   rename(para_morph_combo = scimorph_combo)  %>%
   uncount(individualCount) %>%
@@ -29,22 +25,11 @@ expert_pinned_df <- expert_df %>%
   rename(exp_sciname = scientificName) %>%
   left_join(pinned_df %>% dplyr::select(individualID, subsampleID, para_morph_combo = scimorph_combo))
 
-# Filter datasets to abundant parataxonomist species/morphospecies IDs
-common_morpho <- all_paratax_by_ind %>%
-  group_by(para_morph_combo) %>%
-  summarize(total = n()) %>%
-  arrange(-total) %>%
-  filter(total > 10)
-
-all_paratax_by_ind <- all_paratax_by_ind %>%
-  filter(para_morph_combo %in% common_morpho$para_morph_combo)
-expert_pinned_df <- expert_pinned_df %>%
-  filter(subsampleID %in% all_paratax_by_ind$subsampleID)
-
 # subsample aRw+8bWvW/wOIENap0etmXiCq6V1RZPfCkRcy1w8BLk= had 
-# 8 individuals sorted, but 8 pinned and expertly identified. 
+# 6 individuals sorted, but 8 pinned and expertly identified. 
 # This is the only subsample with less sorted individuals than expertly ID'ed
 # As a workaround, we'll remove two expertly identified inidividuals
+# Update, this should be fixed in the NEON data portal week of 8/24
 removed_inds <- expert_pinned_df %>%
   filter(subsampleID == "aRw+8bWvW/wOIENap0etmXiCq6V1RZPfCkRcy1w8BLk=") %>%
   pull(individualID) %>%
@@ -52,7 +37,7 @@ removed_inds <- expert_pinned_df %>%
 expert_pinned_df <- expert_pinned_df %>%
   filter(!(individualID %in% removed_inds))
 
-rm(expert_df, pinned_df, common_morpho, removed_inds)
+rm(expert_df, pinned_df, removed_inds)
 
 # List 1) the unique expert taxonomist ID's and 2) the parataxonomist IDs that the
 # expert taxonomist didn't use. 
@@ -93,7 +78,6 @@ assertthat::assert_that(all(rownames == colnames[1:length(rownames)]))
 subsamps <- expert_pinned_df %>%
   distinct(subsampleID) %>% pull(subsampleID)
 # para_new will replace the all_paratax_df since dplyr doesn't play nice in for-loops
-# (I couldn't assign to a filtered object)
 # initialize para_new with subsamples that the expert ID never looked at
 para_new <- all_paratax_by_ind %>% 
   filter(!(subsampleID %in% subsamps)) 
@@ -120,7 +104,7 @@ assertthat::assert_that(sum(!is.na(para_new$exp_sciname)) == nrow(expert_pinned_
 expert_pinned_df %>%
   filter(!is.na(exp_sciname), subsampleID == "ta53RQUlpj5WhQksfJeD+QBAxMj6BQGBllkC8fUqt68=")
 para_new %>% filter(subsampleID == "ta53RQUlpj5WhQksfJeD+QBAxMj6BQGBllkC8fUqt68=")
-# We should see 6 jm of 7 individuals in para_new have an assigned exp_sciname
+# We should see 6 out of 7 individuals in para_new have an assigned exp_sciname
 
 ## Imperfect species classifications 
 # Probability vector `y` for with a record for each detection. 
@@ -142,7 +126,7 @@ L <- reshape2::acast(para_new, plotID ~ collectDate ~ col_year)
 
 # Define alpha
 alpha <- matrix(2, nrow = length(rownames), ncol = length(colnames))
-diag(alpha) <- 80
+diag(alpha) <- 200
 # visualize alpha
 test_alpha <- MCMCpack::rdirichlet(1000, c(alpha[1,1], rep(alpha[1,2], length(colnames)-1)))
 hist(test_alpha[,-1], xlim=c(0,1),col="red")
@@ -217,7 +201,7 @@ jags_d <- list(nsite = dim(L)[1],
                # for all individuals, we get paratxonomist IDs
                y = y_df$parataxID_idx,
                z = z.dat,
-               R = diag(rep(1, 5)))
+               R = diag(rep(1, 4)))
 JAGSinits <- function(){ list(z = z.init) }
 nc <- 4
 ni <- 100000
@@ -236,14 +220,14 @@ jm <- jags.parfit(cl = cl,
                   thin = ni/1000,
                   n.iter = ni) 
 dir.create("output", showWarnings = FALSE)
-saveRDS(jm, "output/script15.1_jags_jm.rds")
+saveRDS(jm, "output/jm2.rds")
 jm_summ <- MCMCsummary(jm)
-saveRDS(jm_summ, "output/script15.1_jm_mcmcsumm.rds")
+saveRDS(jm_summ, "output/jm_summ2.rds")
 
 # View JAGS jmput --------------------------------------------------------
 
-jm <- readRDS("output/script15.1_jags_jm.rds")
-jm_summ <- readRDS("output/script15.1_jm_mcmcsumm.rds")
+jm <- readRDS("output/jm-allspec.rds")
+jm_summ <- readRDS("output/jm_mcmcsumm-allspec.rds")
 
 # Did model converge?
 hist(jm_summ$Rhat, breaks=40)
@@ -253,16 +237,13 @@ range(jm_summ$Rhat, na.rm=TRUE)
 jm_summ <- rownames_to_column(jm_summ)
 jm_summ %>% filter(Rhat > 1.1)
 
-MCMCtrace(jm, params = paste0('eps_spec\\[1,4\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
-MCMCtrace(jm, params = paste0('eps_site\\[10,4\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
-MCMCtrace(jm, params = paste0('growth\\[11,12,2\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
-MCMCtrace(jm, params = paste0('growth\\[3,15,2\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
+#MCMCtrace(jm, params = paste0('eps_spec\\[1,4\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
 
 # Look at raw numbers
 # theta
 theta_summ <- MCMCsummary(jm, params = 'Theta', round=2)
-saveRDS(theta_summ, "output/theta_summ_15.1.rds")
-theta_summ <- readRDS("output/theta_summ_15.1.rds")
+saveRDS(theta_summ, "output/theta_summ.rds")
+theta_summ <- readRDS("output/theta_summ-allspec.rds")
 hist(theta_summ$Rhat)
 hist(theta_summ$mean)
 range(theta_summ$Rhat, na.rm=TRUE)
@@ -288,11 +269,6 @@ ggplot(theta_df, aes(x=para_morph, y=expert_sciname, fill= theta_mean)) +
     scale_fill_viridis_c("Posterior\nmean") +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
     scale_y_discrete(limits = rev(levels(as.factor(theta_df$expert_sciname))))
-
-
-#AIS do these results make sense?
-para_new %>% filter(para_morph_combo=="Amara sp.") #wouldn't we want a higher probability of expert ID for Amara lindrothi? Would we get this by shrinking the alpha diag weight? Should we include Amara sp. as an option for the expert IDs?
-expert_pinned_df %>% filter(exp_sciname=="Amara sp.") #none
 
 # phi - survival probability
 MCMCsummary(jm, params = 'logit_phi', round=2)
