@@ -1,20 +1,19 @@
-# We're revisiting the framing of this model and considering Andy Royal's 
-# disaggregated misclassification model. Here we create a dynamic occupancy 
-# model estimating misclassification probabilities with NEON Niwot Ridge carabid 
-# data 2015-2018
+# Here we create a reduced model estimating only misclassification probabilities
+# without occupancy parameters using NEON Niwot Ridge carabid data 2015-2018
 
-# library(reshape2) 
 library(tidyr) #uncount()
 library(tibble) #rownames_to_column()
-library(dclone) #alternative: R2jags::jags.parallel
+library(dclone) #jags.parfit()
 library(MCMCvis)
+library(MCMCpack)
 library(dplyr)
+library(patchwork)
+library(ggmcmc)
+library(readr)
 library(ggplot2)
-library(boot) #inv.logit()
 options(digits = 3)
 
 # Load NEON Niwot Ridge carabid data 
-# Load data
 all_paratax_by_ind <- readRDS("data/all_paratax_df.rds") %>%
   rename(para_morph_combo = scimorph_combo)  %>%
   uncount(individualCount) %>%
@@ -24,12 +23,15 @@ expert_df <- readRDS("data/expert_df.rds")
 pinned_df <- readRDS("data/pinned_df.rds") 
 expert_pinned_df <- expert_df %>%
   rename(exp_sciname = scientificName) %>%
-  left_join(pinned_df %>% dplyr::select(individualID, subsampleID, para_morph_combo = scimorph_combo))
+  left_join(pinned_df %>% 
+              dplyr::select(individualID, subsampleID, 
+                            para_morph_combo = scimorph_combo))
 
 # subsample aRw+8bWvW/wOIENap0etmXiCq6V1RZPfCkRcy1w8BLk= had 
 # 6 individuals sorted, but 8 pinned and expertly identified. 
 # This is the only subsample with less sorted individuals than expertly ID'ed
 # As a workaround, we'll remove two expertly identified inidividuals
+# Update, this should be fixed in the NEON data portal week of 8/24
 removed_inds <- expert_pinned_df %>%
   filter(subsampleID == "aRw+8bWvW/wOIENap0etmXiCq6V1RZPfCkRcy1w8BLk=") %>%
   pull(individualID) %>%
@@ -37,7 +39,8 @@ removed_inds <- expert_pinned_df %>%
 expert_pinned_df <- expert_pinned_df %>%
   filter(!(individualID %in% removed_inds))
 
-rm(expert_df, pinned_df, common_morpho, removed_inds)
+rm(expert_df, pinned_df, removed_inds)
+
 
 # List 1) the unique expert taxonomist ID's and 2) the parataxonomist IDs that the
 # expert taxonomist didn't use. 
@@ -57,7 +60,7 @@ rownames <- sort(rownames)
 extra_colnames <- c(all_paratax_by_ind %>%   #1) the unique parataxonomist and morphospecies ID's
                       distinct(para_morph_combo) %>%
                       pull(para_morph_combo),
-                    expert_pinned_df %>%   #2) the expert  IDs that the parataxonomist didn't use. 
+                    expert_pinned_df %>%   #2) the expert taxonomist IDs that the parataxonomist didn't use. 
                       distinct(exp_sciname) %>%
                       filter(!exp_sciname %in% unique(all_paratax_by_ind$para_morph_combo)) %>% 
                       pull(exp_sciname) ) 
@@ -67,7 +70,6 @@ colnames <- c(rownames, extra_colnames[extra_indices])
 rm(extra_colnames, extra_indices)
 
 assertthat::assert_that(all(rownames == colnames[1:length(rownames)]))
-
 
 # Join parataxonomist and expert ID tables ---------------------------
 # Ex: If parataxonomist counts 5 animals in one subsample & expert IDs two
@@ -132,11 +134,8 @@ L <- reshape2::acast(para_new, plotID ~ collectDate ~ col_year)
 
 # Define alpha
 alpha <- matrix(2, nrow = length(rownames), ncol = length(colnames))
-diag(alpha) <- 80
-# visualize alpha
-test_alpha <- MCMCpack::rdirichlet(1000, c(alpha[1,1], rep(alpha[1,2], length(colnames)-1)))
-hist(test_alpha[,-1], xlim=c(0,1),col="red")
-hist(test_alpha[,1],  add=T)
+diag(alpha) <- 200
+
 
 # JAGS model --------------------------------------------------------------
 # Run model in JAGS. 
@@ -164,54 +163,127 @@ jm <- jags.parfit(cl = cl,
 
 jm_summ <- MCMCsummary(jm)
 
-saveRDS(jm, "output/red-jm-allspec.rds")
-saveRDS(jm_summ, "output/red-jm_mcmcsumm-allspec.rds")
-# saveRDS(jm, "output/red-jm-over5spec.rds")
-# saveRDS(jm_summ, "output/red-jm_mcmcsumm-over5spec.rds")
+saveRDS(jm, "output/reduced-jm.rds")
+saveRDS(jm_summ, "output/reduced-jm_summ.rds")
 
 # View JAGS output --------------------------------------------------------
 
-jm <- readRDS("output/jm-allspec.rds")
-jm_summ <- readRDS("output/jm_mcmcsumm-allspec.rds")
+jm <- readRDS("output/reduced-jm.rds")
+jm_summ <- readRDS("output/reduced-jm_summ.rds")
 # Did model converge?
 hist(jm_summ$Rhat, breaks=40)
-range(jm_summ$Rhat, na.rm=TRUE)
 jm_summ <- rownames_to_column(jm_summ)
-jm_summ %>% filter(Rhat > 1.1)
 
 ### Look at raw numbers
 # THETA
-theta_summ <- MCMCsummary(jm, params = 'Theta', round=2)
-theta_summ <- rownames_to_column(theta_summ)
-saveRDS(theta_summ, "output/theta_summ-allspec.rds")
-#theta_summ <- readRDS("output/theta_summ-allspec.rds")
-hist(theta_summ$Rhat)
-hist(theta_summ$mean)
-range(theta_summ$Rhat, na.rm=TRUE)
+red_theta_summ <- MCMCsummary(jm, params = 'Theta', round=2)
+red_theta_summ <- rownames_to_column(red_theta_summ)
+saveRDS(red_theta_summ, "output/reduced-theta_summ.rds")
+#red_theta_summ <- readRDS("output/reduced-theta_summ.rds")
 
 # Visualize theta
-theta_df <- data.frame(expert_index = rep(1:dim(alpha)[1], dim(alpha)[2]) ,
+red_theta_df <- data.frame(expert_index = rep(1:dim(alpha)[1], dim(alpha)[2]) ,
                        paramorph_index = rep(1:dim(alpha)[2], each = dim(alpha)[1]),
                        expert_sciname = rep(rownames, dim(alpha)[2]),
                        para_morph = rep(colnames, each = dim(alpha)[1]))  %>% 
-  mutate(theta_mean = theta_summ$mean,
-         theta_median = theta_summ$"50%")
+  mutate(theta_mean = red_theta_summ$mean,
+         theta_median = red_theta_summ$"50%")
 #make para_morph a factor to force plotting in order
-theta_df$para_morph = factor(theta_df$para_morph, levels=colnames) 
+red_theta_df$para_morph = factor(red_theta_df$para_morph, levels=colnames) 
 # Plot heatmap of theta values
-theta_med <- ggplot(theta_df, aes(x=para_morph, y=expert_sciname, fill= theta_median)) + 
+theta_med <- ggplot(red_theta_df, aes(x=para_morph, y=expert_sciname, fill= theta_median)) + 
   geom_tile() +
   scale_fill_gradient(limits=c(0,1),low="darkblue", high="white") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  scale_y_discrete(limits = rev(levels(as.factor(theta_df$expert_sciname))))
+  scale_y_discrete(limits = rev(levels(as.factor(red_theta_df$expert_sciname))))
 #consider on plotly: https://www.r-graph-gallery.com/79-levelplot-with-ggplot2.html
-png("figures/theta_conf_matrix_allspec.png")
+png("figures/reduced_thetaconfusion.png", width=850, height=600)
 print(theta_med)
 dev.off()
 
-# Visualize predictions of species unobserved by expert taxonomist
-par(mfrow=c(1,1))
-plot(NA,xlim=c(0,1),ylim=c(0,1),
-     xlab="Predicted",ylab="Observed",main="Theta comparison for species without expert ID")
-abline(0,1)
-points(x=jm$mean$theta[nspec,],y=theta[nspec,],col="red")
+# Compare density plots of theta prior, full model, reduced model 
+red_theta_post_mat <- MCMCchains(jm,params='Theta')
+reduced_post_df <- as.data.frame(red_theta_post_mat) %>%
+  pivot_longer(colnames(red_theta_post_mat),names_to="index") %>%
+  mutate(model = "reduced")
+
+theta_prior <- data.frame(index = rep(colnames(red_theta_post_mat),each=nrow(red_theta_post_mat)),
+                          value = NA,
+                          model = "prior")
+value_vec <- c()
+for (i in 1:ncol(alpha)) {
+  temp_vec <- as.vector(MCMCpack::rdirichlet(4000, alpha[,i]))
+  value_vec <- c(value_vec, temp_vec)
+}
+theta_prior$value <- value_vec
+theta_prior$index <- as.character(theta_prior$index)
+
+full_model <- readRDS("output/jm.rds")
+full_theta_post_mat <- MCMCchains(full_model,params="Theta")
+full_post_df <- as.data.frame(full_theta_post_mat) %>%
+  pivot_longer(colnames(full_theta_post_mat),names_to="index") %>%
+  mutate(model = "full")
+
+theta_df <- rbind(theta_prior, reduced_post_df, full_post_df)
+
+# Plot matrix of theta prior and poserior densities
+png("figures/comparedensities.png")
+print(ggplot(theta_df %>% filter(index==c("Theta[1,1]","Theta[1,2]","Theta[1,3]",
+                                          "Theta[2,1]","Theta[2,2]",
+                                          "Theta[2,3]","Theta[3,1]",
+                                          "Theta[3,2]","Theta[3,3]")), 
+             aes(x=value,y=..scaled..,fill=model)) +
+        geom_density( alpha=0.4,color=NA) + 
+        facet_wrap( ~ index, scales="free_x") +
+        #facet_wrap( ~ index) +
+        #  xlim(c(0,1)) +
+        xlab("Theta") + scale_y_continuous(breaks=seq(0, 1, 0.5)))
+dev.off()
+
+# Heat map of posterior differences between two confusion matrices 
+# Consider the added value of full occupancy model vs just misclass model  
+red_theta_df
+
+full_theta <- readRDS("output/theta_summ.rds")
+full_theta_df <- data.frame(expert_index = rep(1:dim(alpha)[1], dim(alpha)[2]) ,
+                       paramorph_index = rep(1:dim(alpha)[2], each = dim(alpha)[1]),
+                       expert_sciname = rep(rownames, dim(alpha)[2]),
+                       para_morph = rep(colnames, each = dim(alpha)[1]))  %>% 
+  mutate(theta_median = full_theta$"50%")
+#make para_morph a factor to force plotting in order
+full_theta_df$para_morph = factor(full_theta_df$para_morph, levels=colnames) 
+
+theta_med_diff_df <- red_theta_df %>%
+  rename(red_theta_med = theta_median) %>%
+  left_join(full_theta_df %>% select(expert_sciname, para_morph, full_theta_med = theta_median)) %>%
+  mutate(median_diff = full_theta_med - red_theta_med)
+
+png("figures/thetadifference.png", width=850, height=600)
+print(ggplot(theta_med_diff_df, aes(x=para_morph, y=expert_sciname, fill= median_diff)) + 
+  geom_tile() +
+  #scale_fill_gradientn(colours = pal,) +
+  scale_fill_gradient2(midpoint = 0, low = "darkblue", mid = "white",
+                        high = "red", "Posterior\nmedian\ndifference") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  xlab("Parataxonomist ID") + ylab("Expert Taxonomist ID") +
+  scale_y_discrete(limits = rev(levels(as.factor(theta_med_diff_df$expert_sciname)))))
+dev.off()
+
+# Compare precision between reduced and full model
+# Scatterplot of 95% CI widths (x-axis full, y-axis reduced)  
+red_theta_summ <- readRDS("output/reduced-theta_summ.rds") %>%
+  rename(top = '97.5%', bottom= '2.5%') %>%
+  mutate(redCIwidth = top - bottom )
+full_theta <- readRDS("output/theta_summ.rds")%>%
+  rownames_to_column() %>%
+  rename(top = '97.5%', bottom= '2.5%') %>%
+  mutate(fullCIwidth = top - bottom ) %>%
+  left_join(red_theta_summ %>% select(rowname,redCIwidth))
+
+png("figures/CIwidthcomparison.png")
+print(ggplot(full_theta) +
+  geom_point(aes(x=fullCIwidth, y=redCIwidth)) +
+  xlab("Full Model CI width") + ylab("Reduced Model CI width") +
+  xlim(c(0,0.1)) + ylim(c(0,0.1)) +
+  geom_abline(a=0,b=1))
+dev.off()

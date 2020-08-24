@@ -8,7 +8,7 @@
       @import url(https://fonts.googleapis.com/css?family=Yanone+Kaffeesatz);
       @import url(https://fonts.googleapis.com/css?family=Droid+Serif:400,700,400italic);
       @import url(https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic);
-
+      
       body { font-family: 'Droid Serif'; }
       h1, h2, h3 {
         font-family: 'Yanone Kaffeesatz';
@@ -25,12 +25,14 @@ class: center, middle
 # NEON Carabid Misclassification Project Overview 
 ### Max and Anna with Dr. Royle
 ### 08-24-2020
-AIS < beetle images here> 
+<center><img src="figs/bugguideamaraalpina2.jpg" width="30%">
+</center>
+<center><img src="figs/bugguideamaraalpina1.jpg" width="30%">
+</center>
 
 ???
-
-Notes for the _first_ slide!
-
+Here is where we've gotten thus far
+ 
 ---
 
 # Agenda
@@ -45,55 +47,140 @@ Notes for the _first_ slide!
 
 # What are our science questions? 
 
-Large-scale, long-term community data collection is important for tracking biodiversity patterns, but error is necessarily part of the collection process.   
+Large-scale, long-term community data collection is important for tracking biodiversity patterns
+
+---
+
+# What are our science questions? 
+
+Large-scale, long-term community data collection is important for tracking biodiversity patterns
+
+Error is necessarily part of the collection process   
+
+---
+
+# What are our science questions? 
+
+Large-scale, long-term community data collection is important for tracking biodiversity patterns
+
+Error is necessarily part of the collection process   
 
 How can we probabilistically capture identification error in an imperfect species classifier at a large-scale with limited validation data?  
 
-How does the misclassification model change when integrated into the occupancy model?
+---
+
+# What are our science questions? 
+
+Large-scale, long-term community data collection is important for tracking biodiversity patterns
+
+Error is necessarily part of the collection process   
+
+How can we probabilistically capture identification error in an imperfect species classifier at a large-scale with limited validation data?  
+
+What does the dynamic occupancy model contribute to the misclassification model?
 
 ---
 
 # What are the data like? 
-Site
+### Site
 
 Our focus is on ground beetles (aka carabids) at the NEON Niwot Ridge site
 
 
-<img src="figs/niwot.png" width="100%">
-
+<center><img src="figs/niwot.png" width="100%">
+</center>
 ---
 
 # What are the data like? 
-Data processing
+### Data processing
 
 NEON collects carabids in pitfall traps at every terrestrial site 
-<img src="figs/sampleprocessing.png" width="70%" class="center">
-
+<center><img src="figs/sampleprocessing.png" width="70%" class="centerImage">
+</center>
 ---
 
 # What are the data like? 
-Data at Niwot Ridge
+### Data at Niwot Ridge
 
-<img src="figs/processingatniwot.png" width="70%" class="center">
-
+<center><img src="figs/processingatniwot.png" width="70%" class="center">
+<center>
 ---
 
 # What are the data like? 
-Discrepancies in IDs
-
-<img src="figs/IDdiscrepancy.png" width="80%" class="center">
-
+### Discrepancies in IDs
+<center><img src="figs/IDdiscrepancy.png" width="80%">
+</center>
 ---
 
 # What is our model approach?  
 
+<center><img src="figs/dag.png" width="80%" class="center">
+</center>
+AIS spell out variables of dag... reference Max's methods
+
 ---
 
 # What do our model results look like?  
+### Theta confusion matrix
+<center><img src="figs/thetaconfusion.png" width="85%" class="center"></center>
 
 ---
 
+# What do our model results look like?  
+### Prior and posterior density for Theta 
+<center><img src="figs/comparedensities.png" width="85%" class="center"></center>
+???
+density plots (colors correspond to prior, full model, reduced model)  
+
+---
+
+# What do our model results look like?  
+### Prior and posterior density for Theta 
+<center><img src="figs/thetadifference.png" width="85%" class="center">
+</center>
+???
+Heat map of posterior differences between two confusion matrices  
+    
+---
+
+# What do our model results look like?  
+### Prior and posterior density for Theta 
+<center><img src="figs/CIwidthcomparison.png" width="70%" class="center">
+</center>
+???
+    * Differences in precision  
+        * Scatterplot of 95% CI widths (x-axis full, y-axis reduced)  
+
+---
+
+# What do our model results look like?  
+### Occupancy dynamics
+
+<center><img src="figs/occthroughtime.png" width="85%" class="center"> 
+</center>
+---
+
+# What do our model results look like?  
+### Occupancy dynamics: site-level random effects
+<center><img src="figs/site-level-ranefs.png" width="85%" class="center"> 
+</center>
+---
+
+# What do our model results look like?  
+### Occupancy dynamics: species-level random effects
+<center><img src="figs/spec-level-ranefs.png" width="85%" class="center"> 
+</center>
+---
+
 # What are the takeaways and why is this exciting? 
+* AIS what else? - look at notes in 
+* This contributes to 
+* This probabilistic model is directly helpful for users of NEON carabid data
+* 
+* Unexplored: opportunity to explore limits of model identifiability using simulated data
+
+???
+Unexplored... play with the 'percent known species' threshold to understand how much validation we need for model identifiability
 
     </textarea>
     <script src="https://remarkjs.com/downloads/remark-latest.min.js" type="text/javascript">

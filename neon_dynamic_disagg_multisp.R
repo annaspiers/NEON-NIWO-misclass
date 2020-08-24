@@ -23,7 +23,9 @@ expert_df <- readRDS("data/expert_df.rds")
 pinned_df <- readRDS("data/pinned_df.rds") 
 expert_pinned_df <- expert_df %>%
   rename(exp_sciname = scientificName) %>%
-  left_join(pinned_df %>% dplyr::select(individualID, subsampleID, para_morph_combo = scimorph_combo))
+  left_join(pinned_df %>% 
+              dplyr::select(individualID, subsampleID, 
+                            para_morph_combo = scimorph_combo))
 
 # subsample aRw+8bWvW/wOIENap0etmXiCq6V1RZPfCkRcy1w8BLk= had 
 # 6 individuals sorted, but 8 pinned and expertly identified. 
@@ -38,6 +40,7 @@ expert_pinned_df <- expert_pinned_df %>%
   filter(!(individualID %in% removed_inds))
 
 rm(expert_df, pinned_df, removed_inds)
+
 
 # List 1) the unique expert taxonomist ID's and 2) the parataxonomist IDs that the
 # expert taxonomist didn't use. 
@@ -67,7 +70,6 @@ colnames <- c(rownames, extra_colnames[extra_indices])
 rm(extra_colnames, extra_indices)
 
 assertthat::assert_that(all(rownames == colnames[1:length(rownames)]))
-
 
 # Join parataxonomist and expert ID tables ---------------------------
 # Ex: If parataxonomist counts 5 animals in one subsample & expert IDs two
@@ -105,6 +107,21 @@ expert_pinned_df %>%
   filter(!is.na(exp_sciname), subsampleID == "ta53RQUlpj5WhQksfJeD+QBAxMj6BQGBllkC8fUqt68=")
 para_new %>% filter(subsampleID == "ta53RQUlpj5WhQksfJeD+QBAxMj6BQGBllkC8fUqt68=")
 # We should see 6 out of 7 individuals in para_new have an assigned exp_sciname
+
+# Plot discrepancies for samples identified to the species level
+para_new %>%
+  filter(!is.na(exp_sciname)) %>% #taxonRank == "species",
+  count(para_morph_combo, exp_sciname) %>%
+  arrange(n) %>%
+  mutate(discrepancy = para_morph_combo != exp_sciname) %>%
+  ggplot(aes(x = para_morph_combo, 
+             y = exp_sciname, 
+             color = discrepancy)) + 
+  geom_point(aes(size = n)) + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + 
+  xlab("Species ID from parataxonomist") + 
+  ylab("Species ID from expert taxonomist") + 
+  scale_color_manual(values = c("black", "red"))
 
 ## Imperfect species classifications 
 # Probability vector `y` for with a record for each detection. 
@@ -151,7 +168,8 @@ z.dat_cast <- expert_pinned_df %>%
 z.dat_cast[z.dat_cast == -999] <- NA
 z.dat_cast[z.dat_cast > 0] <- 1
 
-assertthat::assert_that(sum(z.dat_cast, na.rm=T) == nrow(expert_pinned_df %>% distinct(plotID, exp_sciname, col_year)))
+assertthat::assert_that(sum(z.dat_cast, na.rm=T) == 
+                          nrow(expert_pinned_df %>% distinct(plotID, exp_sciname, col_year)))
 
 for(plot in dimnames(z.dat_cast)[[1]]) {
   for(spec in dimnames(z.dat_cast)[[2]]) {
@@ -204,7 +222,7 @@ jags_d <- list(nsite = dim(L)[1],
                R = diag(rep(1, 4)))
 JAGSinits <- function(){ list(z = z.init) }
 nc <- 4
-ni <- 100000
+ni <- 20000
 cl <- makeCluster(nc)
 jm <- jags.parfit(cl = cl,
                   data = jags_d,
@@ -215,19 +233,19 @@ jm <- jags.parfit(cl = cl,
                              "log_growth", "turnover"),
                   model = "neon_dynamic_disagg_multisp_JAGS.txt",
                   n.chains = nc,
-                  n.adapt = 6000,
-                  n.update = 6000,
+                  n.adapt = 5000,
+                  n.update = 5000,
                   thin = ni/1000,
                   n.iter = ni) 
 dir.create("output", showWarnings = FALSE)
-saveRDS(jm, "output/jm2.rds")
+saveRDS(jm, "output/jm3.rds")
 jm_summ <- MCMCsummary(jm)
-saveRDS(jm_summ, "output/jm_summ2.rds")
+saveRDS(jm_summ, "output/jm_summ3.rds")
 
 # View JAGS jmput --------------------------------------------------------
 
-jm <- readRDS("output/jm-allspec.rds")
-jm_summ <- readRDS("output/jm_mcmcsumm-allspec.rds")
+jm <- readRDS("output/jm.rds")
+jm_summ <- readRDS("output/jm_summ.rds")
 
 # Did model converge?
 hist(jm_summ$Rhat, breaks=40)
@@ -243,7 +261,7 @@ jm_summ %>% filter(Rhat > 1.1)
 # theta
 theta_summ <- MCMCsummary(jm, params = 'Theta', round=2)
 saveRDS(theta_summ, "output/theta_summ.rds")
-theta_summ <- readRDS("output/theta_summ-allspec.rds")
+theta_summ <- readRDS("output/theta_summ.rds")
 hist(theta_summ$Rhat)
 hist(theta_summ$mean)
 range(theta_summ$Rhat, na.rm=TRUE)
@@ -259,16 +277,19 @@ theta_df <- data.frame(expert_index = rep(1:dim(alpha)[1], dim(alpha)[2]) ,
                        paramorph_index = rep(1:dim(alpha)[2], each = dim(alpha)[1]),
                        expert_sciname = rep(rownames, dim(alpha)[2]),
                        para_morph = rep(colnames, each = dim(alpha)[1]))  %>% 
-    mutate(theta_mean = theta_summ$mean)
+    mutate(theta_median = theta_summ$"50%")
 #make para_morph a factor to force plotting in order
 theta_df$para_morph = factor(theta_df$para_morph, levels=colnames) 
 
 # Plot heatmap of theta values
-ggplot(theta_df, aes(x=para_morph, y=expert_sciname, fill= theta_mean)) + 
-    geom_tile() +
-    scale_fill_viridis_c("Posterior\nmean") +
-    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-    scale_y_discrete(limits = rev(levels(as.factor(theta_df$expert_sciname))))
+png("figures/thetaconfusion.png", width=850, height=600)
+print(ggplot(theta_df, aes(x=para_morph, y=expert_sciname, fill= theta_median)) + 
+  geom_tile() +
+  scale_fill_viridis_c("Posterior\nmedian") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  xlab("Parataxonomist ID") + ylab("Expert Taxonomist ID") +
+  scale_y_discrete(limits = rev(levels(as.factor(theta_df$expert_sciname)))))
+dev.off()
 
 # phi - survival probability
 MCMCsummary(jm, params = 'logit_phi', round=2)
@@ -283,7 +304,8 @@ MCMCtrace(jm, params = 'logit_gamma', type = "trace", ind = F, pdf=F)
 MCMCtrace(jm, params = 'psi', type = 'trace', ind = F, pdf=F)
 
 # Plot all species' occupancy through seasons
-rownames_to_column(psi_summary) %>%
+png("figures/occthroughtime.png", width=850, height=600)
+print(rownames_to_column(psi_summary) %>%
   as_tibble %>%
   separate("rowname", into = c("site", "species", "year"), sep = ",") %>%
   mutate_at(c('site', 'species', 'year'), readr::parse_number) %>%
@@ -296,7 +318,8 @@ rownames_to_column(psi_summary) %>%
   geom_ribbon(aes(ymin = `2.5%`, ymax = `97.5%`), color = NA, alpha = .05) +
   xlab("Year") + 
   ylab("Occupancy probability") + 
-  theme_minimal()
+  theme_minimal())
+dev.off()
 
 
 # Visualize relationships among site and species level parameters ---------
@@ -309,7 +332,7 @@ get_rho_df <- function(level) {
         grepl(colnames(x))
       as.data.frame(x[, cols]) %>%
         mutate(iter = 1:n()) %>%
-        pivot_longer(cols = -iter) %>%
+        tidyr::pivot_longer(cols = -iter) %>%
         separate(name, into = c("row", "col"), sep = ",") %>%
         mutate_at(c("row", "col"), readr::parse_number)
     }) %>%
@@ -326,7 +349,6 @@ get_rho_df <- function(level) {
     }) %>%
     bind_rows(.id = "iter")
 }
-
 
 rho_site <- get_rho_df(level = "site")
 rho_spec <- get_rho_df(level = "spec")
@@ -457,8 +479,9 @@ wrap_plots(
                xmin = site_xmin, xmax = site_xmax)
     ), 
   nrow = 4, byrow = FALSE)
-dir.create("fig", showWarnings = FALSE)
-ggsave("fig/site-level-ranefs.pdf", width = 7, height = 5)
+#dir.create("fig", showWarnings = FALSE)
+#ggsave("fig/site-level-ranefs.pdf", width = 7, height = 5)
+ggsave("figures/site-level-ranefs.png", width = 7, height = 5)
 
 # Cobble together all of the panels (species level)
 spec_xmin <- -4.7
@@ -508,58 +531,19 @@ wrap_plots(
                xmin = spec_xmin, xmax = spec_xmax)
   ), 
   nrow = 4, byrow = FALSE)
-ggsave("fig/spec-level-ranefs.pdf", width = 7, height = 5)
-
-
+#ggsave("fig/spec-level-ranefs.pdf", width = 7, height = 5)
+ggsave("figures/spec-level-ranefs.png", width = 7, height = 5)
 
 
 
 
 # lambda - expected abundance, given occupancy, dim: nsite x nsurv x nspec x nyear
-lambda_summ <- MCMCsummary(jm, params = 'lambda', round=2) #takes 5ish min
-saveRDS(lambda_summ, "output/lambda_summ.rds")
-lambda_summ <- readRDS("output/lambda_summ.rds")
-hist(lambda_summ$Rhat)
-range(lambda_summ$Rhat)
-lambda_summ
-range(lambda_summ$mean)
-MCMCtrace(jm, params = 'lambda', type = 'density', ind = F, pdf=F)
-range(lambda_summ$mean)
-#a good handful of Rhats > 1.1, as large as 3.32
+MCMCsummary(jm, params = 'lambda', round=2) #takes 5ish min
 
 # Z
-Z_summ <- MCMCsummary(jm, params = 'Z', round=2)
-saveRDS(Z_summ, "output/Z_summ.rds")
-#Z_summ <- readRDS("output/theta_summ.rds")
+MCMCsummary(jm, params = 'Z', round=2)
 MCMCtrace(jm, params = 'Z', type = 'density', ind = F, pdf=F)
 
-Z.dat[is.na(Z.dat)] <- 0
-Z.init[is.na(Z.init)] <- 0
-Z.prior <- Z.dat+Z.init
-plot(Z.prior, Z_summ$mean)
-#WORK ON ABOVE PLOT - MAKE SURE THEY PLOT 1-1 ACCURATELY, now it's not accurate
-plot(apply(c_obs, c(1,3,4), max, na.rm = TRUE), jm$mean$Z)
-
-
-
-
-
-
-
-
-
-
-
-# n.occ
-print(jm$summary[grep("n.occ", row.names(jm$summary)), c(1, 2, 3, 7)], dig = 2)
-
-# growth
-print(jm$summary[grep("growth", row.names(jm$summary)), c(1, 2, 3, 7)], dig = 2) 
-jm$mean$growth
-
-# turnover
-print(jm$summary[grep("turnover", row.names(jm$summary)), c(1, 2, 3, 7)], dig = 2) 
-jm$mean$turnover
 
 # Look at psi, phi, gamma, growth, turnover, n.occ graphically
 species <- as.character(unique(sample_dat$para_sciname))
@@ -595,11 +579,3 @@ for (k in 1:length(species)) {
     grid.arrange(p1,p2,p3,p4,nrow=2)
 }
 par(mfrow=c(1,1)) #reset plotting
-
-# Visualize predictions of species unobserved by expert taxonomist
-par(mfrow=c(1,1))
-plot(NA,xlim=c(0,1),ylim=c(0,1),
-     xlab="Predicted",ylab="Observed",main="Theta comparison for species withjm expert ID")
-abline(0,1)
-points(x=jm$mean$theta[nspec,],y=theta[nspec,],col="red")
-
