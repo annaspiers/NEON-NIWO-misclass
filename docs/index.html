@@ -32,7 +32,8 @@ class: center, middle
 
 ???
 Here is where we've gotten thus far
- 
+Please ask questions throughout!
+
 ---
 
 # Agenda
@@ -87,36 +88,45 @@ What does the dynamic occupancy model contribute to the misclassification model?
 Our focus is on ground beetles (aka carabids) at the NEON Niwot Ridge site
 
 
-<center><img src="figs/niwot.png" width="100%">
-</center>
+<center><img src="figs/niwot.png" width="100%"></center>
+
 ---
 
 # What are the data like? 
 ### Data processing
 
 NEON collects carabids in pitfall traps at every terrestrial site 
-<center><img src="figs/sampleprocessing.png" width="70%" class="centerImage">
-</center>
+<center><img src="figs/sampleprocessing.png" width="70%" class="centerImage"></center>
+
 ---
 
 # What are the data like? 
 ### Data at Niwot Ridge
 
-<center><img src="figs/processingatniwot.png" width="70%" class="center">
-<center>
+<center><img src="figs/processingatniwot.png" width="70%" class="center"><center>
+  
+???
+Using data from 2015-2018 since lag in expert identifications is 600 days
 ---
 
 # What are the data like? 
 ### Discrepancies in IDs
-<center><img src="figs/IDdiscrepancy.png" width="80%">
-</center>
+<center><img src="figs/IDdiscrepancy.png" width="80%"></center>
+
+???
+high-level visual
+all individuals that were ID'ed by an expert
+dot size corresponds to number of individuals
+red dots are discrepancies between parataxonomist and individual taxonomist IDs
+
 ---
 
 # What is our model approach?  
 
 <center><img src="figs/dag.png" width="80%" class="center">
 </center>
-AIS spell out variables of dag... reference Max's methods
+???
+The imperfect classification (y_ijlt) is a random variable controlled by the partially observed true identification (k_ijlt) and the probabilistic categorical distribution of identifications for species k. L_ijt is the total number of indiviuals encountered, driven by the expected encounter rate, lambda, and the true occupancy state, z. The occupancy state is driven by occupancy parameters psi, phi, and gamma.... prob of occupancy, survival, and colonization.
 
 ---
 
@@ -128,28 +138,30 @@ AIS spell out variables of dag... reference Max's methods
 
 # What do our model results look like?  
 ### Prior and posterior density for Theta 
-<center><img src="figs/comparedensities.png" width="85%" class="center"></center>
+<center><img src="figs/thetadifference.png" width="85%" class="center">
+</center>
 ???
-density plots (colors correspond to prior, full model, reduced model)  
+Heat map of posterior differences between two confusion matrices  
 
 ---
 
 # What do our model results look like?  
 ### Prior and posterior density for Theta 
-<center><img src="figs/thetadifference.png" width="85%" class="center">
-</center>
+<center><img src="figs/comparedensities.png" width="60%" class="center"></center>
 ???
-Heat map of posterior differences between two confusion matrices  
+This compares the density plots of theta prior, theta from the full dynamic occupancy model, and theta from the reduced misclass-only model
+
     
 ---
 
 # What do our model results look like?  
 ### Prior and posterior density for Theta 
-<center><img src="figs/CIwidthcomparison.png" width="70%" class="center">
+<center><img src="figs/CIwidthcomparison.png" width="60%" class="center">
 </center>
 ???
-    * Differences in precision  
-        * Scatterplot of 95% CI widths (x-axis full, y-axis reduced)  
+this figure comapres the differences in precisiion between the full and reduced model
+compare 95% CI widths (x-axis full, y-axis reduced)
+We see greater credible interval widths in the full model compared to the corresponding recuded model
 
 ---
 
@@ -173,10 +185,8 @@ Heat map of posterior differences between two confusion matrices
 ---
 
 # What are the takeaways and why is this exciting? 
-* AIS what else? - look at notes in 
-* This contributes to 
+* This contributes to improving identifiability of misclassification models
 * This probabilistic model is directly helpful for users of NEON carabid data
-* 
 * Unexplored: opportunity to explore limits of model identifiability using simulated data
 
 ???
