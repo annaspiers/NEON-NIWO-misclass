@@ -12,7 +12,7 @@ library(MCMCvis)
 nsite <- 20 
 nsurv <- 2
 nspec <- 2
-nyear <- 4
+nyear <- 5
 
 simulate_data <- function() {
   mu <- rnorm(4)
@@ -82,7 +82,6 @@ simulate_data <- function() {
   for (k in 1:nspec) {
     Theta_true[k, ] <- rdirichlet(1, a[k, ])
   }
-  print(Theta_true)
 
   noisy_classifier <- function(true_species, Theta_true) {
     sample(nspec, size = length(true_species), replace = TRUE, 
@@ -156,23 +155,30 @@ sbc_sim <- function(x) {
   jm$BUGSoutput$sims.array %>%
     apply(3, c)
 }
-ranks <- pbapply::pblapply(1:1000, sbc_sim)
+
+
+# Run SBC (overnight, takes ~7 hrs) ---------------------------------------
+
+ranks <- pbapply::pblapply(1:3000, sbc_sim)
 
 dir.create("output", showWarnings = FALSE)
 write_rds(ranks, "output/sbc_ranks.rds")
 
 
-plot_sbc <- function(ranks, thin = 3, ...) {
-  thinner <- seq(from = 1, to = nrow(ranks[[1]]), by = thin)
-  u <- t(sapply(ranks, FUN = function(r) 1L + colSums(r[thinner, , drop = FALSE])))
-  parameter <- as.factor(rep(colnames(u), each = nrow(u)))
-  parameter <- gsub("ranks_", "", parameter)
-  d <- data.frame(u = c(u), parameter)
-  suppressWarnings(ggplot2::ggplot(d) + 
-                     ggplot2::geom_histogram(ggplot2::aes(x = u), ...) + 
-                     ggplot2::facet_wrap("parameter"))
-}
 
-plot_sbc(ranks, bins = 20) + 
-  ylab("Count")
-ggsave("figures/sbc.pdf", width=10, height = 7)
+# Plot results (adapted from rstan::sbc) ----------------------------------
+thinner <- seq(from = 1, to = nrow(ranks[[1]]), by = 3)
+u <- t(sapply(ranks, FUN = function(r) 1L + colSums(r[thinner, , drop = FALSE])))
+parameter <- as.factor(rep(colnames(u), each = nrow(u)))
+parameter <- gsub("ranks_", "", parameter)
+d <- data.frame(u = c(u), parameter) %>%
+  as_tibble %>%
+  mutate(param_group = gsub("\\[.*", "", parameter))
+
+d %>%
+  ggplot() + 
+  geom_freqpoly(aes(x = u, group = parameter), alpha = .4, pad = FALSE) + 
+  facet_wrap(~param_group) + 
+  xlab("Rank") + 
+  ylab("Frequency")
+ggsave("figures/sbc.pdf", width=6, height = 3)
