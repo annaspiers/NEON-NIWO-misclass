@@ -26,21 +26,7 @@ expert_pinned_df <- expert_df %>%
   left_join(pinned_df %>% 
               dplyr::select(individualID, subsampleID, 
                             para_morph_combo = scimorph_combo))
-
-# subsample aRw+8bWvW/wOIENap0etmXiCq6V1RZPfCkRcy1w8BLk= had 
-# 6 individuals sorted, but 8 pinned and expertly identified. 
-# This is the only subsample with less sorted individuals than expertly ID'ed
-# As a workaround, we'll remove two expertly identified inidividuals
-# Update, this should be fixed in the NEON data portal week of 8/24
-removed_inds <- expert_pinned_df %>%
-  filter(subsampleID == "aRw+8bWvW/wOIENap0etmXiCq6V1RZPfCkRcy1w8BLk=") %>%
-  pull(individualID) %>%
-  tail(2)
-expert_pinned_df <- expert_pinned_df %>%
-  filter(!(individualID %in% removed_inds))
-
-rm(expert_df, pinned_df, removed_inds)
-
+rm(expert_df, pinned_df)
 
 # List 1) the unique expert taxonomist ID's and 2) the parataxonomist IDs that the
 # expert taxonomist didn't use. 
@@ -154,31 +140,31 @@ cl <- makeCluster(nc)
 jm <- jags.parfit(cl = cl,
                   data = jags_d,
                   params = c("Theta"),
-                  model = "neon_disagg_multiclass-only_JAGS.txt",
+                  model = "reduced_misclass_JAGS.txt",
                   n.chains = nc,
-                  n.adapt = 1000,
-                  n.update = 1000,
+                  n.adapt = 2000,
+                  n.update = 2000,
                   thin = ni/1000,
                   n.iter = ni) 
 
 jm_summ <- MCMCsummary(jm)
 
-saveRDS(jm, "output/reduced-jm.rds")
-saveRDS(jm_summ, "output/reduced-jm_summ.rds")
+saveRDS(jm, "output/reduced_jm.rds")
+saveRDS(jm_summ, "output/reduced_jmsumm.rds")
 
 # View JAGS output --------------------------------------------------------
 
-jm <- readRDS("output/reduced-jm.rds")
-jm_summ <- readRDS("output/reduced-jm_summ.rds")
+jm <- readRDS("output/reduced_jm.rds")
+jm_summ <- readRDS("output/reduced_jmsumm.rds")
 # Did model converge?
 hist(jm_summ$Rhat, breaks=40)
 jm_summ <- rownames_to_column(jm_summ)
 
 ### Look at raw numbers
 # THETA
-red_theta_summ <- MCMCsummary(jm, params = 'Theta', round=2)
+red_theta_summ <- MCMCsummary(jm, params = 'Theta')
 red_theta_summ <- rownames_to_column(red_theta_summ)
-saveRDS(red_theta_summ, "output/reduced-theta_summ.rds")
+saveRDS(red_theta_summ, "output/reduced_theta_summ.rds")
 #red_theta_summ <- readRDS("output/reduced-theta_summ.rds")
 
 # Visualize theta
@@ -218,7 +204,7 @@ for (i in 1:ncol(alpha)) {
 theta_prior$value <- value_vec
 theta_prior$index <- as.character(theta_prior$index)
 
-full_model <- readRDS("output/jm.rds")
+full_model <- readRDS("output/full_jm.rds")
 full_theta_post_mat <- MCMCchains(full_model,params="Theta")
 full_post_df <- as.data.frame(full_theta_post_mat) %>%
   pivot_longer(colnames(full_theta_post_mat),names_to="index") %>%
@@ -228,10 +214,10 @@ theta_df <- rbind(theta_prior, reduced_post_df, full_post_df)
 
 # Plot matrix of theta prior and poserior densities
 png("figures/comparedensities.png")
-print(ggplot(theta_df %>% filter(index==c("Theta[1,1]","Theta[1,2]","Theta[1,3]",
-                                          "Theta[2,1]","Theta[2,2]",
-                                          "Theta[2,3]","Theta[3,1]",
-                                          "Theta[3,2]","Theta[3,3]")), 
+print(ggplot(theta_df %>% filter(index==c(#"Theta[45,45]","Theta[45,46]","Theta[45,47]","Theta[45,48]",
+                                          "Theta[46,46]","Theta[46,47]","Theta[46,48]",
+                                          "Theta[47,46]","Theta[47,47]","Theta[47,48]",
+                                          "Theta[48,46]","Theta[48,47]","Theta[48,48]")), 
              aes(x=value,y=..scaled..,fill=model)) +
         geom_density( alpha=0.4,color=NA) + 
         facet_wrap( ~ index, scales="free_x") +
@@ -244,7 +230,7 @@ dev.off()
 # Consider the added value of full occupancy model vs just misclass model  
 red_theta_df
 
-full_theta <- readRDS("output/theta_summ.rds")
+full_theta <- readRDS("output/full_theta_summ.rds")
 full_theta_df <- data.frame(expert_index = rep(1:dim(alpha)[1], dim(alpha)[2]) ,
                        paramorph_index = rep(1:dim(alpha)[2], each = dim(alpha)[1]),
                        expert_sciname = rep(rownames, dim(alpha)[2]),
@@ -256,34 +242,55 @@ full_theta_df$para_morph = factor(full_theta_df$para_morph, levels=colnames)
 theta_med_diff_df <- red_theta_df %>%
   rename(red_theta_med = theta_median) %>%
   left_join(full_theta_df %>% select(expert_sciname, para_morph, full_theta_med = theta_median)) %>%
-  mutate(median_diff = full_theta_med - red_theta_med)
+  mutate(median_diff = full_theta_med - red_theta_med,
+         diff_pos = ifelse(median_diff == 0, NA, ifelse(median_diff > 0, T, F)))
 
 png("figures/thetadifference.png", width=850, height=600)
-print(ggplot(theta_med_diff_df, aes(x=para_morph, y=expert_sciname, fill= median_diff)) + 
+print(ggplot(theta_med_diff_df, aes(x=para_morph, y=expert_sciname, fill= diff_pos)) + 
   geom_tile() +
-  #scale_fill_gradientn(colours = pal,) +
-  scale_fill_gradient2(midpoint = 0, low = "darkblue", mid = "white",
-                        high = "red", "Posterior\nmedian\ndifference") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    scale_fill_manual(values = c("blue", "red"), "Full > Reduced \nTheta Median") +
   xlab("Parataxonomist ID") + ylab("Expert Taxonomist ID") +
   scale_y_discrete(limits = rev(levels(as.factor(theta_med_diff_df$expert_sciname)))))
 dev.off()
 
+
+
 # Compare precision between reduced and full model
 # Scatterplot of 95% CI widths (x-axis full, y-axis reduced)  
-red_theta_summ <- readRDS("output/reduced-theta_summ.rds") %>%
+red_theta_summ <- readRDS("output/reduced_theta_summ.rds") %>%
   rename(top = '97.5%', bottom= '2.5%') %>%
   mutate(redCIwidth = top - bottom )
-full_theta <- readRDS("output/theta_summ.rds")%>%
+full_theta <- readRDS("output/full_theta_summ.rds")%>%
   rownames_to_column() %>%
   rename(top = '97.5%', bottom= '2.5%') %>%
   mutate(fullCIwidth = top - bottom ) %>%
-  left_join(red_theta_summ %>% select(rowname,redCIwidth))
+  left_join(red_theta_summ %>% dplyr::select(rowname,redCIwidth))
 
-png("figures/CIwidthcomparison.png")
-print(ggplot(full_theta) +
-  geom_point(aes(x=fullCIwidth, y=redCIwidth)) +
+ggplot(full_theta) +
+  geom_point(aes(x=fullCIwidth, y=redCIwidth), alpha=0.4) +
   xlab("Full Model CI width") + ylab("Reduced Model CI width") +
-  xlim(c(0,0.1)) + ylim(c(0,0.1)) +
-  geom_abline(a=0,b=1))
-dev.off()
+  xlim(c(0,0.11)) + ylim(c(0,0.11)) +
+  geom_abline(intercept=0,slope=1)
+ggsave("figures/CIwidthcomparison.png")
+
+
+
+# Median
+
+red_theta_summ <- readRDS("output/reduced_theta_summ.rds") %>%
+  mutate(model="reduced")
+theta_medians <- readRDS("output/full_theta_summ.rds")%>%
+  rownames_to_column() %>%
+  mutate(model="full") %>%
+  full_join(red_theta_summ) %>%
+  as_tibble()
+
+theta_medians %>%
+  dplyr::select(rowname, model, "50%") %>%
+  pivot_wider(names_from=model, values_from="50%") %>%
+  ggplot() +
+  geom_point(aes(x=full, y=reduced), alpha=0.4) +
+  xlab("Full Model Median") + ylab("Reduced Model Median") +
+  #xlim(c(0,0.11)) + ylim(c(0,0.11)) +
+  geom_abline(intercept=0,slope=1)

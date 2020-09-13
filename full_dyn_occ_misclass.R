@@ -11,6 +11,8 @@ library(patchwork)
 library(ggmcmc)
 library(readr)
 library(ggplot2)
+library(gridExtra) #grid.arrange()
+library(boot) #inverse logit
 options(digits = 3)
 
 # Load NEON Niwot Ridge carabid data 
@@ -26,20 +28,7 @@ expert_pinned_df <- expert_df %>%
   left_join(pinned_df %>% 
               dplyr::select(individualID, subsampleID, 
                             para_morph_combo = scimorph_combo))
-
-# subsample aRw+8bWvW/wOIENap0etmXiCq6V1RZPfCkRcy1w8BLk= had 
-# 6 individuals sorted, but 8 pinned and expertly identified. 
-# This is the only subsample with less sorted individuals than expertly ID'ed
-# As a workaround, we'll remove two expertly identified inidividuals
-# Update, this should be fixed in the NEON data portal week of 8/24
-removed_inds <- expert_pinned_df %>%
-  filter(subsampleID == "aRw+8bWvW/wOIENap0etmXiCq6V1RZPfCkRcy1w8BLk=") %>%
-  pull(individualID) %>%
-  tail(2)
-expert_pinned_df <- expert_pinned_df %>%
-  filter(!(individualID %in% removed_inds))
-
-rm(expert_df, pinned_df, removed_inds)
+rm(expert_df, pinned_df)
 
 
 # List 1) the unique expert taxonomist ID's and 2) the parataxonomist IDs that the
@@ -231,21 +220,22 @@ jm <- jags.parfit(cl = cl,
                              "lambda", "Theta",
                              "eps_site", "eps_spec", "Tau_spec", "Tau_site",
                              "log_growth", "turnover"),
-                  model = "neon_dynamic_disagg_multisp_JAGS.txt",
+                  model = "full_dyn_occ_misclass_JAGS.txt",
                   n.chains = nc,
-                  n.adapt = 5000,
-                  n.update = 5000,
+                  n.adapt = 2000,
+                  n.update = 2000,
                   thin = ni/1000,
                   n.iter = ni) 
+
 dir.create("output", showWarnings = FALSE)
-saveRDS(jm, "output/jm3.rds")
 jm_summ <- MCMCsummary(jm)
-saveRDS(jm_summ, "output/jm_summ3.rds")
+saveRDS(jm, "output/full_jm.rds")
+saveRDS(jm_summ, "output/full_jmsumm.rds")
 
 # View JAGS jmput --------------------------------------------------------
 
-jm <- readRDS("output/jm.rds")
-jm_summ <- readRDS("output/jm_summ.rds")
+jm <- readRDS("output/full_jm.rds")
+jm_summ <- readRDS("output/full_jmsumm.rds")
 
 # Did model converge?
 hist(jm_summ$Rhat, breaks=40)
@@ -255,13 +245,17 @@ range(jm_summ$Rhat, na.rm=TRUE)
 jm_summ <- rownames_to_column(jm_summ)
 jm_summ %>% filter(Rhat > 1.1)
 
-#MCMCtrace(jm, params = paste0('eps_spec\\[1,4\\]'), type = 'both', ind = F, pdf=F, ISB=F, Rhat=T) 
+MCMCsummary(jm, params = paste0('Theta\\[48,66\\]'), ISB=F, Rhat=T) 
+MCMCsummary(jm, params = paste0('Theta\\[48,48\\]'), ISB=F, Rhat=T) 
+
+MCMCsummary(jm, params = paste0('Theta\\[46,67\\]'), ISB=F, Rhat=T)
+MCMCsummary(jm, params = paste0('Theta\\[46,46\\]'), ISB=F, Rhat=T)
 
 # Look at raw numbers
 # theta
-theta_summ <- MCMCsummary(jm, params = 'Theta', round=2)
-saveRDS(theta_summ, "output/theta_summ.rds")
-theta_summ <- readRDS("output/theta_summ.rds")
+theta_summ <- MCMCsummary(jm, params = 'Theta')
+saveRDS(theta_summ, "output/full_theta_summ.rds")
+theta_summ <- readRDS("output/full_theta_summ.rds")
 hist(theta_summ$Rhat)
 hist(theta_summ$mean)
 range(theta_summ$Rhat, na.rm=TRUE)
@@ -290,14 +284,6 @@ print(ggplot(theta_df, aes(x=para_morph, y=expert_sciname, fill= theta_median)) 
   xlab("Parataxonomist ID") + ylab("Expert Taxonomist ID") +
   scale_y_discrete(limits = rev(levels(as.factor(theta_df$expert_sciname)))))
 dev.off()
-
-# phi - survival probability
-MCMCsummary(jm, params = 'logit_phi', round=2)
-MCMCtrace(jm, params = 'logit_phi', type = 'trace', ind = F, pdf=F)
-
-# gamma - colonization probability
-MCMCsummary(jm, params = 'logit_gamma', round=2)
-MCMCtrace(jm, params = 'logit_gamma', type = "trace", ind = F, pdf=F)
 
 # psi - occupancy prob.
 (psi_summary <- MCMCsummary(jm, params = 'psi', round=2))
@@ -535,47 +521,119 @@ wrap_plots(
 ggsave("figures/spec-level-ranefs.png", width = 7, height = 5)
 
 
+# phi - survival probability
+logit_phi_summary <- MCMCsummary(jm, params = 'logit_phi', round=2)
+MCMCtrace(jm, params = 'logit_phi', type = 'trace', ind = F, pdf=F)
 
+# gamma - colonization probability
+logit_gamma_summary <- MCMCsummary(jm, params = 'logit_gamma', round=2)
+MCMCtrace(jm, params = 'logit_gamma', type = "trace", ind = F, pdf=F)
 
-# lambda - expected abundance, given occupancy, dim: nsite x nsurv x nspec x nyear
-MCMCsummary(jm, params = 'lambda', round=2) #takes 5ish min
+# lambda - expected abundance, given occupancy
+lambda_summary <- MCMCsummary(jm, params = 'lambda', round=2)
+MCMCsummary(jm, params = 'lambda', round=2) 
+
+# Growth
+log_growth_summary <- MCMCsummary(jm, params = 'log_growth', round=2)
+MCMCsummary(jm, params = 'log_growth', round=2) #takes 5ish min
+
+# Turnover
+turnover_summary <- MCMCsummary(jm, params = 'turnover', round=2)
+MCMCsummary(jm, params = 'turnover', round=2) #takes 5ish min
 
 # Z
 MCMCsummary(jm, params = 'Z', round=2)
 MCMCtrace(jm, params = 'Z', type = 'density', ind = F, pdf=F)
 
 
-# Look at psi, phi, gamma, growth, turnover, n.occ graphically
-species <- as.character(unique(sample_dat$para_sciname))
-for (k in 1:length(species)) {
-    k_spec <- species[k]
-    
-    p1 <- ggplot(data = sample_dat %>% filter(para_sciname == k_spec)) + 
-        geom_col(aes(x=collectDate,y=sp_abund)) +
-        ggtitle(k_spec) + xlab("Collection Date") + ylab("Abundance")
-    p2 <- ggplot(data = left_join(sample_dat %>% dplyr::select(col_year) %>% distinct(),
-                                  sample_dat %>% filter(para_sciname==k_spec, sp_abund > 0) %>% 
-                                      group_by(col_year) %>% 
-                                      summarize(n_plots=n_distinct(plotID)))) + 
-        geom_line(aes(x=col_year, y=n_plots),) +
-        geom_line(aes(x=col_year,y=jm$mean$n.occ[k,]),col="red") +
-        annotate("text", x=2017, y=50, label = "Predicted occupied (n.occ)", col="red") +
-        annotate("text", x=2017, y=45, label = "Observed") +
-        ggtitle("Site occupancy/detection") + xlab("Year") + ylab("Number of sites")
-    p3 <- ggplot() + geom_line(aes(x=unique(sample_dat$col_year),
-                                   y=jm$mean$psi[k,]), col="red") +
-        ggtitle("Occupancy (psi)") + xlab("Year") + ylab("Probability") + ylim(c(0,1))
-    p4 <- ggplot() + 
-        geom_line(aes(x=unique(sample_dat$col_year),y=jm$mean$growth[k,]),col="blue") + 
-        annotate("text", x=2017, y=0.6, label = "Growth", col="blue") +
-        geom_line(aes(x=unique(sample_dat$col_year),y=c(jm$mean$turnover[k,],NA)),col="darkgreen") + 
-        annotate("text", x=2017, y=0.5, label = "Turnover", col="darkgreen") +
-        geom_hline(yintercept=jm$mean$phi[k],col="purple") + 
-        annotate("text", x=2017, y=0.4, label = "Survival (phi)", col="purple") +
-        geom_hline(yintercept=jm$mean$gamma[k],col="orange") + 
-        annotate("text", x=2017, y=0.3, label = "Colonization (gamma)", col="orange") +
-        ggtitle("Demographic rates") + xlab("Year") + ylab("Rate") + ylim(c(0,1))
-    
-    grid.arrange(p1,p2,p3,p4,nrow=2)
-}
-par(mfrow=c(1,1)) #reset plotting
+# Visualize persistence and colonization
+rownames_to_column(logit_phi_summary) %>%
+      as_tibble %>%
+      separate("rowname", into = c("site", "species"), sep = ",") %>%
+      mutate_at(c('site', 'species'), readr::parse_number) %>%
+      mutate(site = dimnames(z.init)[[1]][site], 
+             species = dimnames(z.init)[[2]][species],
+             mean = inv.logit(mean),
+             param="Persistence") %>%
+      rbind( rownames_to_column(logit_gamma_summary) %>%
+                   as_tibble %>%
+                   separate("rowname", into = c("site", "species"), sep = ",") %>%
+                   mutate_at(c('site', 'species'), readr::parse_number) %>%
+                   mutate(site = dimnames(z.init)[[1]][site], 
+                          species = dimnames(z.init)[[2]][species],
+                          mean = inv.logit(mean),
+                          param="Colonization") ) %>%
+      ggplot(aes(site, mean, col=param)) + 
+      geom_pointrange(aes(ymin = inv.logit(`2.5%`), ymax = inv.logit(`97.5%`)), alpha=0.5) +
+      facet_wrap(~species) + 
+      xlab("Site") + 
+      ylab("Rate") + 
+      theme_minimal()
+
+# Visualize growth and turnover
+rownames_to_column(log_growth_summary) %>%
+  as_tibble %>%
+  separate("rowname", into = c("site", "species", "year"), sep = ",") %>%
+  mutate_at(c('site', 'species', 'year'), readr::parse_number) %>%
+  rename(perc2.5 = "2.5%",
+         perc97.5 = '97.5%') %>%
+  mutate(site = dimnames(z.init)[[1]][site], 
+         species = dimnames(z.init)[[2]][species],
+         year = dimnames(z.init)[[3]][year],
+         mean = exp(mean),
+         perc2.5 = exp(perc2.5),
+         perc97.5 = exp(perc97.5),
+         param="Growth") %>%
+  # rbind( rownames_to_column(turnover_summary) %>%
+  #          as_tibble %>%
+  #          separate("rowname", into = c("site", "species", "year"), sep = ",") %>%
+  #          mutate_at(c('site', 'species', 'year'), readr::parse_number) %>%
+  #          rename(perc2.5 = "2.5%",
+  #                 perc97.5 = '97.5%') %>%
+  #          mutate(site = dimnames(z.init)[[1]][site], 
+  #                 species = dimnames(z.init)[[2]][species], 
+  #                 year = dimnames(z.init)[[3]][year],
+  #                 param="Turnover" ) ) %>%
+  ggplot(aes(year, mean, group = site, col=param)) + 
+  geom_line() + 
+  facet_wrap(~species) + 
+  geom_ribbon(aes(ymin = perc2.5, ymax = perc97.5), color = NA, alpha = .05) +
+  geom_hline(yintercept = 1) +
+  xlab("Year") + 
+  ylab("Rate") + 
+  theme_minimal()
+
+
+rownames_to_column(turnover_summary) %>%
+           as_tibble %>%
+           separate("rowname", into = c("site", "species", "year"), sep = ",") %>%
+           mutate_at(c('site', 'species', 'year'), readr::parse_number) %>%
+           rename(perc2.5 = "2.5%",
+                  perc97.5 = '97.5%') %>%
+           mutate(site = dimnames(z.init)[[1]][site],
+                  species = dimnames(z.init)[[2]][species],
+                  year = dimnames(z.init)[[3]][year],
+                  param="Turnover" )  %>%
+  ggplot(aes(year, mean, group = site, col=param)) + 
+  geom_line() + 
+  facet_wrap(~species) + 
+  geom_ribbon(aes(ymin = perc2.5, ymax = perc97.5), color = NA, alpha = .05) +
+  geom_hline(yintercept = 1) +
+  xlab("Year") + 
+  ylab("Rate") + 
+  theme_minimal()
+
+# Visualize encounter rate, lambda
+rownames_to_column(lambda_summary) %>%
+  as_tibble %>%
+  separate("rowname", into = c("site", "species"), sep = ",") %>%
+  mutate_at(c('site', 'species'), readr::parse_number) %>%
+  mutate(site = dimnames(z.init)[[1]][site], 
+         species = dimnames(z.init)[[2]][species]) %>%
+  ggplot(aes(site, mean)) + 
+  geom_pointrange(aes(ymin = (`2.5%`), ymax = (`97.5%`)), alpha=0.5) +
+  facet_wrap(~species) + 
+  xlab("Site") + 
+  ylab("Encounter Rate") + 
+  theme_minimal()
+  
