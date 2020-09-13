@@ -1,5 +1,6 @@
-# This script compiles carabid abundance and richness data with variables
-# describing layers of data aggregation as well as environmental variables. 
+# This script downloads and cleans raw NEON carabid data. Here we compile
+# carabid abundance and richness data with variables describing layers of data
+# aggregation.
 
 library(neonUtilities)
 library(dplyr)
