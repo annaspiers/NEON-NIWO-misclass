@@ -81,6 +81,7 @@ return_jags_input <- function(model, alpha_nondiag = 2, alpha_diag = 200) {
         }
         para_new <- rbind(para_new, temp_para_df)
     }
+    para_new <- para_new %>% as_tibble()
     
     ## Sanity check
     assertthat::assert_that(sum(!is.na(para_new$exp_sciname)) == nrow(expert_pinned_df))
