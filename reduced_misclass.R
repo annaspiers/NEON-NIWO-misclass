@@ -55,10 +55,10 @@ jm_summ <- rownames_to_column(jm_summ)
 
 ### Look at raw numbers
 # THETA
-red_theta_summ <- MCMCsummary(jm, params = 'Theta')
-red_theta_summ <- rownames_to_column(red_theta_summ)
+red_theta_summ <- MCMCsummary(jm, params = 'Theta') %>%
+  rownames_to_column()
 saveRDS(red_theta_summ, "output/reduced_theta_summ.rds")
-#red_theta_summ <- readRDS("output/reduced-theta_summ.rds")
+red_theta_summ <- readRDS("output/reduced_theta_summ.rds")
 
 # Visualize theta
 red_theta_df <- data.frame(expert_index = rep(1:dim(alpha)[1], dim(alpha)[2]) ,
@@ -147,9 +147,14 @@ print(ggplot(theta_med_diff_df, aes(x=para_morph, y=expert_sciname, fill= diff_p
   scale_y_discrete(limits = rev(levels(as.factor(theta_med_diff_df$expert_sciname)))))
 dev.off()
 
+source("source/jags_input.R")
+jagsinput <- return_jags_input("full")
+list2env(jagsinput, .GlobalEnv)
+L_full <- L
+y_df_full <- y_df
+rm(jagsinput, L, y_df)
 
-
-# Compare precision between reduced and full model
+# Compare theta precision between reduced and full model
 # Scatterplot of 95% CI widths (x-axis full, y-axis reduced)  
 red_theta_summ <- readRDS("output/reduced_theta_summ.rds") %>%
   rename(top = '97.5%', bottom= '2.5%') %>%
@@ -160,17 +165,23 @@ full_theta <- readRDS("output/full_theta_summ.rds")%>%
   mutate(fullCIwidth = top - bottom ) %>%
   left_join(red_theta_summ %>% dplyr::select(rowname,redCIwidth))
 
-ggplot(full_theta) +
-  geom_point(aes(x=fullCIwidth, y=redCIwidth), alpha=0.4) +
+full_theta %>%
+  separate("rowname", into = c("expertID_idx", "parataxID_idx"), sep = ",", remove=F) %>%
+  mutate_at(c('expertID_idx', 'parataxID_idx'), readr::parse_number) %>%
+  left_join(y_df_full %>%
+              count(parataxID_idx) ) %>%
+  as_tibble() %>%
+ggplot(aes(x=fullCIwidth, y=redCIwidth, col=log(n))) +
+  geom_point() +
+  geom_text(aes(label=ifelse(parataxID_idx==expertID_idx,rowname,""),hjust=0,vjust=0)) +
+  scale_color_gradient(low = "orange", high = "darkblue")  +
   xlab("Full Model CI width") + ylab("Reduced Model CI width") +
   xlim(c(0,0.11)) + ylim(c(0,0.11)) +
   geom_abline(intercept=0,slope=1)
 ggsave("figures/CIwidthcomparison.png")
 
 
-
-# Median
-
+# Compare theta median between reduced and full model
 red_theta_summ <- readRDS("output/reduced_theta_summ.rds") %>%
   mutate(model="reduced")
 theta_medians <- readRDS("output/full_theta_summ.rds")%>%
@@ -178,12 +189,23 @@ theta_medians <- readRDS("output/full_theta_summ.rds")%>%
   mutate(model="full") %>%
   full_join(red_theta_summ) %>%
   as_tibble()
-
 theta_medians %>%
   dplyr::select(rowname, model, "50%") %>%
   pivot_wider(names_from=model, values_from="50%") %>%
-  ggplot() +
-  geom_point(aes(x=full, y=reduced), alpha=0.4) +
+  separate("rowname", into = c("expertID_idx", "parataxID_idx"), sep = ",", remove=F) %>%
+  mutate_at(c('expertID_idx', 'parataxID_idx'), readr::parse_number) %>%
+  #left_join(y_df_full %>% mutate(match=parataxID_idx==expertID_idx) %>% count(expertID_idx,parataxID_idx)) %>%
+  left_join(y_df_full %>%
+            count(parataxID_idx) ) %>%
+  #left_join(y_df_full %>%
+  #            mutate(expyes = ifelse(is.na(expertID_idx),1,0)) %>% #get 1 if no expID
+  #            count(parataxID_idx) ) %>%
+  ggplot(aes(x=full, y=reduced, col=log(n))) +
+  geom_point() +
+  #geom_text(aes(label=ifelse(parataxID_idx==expertID_idx,rowname,"")),hjust=0,vjust=0) +
+  #geom_text(aes(label=rowname),hjust=0,vjust=0) +
+  geom_text(aes(label=ifelse(log(n)>4,rowname,"")),hjust=0,vjust=0) +
+  scale_color_gradient(low = "orange", high = "darkblue")  +
   xlab("Full Model Median") + ylab("Reduced Model Median") +
   #xlim(c(0,0.11)) + ylim(c(0,0.11)) +
   geom_abline(intercept=0,slope=1)
