@@ -2,7 +2,7 @@ Figure output for manuscript
 
 **Brainstorming 10 Aug 2020**  
 
-1. Theta confusion matrix (Visualizing misclassification) - compare using mean vs median  
+1. [X] Theta confusion matrix (Visualizing misclassification)   
 
 2. Prior and posterior density for Theta  
     * Density plots (colors correspond to prior, full model, reduced model)  
@@ -19,6 +19,6 @@ Figure output for manuscript
     * Time-series of estimated occupancy probability by species  
     
 4. Conceptual figure/overview approach  
-    * NEON data collection -> parataxonomist IDs/counting -> expert taxonomist IDs (subset)  
-    * DAG   
+    * [X] NEON data collection -> parataxonomist IDs/counting -> expert taxonomist IDs (subset) 
+    * [X] DAG   
 
