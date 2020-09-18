@@ -11,7 +11,6 @@ library(patchwork)
 library(ggmcmc)
 library(readr)
 library(ggplot2)
-library(mvc) #dcat()
 
 # Load jags input for full model
 source("source/jags_input.R")
@@ -134,7 +133,8 @@ full_y_out <- MCMCchains(full_val_jm, params = 'y') %>%
   mutate_at(c('full_individual'), readr::parse_number) %>%
   mutate(full_individual=as.character(full_individual)) %>%
   left_join(holdout %>% dplyr::select(full_individual, trueID_idx)) %>%
-  mutate(match = (predID_idx==trueID_idx))
+  mutate(match = (predID_idx==trueID_idx), 
+         model = "full")
 
 reduced_y_out <- MCMCchains(reduced_val_jm, params = 'y') %>%
   as_tibble() %>%
@@ -144,59 +144,83 @@ reduced_y_out <- MCMCchains(reduced_val_jm, params = 'y') %>%
   mutate_at(c('reduced_individual'), readr::parse_number) %>%
   mutate(reduced_individual=as.character(reduced_individual)) %>%
   left_join(holdout %>% dplyr::select(reduced_individual, trueID_idx)) %>%
-  mutate(match = (predID_idx==trueID_idx))
+  mutate(match = (predID_idx==trueID_idx), 
+         model = "reduced")
 
- # Calculate validation metrics by species
-val_array <- array(NA, dim=c(length(unique(full_y_out$trueID_idx)), 4, length(unique(full_y_out$draw))),
-                      dimnames=list(full_y_out %>% distinct(trueID_idx) %>% arrange(trueID_idx) %>% pull(trueID_idx),
-                                    c("accuracy","recall","precision","F1"),
-                                    unique(full_y_out$draw)))
 
-# Terribly inefficient but gets the job done
-for (i in 1:length(unique(full_y_out$draw))) {
-  tempdf <- full_y_out %>% filter(draw == i)
-  cm <- reshape2::dcast(full_y_out,  trueID_idx ~ predID_idx) %>%
-    column_to_rownames(var="trueID_idx")
+# Generate confusion matrices for each posterior draw ---------------------
+max_draw <- 2000
+all_combos <- expand.grid(draw = 1:max(full_y_out$draw), 
+                          predID_idx = 1:max(y_df_full$parataxID_idx), 
+                          trueID_idx = 1:max(y_df_full$parataxID_idx, 
+                                             na.rm = TRUE))  %>%
+  as_tibble %>%
+  filter(draw < max_draw)
+
+full_cm <- full_y_out %>%
+  filter(draw < max_draw) %>%
+  count(draw, predID_idx, trueID_idx) %>%
+  full_join(all_combos) %>% # fill in implicit zeros
+  reshape2::acast(draw ~ trueID_idx ~ predID_idx, 
+                  value.var = "n", 
+                  fill = 0)
+
+reduced_cm <- reduced_y_out %>%
+  filter(draw < max_draw) %>%
+  count(draw, predID_idx, trueID_idx) %>%
+  full_join(all_combos) %>% # fill in implicit zeros
+  reshape2::acast(draw ~ trueID_idx ~ predID_idx, 
+                  value.var = "n", 
+                  fill = 0)
+
+assertthat::assert_that(!any(is.na(full_cm)))                # no NA vals
+assertthat::assert_that(dim(full_cm)[2] == dim(cm_array)[3])  # square matrices
+
+get_metrics <- function(confusion_matrix) {
+  # confusion_matrix is a (true, pred) square matrix
+  true_positives <- diag(confusion_matrix)
+  false_positives <- colSums(confusion_matrix) - diag(confusion_matrix)
+  false_negatives <- rowSums(confusion_matrix) - diag(confusion_matrix)
+  precision <- true_positives / (true_positives + false_positives)
+  recall <- true_positives / (true_positives + false_negatives)
+  f1 <- 2 * (precision * recall) / (precision + recall)
+  tibble(parataxID_idx = 1:length(f1),
+         precision = precision, 
+         recall = recall, 
+         f1 = f1)
+}
+
+full_metrics <- apply(full_cm, 1, get_metrics) %>%
+  bind_rows(.id = "draw") %>%
+  mutate(model = "full")
+reduced_metrics <- apply(reduced_cm, 1, get_metrics) %>%
+  bind_rows(.id = "draw") %>%
+  mutate(model = "reduced")
+
+# compare distribution of macro F1 (the average of species-specific F1 scores)
+full_join(full_metrics, reduced_metrics) %>%
+  group_by(draw, model) %>%
+  summarize(macro_f1 = mean(f1, na.rm = TRUE)) %>%
+  ggplot(aes(macro_f1, fill = model)) + 
+  geom_density(alpha = .5)
   
-  for (true in dimnames(val_array)[[1]]) {
-    val_array[true,"accuracy",i] <- tempdf %>% 
-      group_by(trueID_idx) %>% 
-      summarise(accuracy = mean(match)) %>% 
-      filter(trueID_idx==as.numeric(true)) %>%
-      pull(accuracy)
-    val_array[true,"recall",i] <- cm[true,as.numeric(true)] / sum(cm[true,])
-    val_array[true,"precision",i] <- cm[true,as.numeric(true)] / sum(cm[,as.numeric(true)])
-    val_array[true,"F1",i] <- 2*val_array[true,"recall",i]*val_array[true,"precision",i]/
-      (val_array[true,"recall",i] + val_array[true,"precision",i])
-  }
-}
-validation_metrics <- function(df) { #AIS rewrite to handle one draw_ID df at a time
-    cm <- reshape2::dcast(df,  trueID_idx ~ predID_idx) %>%
-      column_to_rownames(var="trueID_idx")
-    
-      acc <- df %>% 
-        group_by(trueID_idx) %>% 
-        summarise(accuracy = mean(match)) %>% 
-        pull(accuracy)
-      recall <- cm[as.character(df$trueID_idx),df$trueID_idx] / sum(cm[as.character(df$trueID_idx),])
-      precision <- cm[as.character(df$trueID_idx),df$trueID_idx] / sum(cm[,df$trueID_idx])
-      F1 <- 2*recall*precision/ (recall + precision)
-      val_list <- list(acc, recall, precision, F1)
-      return(val_list)
-}
-full_y_out %>% 
-  #mutate(draw_ID = paste0(draw,"_",trueID_idx)) %>%
-  mutate(fdraw = as.factor(draw)) %>%
-  split(.$fdraw) %>%
-  lapply(validation_metrics())
 
-full_y_out %>%
-  group_by(draw) %>%
-  summarize(recall = sum(match)/(n()))
-# Accuracy
-# Recall - the number of correctly predicted spA out of the number of spA
-# Precision - the number of correctly predicted spA out of all predicted spA individuals
-# F1 score
+# compare f1 scores by species for each model
+# note that these plots probably aren't worth including, but still they 
+# do highlight which species have the biggest differences in performance
+# (again, the substantial differences show up for the common species)
+full_join(full_metrics, reduced_metrics) %>%
+  select(draw, parataxID_idx, f1, model) %>%
+  pivot_wider(names_from = "model", values_from = "f1") %>%
+  na.omit %>%
+  left_join(count(y_df_full, parataxID_idx, parataxID)) %>%
+  ggplot(aes(x = full, y = reduced, color = n)) + 
+  geom_point(alpha = .1) + 
+  facet_wrap(~forcats::fct_reorder(parataxID, reduced - full)) +
+  geom_abline(linetype = "dashed") + 
+  xlab("Full model F1 score") + 
+  ylab("Reduced model F1 score") + 
+  scale_color_viridis_c(trans = "log10", "Individuals")
 
 
 ## Accuracy
@@ -237,16 +261,12 @@ reduced_y_out %>%
 
 full_y_out %>% 
   group_by(draw, trueID_idx) %>%
-  summarize(accuracy=mean(match),
-            recall=sum(match)/sum(sum(match)+sum(full_y_out %>% filter())),
-            prec=sum(match)/sum(sum(match)+sum(predID_idx))) %>%
-  mutate(model="full") %>%
-  rbind(reduced_y_out %>% 
+  summarize(accuracy=mean(match), 
+            model = 'full') %>%
+  full_join(reduced_y_out %>% 
           group_by(draw, trueID_idx) %>%
-          summarize(accuracy=mean(match),
-                    recall=sum(match)/sum(sum(match)+sum(trueID_idx)),
-                    prec=sum(match)/sum(sum(match)+sum(predID_idx))) %>%
-          mutate(model="reduced")) %>%
+          summarize(accuracy=mean(match), 
+                    model = 'reduced')) %>%
   mutate(trueID = rownames[trueID_idx]) %>%
   ggplot(aes(x=accuracy, col=model)) +
   geom_density() +
@@ -263,19 +283,33 @@ theta_summ_full_val <- MCMCchains(full_val_jm, params = 'Theta') %>%
   pivot_longer(cols=-draw,names_to="index",values_to="value") %>%
   separate("index", into = c("trueID_idx", "predID_idx"), sep = ",") %>%
   mutate_at(c('trueID_idx', 'predID_idx'), readr::parse_number) 
-holdout %>%
-  slice(rep(1:n(), each = 4000)) %>%
-  mutate(draw = rep(1:4000, nrow(holdout))) %>%
-  sample_frac(0.00001) %>%
-  rowwise() %>%
-  #AIS left_join
-  #AIS try rowwise
-  mutate(loglik = (log(theta_summ_full_val %>% 
-           dplyr::filter(draw==draw & trueID_idx==trueID_idx & predID_idx==predID_idx) %>% #AIS this is returng 16,000
-           pull(value))) %>%
-  group_by(draw) %>%
-  summarize(hldt_loglik = sum())
-#AIS visualize       
 
-#dcat(, theta row for a given species)
-  # Compute overall (across all species) or on a species-by-species basis
+theta_summ_reduced_val <- MCMCchains(reduced_val_jm, params = 'Theta') %>% 
+  as_tibble() %>%
+  mutate(draw=1:n()) %>%
+  pivot_longer(cols=-draw,names_to="index",values_to="value") %>%
+  separate("index", into = c("trueID_idx", "predID_idx"), sep = ",") %>%
+  mutate_at(c('trueID_idx', 'predID_idx'), readr::parse_number) 
+
+
+full_loglik <- holdout %>%
+  count(trueID_idx, predID_idx) %>%
+  left_join(theta_summ_full_val) %>%
+  group_by(draw) %>%
+  summarize(log_lik = sum(n * log(value))) %>%
+  mutate(model = "full")
+
+
+reduced_loglik <- holdout %>%
+  count(trueID_idx, predID_idx) %>%
+  left_join(theta_summ_reduced_val) %>%
+  group_by(draw) %>%
+  summarize(log_lik = sum(n * log(value))) %>%
+  mutate(model = "reduced")
+
+
+full_join(full_loglik, reduced_loglik) %>%
+  ggplot(aes(log_lik, fill = model)) + 
+  geom_density() + 
+  xlab("Holdout log-likelihood") + 
+  ylab("Density")
