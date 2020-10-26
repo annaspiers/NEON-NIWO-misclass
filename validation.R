@@ -110,7 +110,6 @@ reduced_val_jmsumm <- readRDS("output/val_reduced_jmsumm.rds")
 hist(full_val_jmsumm$Rhat, breaks=40)
 hist(reduced_val_jmsumm$Rhat, breaks=40)
 
-
 ### Compare the validation results
 # multiclass classification problem
 
@@ -174,7 +173,7 @@ reduced_cm <- reduced_y_out %>%
                   fill = 0)
 
 assertthat::assert_that(!any(is.na(full_cm)))                # no NA vals
-assertthat::assert_that(dim(full_cm)[2] == dim(cm_array)[3])  # square matrices
+assertthat::assert_that(dim(full_cm)[2] == dim(full_cm)[3])  # square matrices
 
 get_metrics <- function(confusion_matrix) {
   # confusion_matrix is a (true, pred) square matrix
