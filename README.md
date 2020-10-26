@@ -6,8 +6,7 @@ Subdirectories
 
 data/ - raw and cleaned NEON carabid data
 
-docs/ - documentation and resources
-    index.html [](https://annaspiers.github.io/NEON-NIWO-misclass/#1) 
+docs/ - documentation and resources. https://annaspiers.github.io/NEON-NIWO-misclass/#1 
 
 figures/ - visualizations of data and model output
 
