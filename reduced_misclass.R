@@ -18,46 +18,45 @@ rm(jagsinput)
 
 # JAGS model --------------------------------------------------------------
 # Run model in JAGS. 
-jags_d <- list(K_exp = dim(alpha)[1], 
-               K_para = dim(alpha)[2],
-               alpha = alpha,
-               Ltot = sum(L), 
-               # if the individual was labeled by the expert, true ID is known
-               k = y_df$expertID_idx,
-               # for all individuals, we get paratxonomist IDs
-               y = y_df$parataxID_idx)
-JAGSinits <- function(){}
-nc <- 4
-ni <- 20000
-cl <- makeCluster(nc)
-jm <- jags.parfit(cl = cl,
-                  data = jags_d,
-                  params = c("Theta"),
-                  model = "reduced_misclass_JAGS.txt",
-                  n.chains = nc,
-                  n.adapt = 2000,
-                  n.update = 2000,
-                  thin = ni/1000,
-                  n.iter = ni) 
-
-jm_summ <- MCMCsummary(jm)
-
-saveRDS(jm, "output/reduced_jm.rds")
-saveRDS(jm_summ, "output/reduced_jmsumm.rds")
+if (!file.exists("output/reduced_jm.rds")) {
+  jags_d <- list(K_exp = dim(alpha)[1], 
+                 K_para = dim(alpha)[2],
+                 alpha = alpha,
+                 Ltot = sum(L), 
+                 # if the individual was labeled by the expert, true ID is known
+                 k = y_df$expertID_idx,
+                 # for all individuals, we get paratxonomist IDs
+                 y = y_df$parataxID_idx)
+  JAGSinits <- function(){}
+  nc <- 4
+  ni <- 20000
+  cl <- makeCluster(nc)
+  jm <- jags.parfit(cl = cl,
+                    data = jags_d,
+                    params = c("Theta"),
+                    model = "reduced_misclass_JAGS.txt",
+                    n.chains = nc,
+                    n.adapt = 2000,
+                    n.update = 2000,
+                    thin = ni/1000,
+                    n.iter = ni) 
+  
+  jm_summ <- MCMCsummary(jm)
+  red_theta_summ <- MCMCsummary(jm, params = 'Theta') %>%
+    rownames_to_column()
+    
+  saveRDS(jm, "output/reduced_jm.rds")
+  saveRDS(jm_summ, "output/reduced_jmsumm.rds")
+  saveRDS(red_theta_summ, "output/reduced_theta_summ.rds")
+}
 
 # View JAGS output --------------------------------------------------------
 
 jm <- readRDS("output/reduced_jm.rds")
 jm_summ <- readRDS("output/reduced_jmsumm.rds")
-# Did model converge?
-hist(jm_summ$Rhat, breaks=40)
-jm_summ <- rownames_to_column(jm_summ)
 
-### Look at raw numbers
-# THETA
-red_theta_summ <- MCMCsummary(jm, params = 'Theta') %>%
-  rownames_to_column()
-saveRDS(red_theta_summ, "output/reduced_theta_summ.rds")
+# theta
+
 red_theta_summ <- readRDS("output/reduced_theta_summ.rds")
 
 # Visualize theta
@@ -69,13 +68,13 @@ red_theta_df <- data.frame(expert_index = rep(1:dim(alpha)[1], dim(alpha)[2]) ,
          theta_median = red_theta_summ$"50%")
 #make para_morph a factor to force plotting in order
 red_theta_df$para_morph = factor(red_theta_df$para_morph, levels=colnames) 
+
 # Plot heatmap of theta values
 theta_med <- ggplot(red_theta_df, aes(x=para_morph, y=expert_sciname, fill= theta_median)) + 
   geom_tile() +
   scale_fill_gradient(limits=c(0,1),low="darkblue", high="white") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
   scale_y_discrete(limits = rev(levels(as.factor(red_theta_df$expert_sciname))))
-#consider on plotly: https://www.r-graph-gallery.com/79-levelplot-with-ggplot2.html
 png("figures/reduced_thetaconfusion.png", width=850, height=600)
 print(theta_med)
 dev.off()
@@ -107,12 +106,12 @@ theta_df <- rbind(theta_prior, reduced_post_df, full_post_df)
 
 # Plot matrix of theta prior and poserior densities
 png("figures/comparedensities.png")
-print(ggplot(theta_df %>% filter(index==c(#"Theta[45,45]","Theta[45,46]","Theta[45,47]","Theta[45,48]",
-                                          "Theta[46,46]","Theta[46,47]","Theta[46,48]",
+print(theta_df %>% 
+               filter(index==c("Theta[46,46]","Theta[46,47]","Theta[46,48]",
                                           "Theta[47,46]","Theta[47,47]","Theta[47,48]",
-                                          "Theta[48,46]","Theta[48,47]","Theta[48,48]")), 
-             aes(x=value,y=..scaled..,fill=model)) +
-        geom_density( alpha=0.4,color=NA) + 
+                                          "Theta[48,46]","Theta[48,47]","Theta[48,48]")) %>%
+       ggplot(aes(x=value, y=..scaled.., fill=model)) +
+        geom_density( alpha=0.6 ) +#,color=NA) + #remove color-NA to get posterior outlines
         facet_wrap( ~ index, scales="free_x") +
         #facet_wrap( ~ index) +
         #  xlim(c(0,1)) +

@@ -1,6 +1,6 @@
 # This script takes the cleaned NEON carabid data as input and returns variables
 # for JAGS data and initialization. This script includes output for the full and
-# reduced models as well as ...AIS
+# reduced models 
 
 library(tidyr) #uncount()
 library(tibble) #rownames_to_column()
