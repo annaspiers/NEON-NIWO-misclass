@@ -1,13 +1,45 @@
 # NEON-NIWO-misclass
 
-Here we model the misclassification of taxonomic identifications in the NEON carabid pitfall trap data.
+Here we develop a joint classification-occupancy model for multispecies datasets. We illustrate the model using carabid pitfall trap data from the National Ecological Observatory Network (NEON).
 
-Subdirectories
+## Prerequisites
 
-data/ - raw and cleaned NEON carabid data
+To run this compendium, you'll need R installed
 
-docs/ - documentation and resources. https://annaspiers.github.io/NEON-NIWO-misclass/#1 
 
-figures/ - visualizations of data and model output
+## Quickstart
 
-output/ - JAGS model output
+This compendium produces the article's main figures. It does not produce the paper.
+
+### Navigate to repository
+
+Download the repository. In terminal, navigate to the repository.
+
+### Execute the compendium
+
+To run the analysis run GNU Make from the terminal:
+
+```bash
+make
+```
+
+## Details
+
+Here's what's inside: 
+
+### `data/`
+
+A place for `raw/` and `clean/` data. Cleaned data are ignored by version control.
+
+### `figures/` 
+
+A location for generated figures. 
+
+### `output/` 
+
+JAGS model output
+
+### `Makefile` 
+
+This file contains instructions for how to execute the compendium. 
+
