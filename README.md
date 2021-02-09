@@ -6,8 +6,6 @@ Here we develop a joint classification-occupancy model for multispecies datasets
 
 To run this compendium, you'll need R installed
 
-<<<<<<< HEAD
-
 ## Quickstart
 
 This compendium produces the article's main figures. It does not produce the paper.
@@ -40,10 +38,11 @@ A location for generated figures.
 
 JAGS model output
 
+### `source/` 
+
+custom functions
+
 ### `Makefile` 
 
 This file contains instructions for how to execute the compendium. 
-=======
-figures/ - visualizations of data and model output
->>>>>>> 07abceed52794f4c51f3c04736c8964d8478c3ee
 
