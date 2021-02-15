@@ -1,7 +1,7 @@
 .PHONY : help clean figures
 .DEFAULT_GOAL := figures
 
-# Figures ==============================================================================================
+# Figures ===========================================================================
 
 ## figures : makes figures from main text
 figures: figures/CIwidthcomparison.png \
@@ -11,16 +11,14 @@ figures/spec-level-ranefs.png \
 figures/thetaconfusion.png \
 figures/validation.png 
 
-# Cleaning Data ========================================================================================
+# Cleaning Data ====================================================================
 
 ## Download and clean NEON data
 data/all_paratax_df.rds data/pinned_df.rds data/expert_df.rds: carabid_data_clean.R
 	R CMD BATCH carabid_data_clean.R
 
-## AIS do I need a line with source/jags_input.R as a target? it depends on the cleaned data, but what would the command be?
-## ask Hannah HM what to do if a target is its own terminal command
 
-# Analyses =============================================================================================
+# Analyses ==========================================================================
 
 ## Full joint occupancy-classification model output
 output/full_jm.rds output/full_jmsumm.rds output/full_theta_summ.rds: \
@@ -30,27 +28,30 @@ data/all_paratax_df.rds data/pinned_df.rds data/expert_df.rds
 	
 	
 ## Figures for full joint occupancy-classification model 
-figures/thetaconfusion.png: full_dyn_occ_misclass.R source/jags_input.R \
+figures/thetaconfusion.png: create_figs.R source/jags_input.R \
 data/all_paratax_df.rds data/pinned_df.rds data/expert_df.rds
-	R CMD BATCH full_dyn_occ_misclass.R
+	R CMD BATCH create_figs.R
 
-figures/site-level-ranefs.png figures/spec-level-ranefs.png: full_dyn_occ_misclass.R output/full_jm.rds 
-	R CMD BATCH full_dyn_occ_misclass.R
+figures/site-level-ranefs.png figures/spec-level-ranefs.png: \
+create_figs.R output/full_jm.rds 
+	R CMD BATCH create_figs.R
 	
 
 ## Reduced classification model output
 output/reduced_jm.rds output/reduced_jmsumm.rds output/reduced_theta_summ.rds: \
-reduced_misclass.R source/jags_input.R reduced_misclass_JAGS.txt
+reduced_misclass.R reduced_misclass_JAGS.txt source/jags_input.R \
+data/all_paratax_df.rds data/pinned_df.rds data/expert_df.rds ##output/full_jm.rds # adding output/full_jm.rds so that full.R runs before redeuced.R
 	R CMD BATCH reduced_misclass.R
 	
 	
 ## Figures comparing full and reduced models
-figures/CIwidthcomparison.png: reduced_misclass.R output/full_theta_summ.rds source/jags_input.R \
-data/all_paratax_df.rds data/pinned_df.rds data/expert_df.rds
-	R CMD BATCH reduced_misclass.R
+figures/CIwidthcomparison.png: create_figs.R output/reduced_theta_summ.rds output/full_theta_summ.rds \
+source/jags_input.R data/all_paratax_df.rds data/pinned_df.rds data/expert_df.rds
+	R CMD BATCH create_figs.R
 	
-figures/comparedensities.png: reduced_misclass.R output/full_jm.rds output/reduced_jm.rds
-	R CMD BATCH reduced_misclass.R
+figures/comparedensities.png: create_figs.R output/full_jm.rds output/reduced_jm.rds
+	R CMD BATCH create_figs.R
+
 
 ## Validation results 
 output/val_full_jm.rds output/val_full_jmsumm.rds output/val_reduced_jm.rds output/val_reduced_jmsumm.rds: \
@@ -70,13 +71,12 @@ data/all_paratax_df.rds data/pinned_df.rds data/expert_df.rds
 clean: remove-figures remove-R-outputs
 
 remove-figures:
-	rm -f *.png
-	rm -f *.pdf
+	rm -f figures/*.png
 
 remove-R-outputs:
 	rm -f *.Rout
-	rm -f *.RDS
-
+	rm -f output/*.rds
+	rm -f data/*_df.rds
 
 # Makefile help ========================================================================================
 ## help : displays this help message of targets and their actions
