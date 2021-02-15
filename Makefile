@@ -75,6 +75,7 @@ remove-figures:
 
 remove-R-outputs:
 	rm -f *.Rout
+	rm -f Rplots.pdf
 	rm -f output/*.rds
 	rm -f data/*_df.rds
 
