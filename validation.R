@@ -11,6 +11,8 @@ library(patchwork)
 library(ggmcmc)
 library(readr)
 library(ggplot2)
+library(gridExtra) #grid.arrange()
+library(cowplot) #get_legend()
 
 # Load jags input for full model
 source("source/jags_input.R")
@@ -43,61 +45,65 @@ y_df_val <- y_df_full %>%
 
 # JAGS model --------------------------------------------------------------
 # Run model in JAGS. 
-JAGSinits <- function(){ list(z = z.init) }
-nc <- 4
-ni <- 20000
-cl <- makeCluster(nc)
+if (!file.exists("output/val_full_jm.rds")) {
+  JAGSinits <- function(){ list(z = z.init) }
+  nc <- 4
+  ni <- 20000
+  cl <- makeCluster(nc)
+  
+  jags_full <- list(K_exp = dim(alpha)[1],
+                    K_para = dim(alpha)[2],
+                    nsite = dim(L_full)[1],
+                    nsurv = dim(L_full)[2],
+                    nyear = dim(L_full)[3],
+                    alpha = alpha,
+                    L = L_full,
+                    Ltot = sum(L_full),
+                    site = y_df_val$plotID_idx,
+                    year = as.numeric(as.factor(y_df_val$col_year)),
+                    k = y_df_val$expertID_idx,
+                    y = y_df_val$parataxID_idx_val,
+                    z = z.dat,
+                    R = diag(rep(1, 4)))
+  jm_full <- jags.parfit(cl = cl,
+                    data = jags_full,
+                    params = c("Theta", "y"), #we only need these two outputs for validation
+                    model = "full_dyn_occ_misclass_JAGS.txt",
+                    n.chains = nc,
+                    n.adapt = 2000,
+                    n.update = 2000,
+                    thin = ni/1000,
+                    n.iter = ni)
+  dir.create("output", showWarnings = FALSE)
+  jm_summ <- MCMCsummary(jm_full)
+  saveRDS(jm_full, "output/val_full_jm.rds")
+  saveRDS(jm_summ, "output/val_full_jmsumm.rds")
+}
 
-jags_full <- list(K_exp = dim(alpha)[1],
-                  K_para = dim(alpha)[2],
-                  nsite = dim(L_full)[1],
-                  nsurv = dim(L_full)[2],
-                  nyear = dim(L_full)[3],
-                  alpha = alpha,
-                  L = L_full,
-                  Ltot = sum(L_full),
-                  site = y_df_val$plotID_idx,
-                  year = as.numeric(as.factor(y_df_val$col_year)),
-                  k = y_df_val$expertID_idx,
-                  y = y_df_val$parataxID_idx_val,
-                  z = z.dat,
-                  R = diag(rep(1, 4)))
-jm_full <- jags.parfit(cl = cl,
-                  data = jags_full,
-                  params = c("Theta", "y"), #we only need these two outputs for validation
-                  model = "full_dyn_occ_misclass_JAGS.txt",
-                  n.chains = nc,
-                  n.adapt = 2000,
-                  n.update = 2000,
-                  thin = ni/1000,
-                  n.iter = ni)
-dir.create("output", showWarnings = FALSE)
-jm_summ <- MCMCsummary(jm_full)
-saveRDS(jm_full, "output/val_full_jm.rds")
-saveRDS(jm_summ, "output/val_full_jmsumm.rds")
-
-jags_reduced <- list(K_exp = dim(alpha)[1],
-                     K_para = dim(alpha)[2],
-                     alpha = alpha,
-                     Ltot = sum(L_reduced),
-                     k = y_df_val %>%
-                       filter(!is.na(expertID_idx)) %>%
-                       pull(expertID_idx),
-                     y = y_df_val %>%
-                       filter(!is.na(expertID_idx)) %>%
-                       pull(parataxID_idx_val))
-jm_reduced <- jags.parfit(cl = cl,
-                       data = jags_reduced,
-                       params = c("Theta", "y"),
-                       model = "reduced_misclass_JAGS.txt",
-                       n.chains = nc,
-                       n.adapt = 2000,
-                       n.update = 2000,
-                       thin = ni/1000,
-                       n.iter = ni)
-jm_summ <- MCMCsummary(jm_reduced)
-saveRDS(jm_reduced, "output/val_reduced_jm.rds")
-saveRDS(jm_summ, "output/val_reduced_jmsumm.rds")
+if (!file.exists("output/val_reduced_jm.rds")) {
+  jags_reduced <- list(K_exp = dim(alpha)[1],
+                       K_para = dim(alpha)[2],
+                       alpha = alpha,
+                       Ltot = sum(L_reduced),
+                       k = y_df_val %>%
+                         filter(!is.na(expertID_idx)) %>%
+                         pull(expertID_idx),
+                       y = y_df_val %>%
+                         filter(!is.na(expertID_idx)) %>%
+                         pull(parataxID_idx_val))
+  jm_reduced <- jags.parfit(cl = cl,
+                         data = jags_reduced,
+                         params = c("Theta", "y"),
+                         model = "reduced_misclass_JAGS.txt",
+                         n.chains = nc,
+                         n.adapt = 2000,
+                         n.update = 2000,
+                         thin = ni/1000,
+                         n.iter = ni)
+  jm_summ <- MCMCsummary(jm_reduced)
+  saveRDS(jm_reduced, "output/val_reduced_jm.rds")
+  saveRDS(jm_summ, "output/val_reduced_jmsumm.rds")
+}
 
 # View JAGS output --------------------------------------------------------
 
@@ -105,11 +111,6 @@ full_val_jm <- readRDS("output/val_full_jm.rds")
 full_val_jmsumm <- readRDS("output/val_full_jmsumm.rds")
 reduced_val_jm <- readRDS("output/val_reduced_jm.rds")
 reduced_val_jmsumm <- readRDS("output/val_reduced_jmsumm.rds")
-
-# Did models converge?
-hist(full_val_jmsumm$Rhat, breaks=40)
-hist(reduced_val_jmsumm$Rhat, breaks=40)
-
 
 ### Compare the validation results
 # multiclass classification problem
@@ -174,7 +175,7 @@ reduced_cm <- reduced_y_out %>%
                   fill = 0)
 
 assertthat::assert_that(!any(is.na(full_cm)))                # no NA vals
-assertthat::assert_that(dim(full_cm)[2] == dim(cm_array)[3])  # square matrices
+assertthat::assert_that(dim(full_cm)[2] == dim(full_cm)[3])  # square matrices
 
 get_metrics <- function(confusion_matrix) {
   # confusion_matrix is a (true, pred) square matrix
@@ -274,7 +275,6 @@ full_y_out %>%
 # the full model is more accurate than the reduced model most pronouncedly for the most abundant species
 
 
-
 # Holdout log likelihood (log probabilities from the categorical distribution) 
 # (could use dcat() function: https://www.rdocumentation.org/packages/mvc/versions/1.3/topics/dcat)
 theta_summ_full_val <- MCMCchains(full_val_jm, params = 'Theta') %>% 
@@ -313,3 +313,48 @@ full_join(full_loglik, reduced_loglik) %>%
   geom_density() + 
   xlab("Holdout log-likelihood") + 
   ylab("Density")
+
+# create validation.png: accuracy, f1 score, holdout log-lik
+
+acc <- full_y_out %>% 
+  group_by(draw) %>%
+  summarize(accuracy=mean(match)) %>%
+  mutate(model="full") %>%
+  rbind(reduced_y_out %>% 
+          group_by(draw) %>%
+          summarize(accuracy=mean(match)) %>%
+              mutate(model="reduced")) %>%
+  ggplot(aes(x=accuracy, fill=model)) +
+  geom_density(alpha = .6) + 
+  xlab("Accuracy") +
+  ylab("Density") +
+  theme(legend.position = "none")     
+
+f1 <- full_join(full_metrics, reduced_metrics) %>%
+  group_by(draw, model) %>%
+  summarize(macro_f1 = mean(f1, na.rm = TRUE)) %>%
+  ggplot(aes(macro_f1, fill = model)) + 
+  geom_density(alpha = .6) +
+  xlab("F1 score") +
+  ylab(NULL) + 
+  theme(legend.position = "none")     
+
+hll <- full_join(full_loglik, reduced_loglik) %>%
+  ggplot(aes(log_lik, fill = model)) + 
+  geom_density(alpha = .6) + 
+  xlab("Holdout log-likelihood") + 
+  ylab(NULL) + 
+  theme(legend.position = "none")   
+
+legend <- get_legend( full_join(full_loglik, reduced_loglik) %>%
+  ggplot(aes(log_lik, fill = model)) + 
+  geom_density(alpha=0.6) +
+    scale_fill_discrete(labels = c("full model", "reduced model")) +
+    theme(legend.key.size = unit(0.8, 'cm'),
+          legend.title = element_blank(),
+          legend.text = element_text(size=10)) )
+
+grid.arrange(acc, f1, hll, legend, ncol = 4) 
+val <- arrangeGrob(acc, f1, hll, legend, ncol = 4)
+ggsave("figures/validation.png", val, width = 8)
+
