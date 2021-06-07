@@ -1,0 +1,51 @@
+model {
+
+  # Priors
+  for (i in 1:2) {
+    mu_spec[i] ~ dnorm(0, 1)
+    mu_site[i] = 0
+  }
+  
+  Tau_spec[1:2, 1:2] ~ dwish(R[1:2, 1:2], 10)
+  for ( i in 1:K_val) {
+    eps_spec[i, 1:2] ~ dmnorm(mu_spec, Tau_spec)
+  }
+  
+  Tau_site[1:2, 1:2] ~ dwish(R[1:2, 1:2], 10)
+  for (i in 1:nsite) {
+    eps_site[i, 1:2] ~ dmnorm(mu_site, Tau_site)
+  }
+  
+  for (i in 1:nsite){
+    for (k in 1:K_val) {
+      logit_psi[i, k]  = eps_site[i, 1] + eps_spec[k, 1]
+      psi[i, k]  = ilogit(logit_psi[i, k])
+      
+      log_lambda[i, k] = eps_site[i, 2] + eps_spec[k, 2]
+      lambda[i, k] = exp(log_lambda[i, k])
+    }
+  }
+  
+  for (k in 1:K_val) {
+    Theta[k,1:K_imp] ~ ddirch(alpha[k,1:K_imp])
+  }
+
+  for (i in 1:nsite) {
+    for (k in 1:K_val) {
+      z[i, k] ~ dbern(psi[i, k])
+      zlam[i, k] = z[i, k] * lambda[i, k]
+    }
+  }
+  
+  for (i in 1:nsite) {
+    for (j in 1:nsurv) {
+        L[i, j] ~ dpois(sum(zlam[i, 1:K_val]))
+    }
+  }
+
+  for (l in 1:Ltot) {
+    pi[l, 1:K_val] = zlam[site[l], 1:K_val] / sum(zlam[site[l], 1:K_val])
+    k[l] ~ dcat(pi[l, 1:K_val])
+    y[l] ~ dcat(Theta[k[l], 1:K_imp])
+  }
+}
