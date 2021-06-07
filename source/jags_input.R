@@ -88,7 +88,9 @@ return_jags_input <- function(model, alpha_nondiag = 2, alpha_diag = 200) {
     # Choose a subsample that has fewer expert IDs than sorting IDs: ta53RQUlpj5WhQksfJeD+QBAxMj6BQGBllkC8fUqt68=
     expert_pinned_df %>%
         filter(!is.na(exp_sciname), subsampleID == "ta53RQUlpj5WhQksfJeD+QBAxMj6BQGBllkC8fUqt68=")
-    para_new %>% filter(subsampleID == "ta53RQUlpj5WhQksfJeD+QBAxMj6BQGBllkC8fUqt68=")
+    para_new %>% 
+        filter(subsampleID == "ta53RQUlpj5WhQksfJeD+QBAxMj6BQGBllkC8fUqt68=") %>%
+        dplyr::select(exp_sciname)
     # We should see 6 out of 7 individuals in para_new have an assigned exp_sciname
     
     # Define alpha
