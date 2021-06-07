@@ -210,25 +210,25 @@ for (current in 1:length(k_fracs)) {
 temp = list.files(path = "output/", pattern = "sim_k*")
 for (i in 1:length(temp)) assign(temp[i], readRDS(paste0("output/",temp[i])))
 
-k1_summ <- MCMCsummary(sim_k1_jm.rds, params = 'psi', round=2) %>%
+k1_summ <- MCMCsummary(sim_k1_jm.rds, round=2) %>%
     mutate(fraction = k_fracs[1]) %>%
     rownames_to_column()
-k0.95_summ <- MCMCsummary(sim_k0.95_jm.rds, params = 'psi', round=2) %>%
+k0.95_summ <- MCMCsummary(sim_k0.95_jm.rds, round=2) %>%
     mutate(fraction = k_fracs[2]) %>%
     rownames_to_column()
-k0.7_summ <- MCMCsummary(sim_k0.7_jm.rds, params = 'psi', round=2) %>%
+k0.7_summ <- MCMCsummary(sim_k0.7_jm.rds, round=2) %>%
     mutate(fraction = k_fracs[3]) %>%
     rownames_to_column()
-k0.5_summ <- MCMCsummary(sim_k0.5_jm.rds, params = 'psi', round=2) %>%
+k0.5_summ <- MCMCsummary(sim_k0.5_jm.rds, round=2) %>%
     mutate(fraction = k_fracs[4]) %>%
     rownames_to_column()
-k0.3_summ <- MCMCsummary(sim_k0.3_jm.rds, params = 'psi', round=2) %>%
+k0.3_summ <- MCMCsummary(sim_k0.3_jm.rds,  round=2) %>%
     mutate(fraction = k_fracs[5]) %>%
     rownames_to_column()
-k0.15_summ <- MCMCsummary(sim_k0.15_jm.rds, params = 'psi', round=2) %>%
+k0.15_summ <- MCMCsummary(sim_k0.15_jm.rds, round=2) %>%
     mutate(fraction = k_fracs[6]) %>%
     rownames_to_column()
-k0.11_summ <- MCMCsummary(sim_k0.11_jm.rds, params = 'psi', round=2) %>%
+k0.11_summ <- MCMCsummary(sim_k0.11_jm.rds, round=2) %>%
     mutate(fraction = k_fracs[7]) %>%
     rownames_to_column()
            
@@ -241,11 +241,14 @@ sims_jm <- rbind(k1_summ, k0.95_summ, k0.7_summ, k0.5_summ, k0.3_summ,
   # by species
   # by various fractions of validation
 
-# 1) Plot occupancy estimate with CI's along with true parameter value as a line for each species (see Max's old code). Do for full and reduced model. What I'm imagining is overlapping the posterior distribution for each fraction of validation data simulation. Then plot a straight line over the true occupancy/demographic rate 
+# 1) Plot occupancy estimate with CI's along with true parameter value as a line for each species. Do for full and reduced model. What I'm imagining is overlapping the posterior distribution for each fraction of validation data simulation. Then plot a straight line over the true occupancy/demographic rate 
+
+# Psi
 psi_1site <- data.frame(true=psi[1,], species=as.factor(1:K_val)) 
-  
 sims_jm %>%
   as_tibble %>%
+  #filter by psi
+  filter( grepl('psi', rowname) ) %>%
   separate("rowname", into = c("site", "species"), sep = ",") %>%
   mutate_at(c('site', 'species'), readr::parse_number) %>%
   mutate(species = as.factor(species),
@@ -257,11 +260,31 @@ sims_jm %>%
   geom_point(size = 3, color="gray20") +
   geom_hline(data=psi_1site, aes(yintercept=true), col="red") +
   facet_wrap(~species) + 
-  xlab("Fraction of validated individuals") + 
+  xlab("Fraction of validated samples") + 
   ylab("Occupancy probability") + 
   theme_minimal()
+
+# Theta
+#psi_1site <- data.frame(true=psi[1,], species=as.factor(1:K_val)) 
+sims_jm %>%
+  as_tibble %>%
+  filter( grepl('Theta', rowname) ) %>%
+  separate("rowname", into = c("K_val", "K_imp"), sep = ",") %>%
+  mutate_at(c('K_val', 'K_imp'), readr::parse_number) %>%
+  mutate(K_val = as.factor(K_val),
+         K_imp = as.factor(K_imp),
+         fraction = as.factor(fraction)) %>%
+  ggplot(aes(fraction, `50%`)) + 
+  geom_linerange(aes(ymin=`2.5%`, ymax=`97.5%`), color="red", alpha=.25, size = 1.5) +
+  geom_point(size=.75, color="gray20") +
+  #geom_hline(data=psi_1site, aes(yintercept=true), col="red") +
+  facet_grid(rows=vars(K_val), cols=vars(K_imp)) + 
+  xlab("Fraction of validated samples") + 
+  ylab("Classification probability") + 
+  theme_minimal()
+
   
-# 2) Plot encounter rate estimate with CI's along with true parameter value as a line for each species (see same old code). Do for full and reduced model
+# 2) Plot encounter rate estimate with CI's along with true parameter value as a line for each species. Do for full and reduced model
     
 # 3) Report on accuracy, recall, etc. for full and reduced model. Is there evidence that the reduced model is less effective for prioritizing confirmation effort than the proposed model. Address this by calculating accuracy, recall, etc. for full vs reduced model for each simulation. This will speak to reviewer feedback: "it was not clear that this reduced model was markedly worse for the purpose of prioritizing confirmation effort. Were patterns in the theta matrix markedly different for the reduced model (I see Fig 4, but more broadly)?"
 
