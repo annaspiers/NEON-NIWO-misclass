@@ -3,7 +3,6 @@
 .RData
 .Ruserdata
 output/*_jm.rds
-docs/
 *_AIS.R
 *_AIS.txt
 *.Rout
