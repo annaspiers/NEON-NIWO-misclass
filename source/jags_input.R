@@ -188,6 +188,3 @@ return_jags_input <- function(model, alpha_nondiag = 2, alpha_diag = 200) {
     
 }
 
-
-
-
