@@ -1,0 +1,12 @@
+model {
+
+  # Priors
+  for (i in 1:K_val) {
+    Theta[i,1:K_imp] ~ ddirch(alpha[i,1:K_imp])
+  }
+
+  for (l in 1:Ltot) {
+    y[l] ~ dcat(Theta[k[l], 1:K_imp])
+  }
+  
+}
