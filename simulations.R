@@ -38,8 +38,6 @@ options(digits = 3)
 
 sim_1dataset <- function(iter, fracs) {
   
-  set.seed(201023923)
-  
   nsite <- 30 #number of sites #AIS change back to 20 if processing takes too long
   nsurv <- 3  #number of suveys in the season
   K_imp <- 30  #number of states identified by imperfect classifier
@@ -47,7 +45,7 @@ sim_1dataset <- function(iter, fracs) {
   
   ### Generate parameter values from model priors
   mu_spec <- rnorm(2, mean=0, sd=1)
-  mu_site <- rep(0,2) 
+  mu_site <- rep(0,2) #AIS why are these 
   
   R <- diag(rep(1, 2)) # 2 dim since we're estimating psi and lambda
   Tau_spec <- Tau_site <- rWishart(n=1, df=10, Sigma=R) 
@@ -65,7 +63,7 @@ sim_1dataset <- function(iter, fracs) {
   
   # Theta (classification probability)
   alpha <- matrix(2, nrow=K_val, ncol=K_imp)
-  diag(alpha) <- 200
+  diag(alpha) <- 75 #AIS used to be 2/200, 2/75 and 2/40 had similar results
   Theta <- matrix(NA, nrow=K_val, ncol=K_imp)
   for (k in 1:K_val) {
     Theta[k,1:K_imp] <- rdirichlet(1,alpha[k,1:K_imp])
@@ -98,19 +96,12 @@ sim_1dataset <- function(iter, fracs) {
   k <- y <- rep(NA, Ltot)
   for (l in 1:Ltot) {
     pi[l, 1:K_val] <- zlam[site[l], 1:K_val] / sum(zlam[site[l], 1:K_val])
-    if (is.na(pi[l,1])) { #arbitrary column, all in a row would be NA
+    if (is.na(pi[l,1])) { #arbitrary column since all in a row would be NA
       pi[l, ] <- rep(1/K_val,K_val)
     } #AIS is this an ok workaround? When pi has a row of NA's, then k is NA for that row, which we don't want. Instead, I give each K_val the same weight
     k[l] <- rcat(1, pi[l, 1:K_val])
     y[l] <- rcat(1, Theta[k[l], 1:K_imp])
   }
-  
-  # # Generate L for reduced model
-  # # Keep only validated individuals 
-  # generated_df <- data.frame(surv = sample(1:nsurv, Ltot, replace=TRUE),
-  #                            site = site,
-  #                            imp = y,
-  #                            val = k)
   
   
   # Vary the fraction of individuals that are validated ---------------------
@@ -175,7 +166,7 @@ sim_1dataset <- function(iter, fracs) {
     
     # Fit model ---------------------------------------------------------------
     nc <- 4
-    ni <- 5000
+    ni <- 6000
     
     # Run full model
     jags_d_full <- list(nsite = dim(L)[1],
@@ -195,15 +186,23 @@ sim_1dataset <- function(iter, fracs) {
                     parameters.to.save = c("psi","lambda", "Theta"), 
                     model.file = "sim_full_JAGS.txt",
                     n.chains = nc,
-                    n.adapt = 1000, 
+                    n.adapt = 2000, 
                     n.iter= ni,
-                    n.burnin = 1000,
+                    n.burnin = 1500,
                     n.thin = ni/1000)
+    # AIS temporary while troubleshooting
+    #saveRDS(jm_full, paste0("output/simulations/sim_3_jm_full_0.001.rds"))
+    #saveRDS(jm_full, paste0("output/simulations/sim_3_jm_full_0.05.rds"))
+    saveRDS(jm_full, paste0("output/simulations/sim_3_jm_full_1.0.rds"))
+    # now compare posterior
+    
     jmsumm_full <- MCMCsummary(jm_full) %>%
       mutate(fraction = fracs[current],
              dataset = iter,
              model = "full") %>%
       rownames_to_column()
+    
+    
     
     # Run reduced model
     jags_d_red <- list(K_val = dim(alpha)[1],
@@ -297,12 +296,13 @@ clusterEvalQ(cl, "sim_full_JAGS.txt") # Send jags txt to clusters
 clusterEvalQ(cl, "sim_red_JAGS.txt") 
 
 # Run simulations
-iter_tot <- 12
+set.seed(201023923)
+iter_tot <- 1
 system.time( 
   clusterApply(cl, 
                1:iter_tot, #iter
                sim_1dataset, 
-               c(1.0, 0.9, 0.8 , 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05))  #fracs
+               c(0.95,0.5,0.05)) # c(1.0, 0.9, 0.8 , 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05))  #fracs
 )
 # use top to monitor progress
 
