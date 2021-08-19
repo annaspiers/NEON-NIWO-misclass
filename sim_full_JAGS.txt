@@ -17,23 +17,23 @@ model {
   }
   
   for (i in 1:nsite){
-    for (k in 1:K_val) {
-      logit_psi[i, k]  = eps_site[i, 1] + eps_spec[k, 1]
-      psi[i, k]  = ilogit(logit_psi[i, k])
+    for (j in 1:K_val) {
+      logit_psi[i, j]  = eps_site[i, 1] + eps_spec[j, 1]
+      psi[i, j]  = ilogit(logit_psi[i, j])
       
-      log_lambda[i, k] = eps_site[i, 2] + eps_spec[k, 2]
-      lambda[i, k] = exp(log_lambda[i, k])
+      log_lambda[i, j] = eps_site[i, 2] + eps_spec[j, 2]
+      lambda[i, j] = exp(log_lambda[i, j])
     }
   }
   
-  for (k in 1:K_val) {
-    Theta[k,1:K_imp] ~ ddirch(alpha[k,1:K_imp])
+  for (j in 1:K_val) {
+    Theta[j,1:K_imp] ~ ddirch(alpha[j,1:K_imp])
   }
-
+  
   for (i in 1:nsite) {
-    for (k in 1:K_val) {
-      z[i, k] ~ dbern(psi[i, k])
-      zlam[i, k] = z[i, k] * lambda[i, k]
+    for (j in 1:K_val) {
+      z[i, j] ~ dbern(psi[i, j])
+      zlam[i, j] = z[i, j] * lambda[i, j]
     }
   }
   
@@ -49,3 +49,5 @@ model {
     y[l] ~ dcat(Theta[k[l], 1:K_imp])
   }
 }
+
+

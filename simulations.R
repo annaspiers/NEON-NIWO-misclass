@@ -36,16 +36,19 @@ options(digits = 3)
 
 # Generate data from model priors --------------------------------------------------
 
+#iter <- 1
+#fracs <- c(0.8, 0.3)
+
 sim_1dataset <- function(iter, fracs) {
   
-  nsite <- 30 #number of sites #AIS change back to 20 if processing takes too long
+  nsite <- 20 #number of sites #bump back up to 30 for final processing
   nsurv <- 3  #number of suveys in the season
-  K_imp <- 30  #number of states identified by imperfect classifier
-  K_val <- 20  #number of states identified in validation
+  K_imp <- 3  #number of states identified by imperfect classifier
+  K_val <- 2   #number of states identified in validation
   
   ### Generate parameter values from model priors
   mu_spec <- rnorm(2, mean=0, sd=1)
-  mu_site <- rep(0,2) #AIS why are these 
+  mu_site <- rep(0,2)  
   
   R <- diag(rep(1, 2)) # 2 dim since we're estimating psi and lambda
   Tau_spec <- Tau_site <- rWishart(n=1, df=10, Sigma=R) 
@@ -62,8 +65,9 @@ sim_1dataset <- function(iter, fracs) {
   }
   
   # Theta (classification probability)
-  alpha <- matrix(2, nrow=K_val, ncol=K_imp)
-  diag(alpha) <- 75 #AIS used to be 2/200, 2/75 and 2/40 had similar results
+  alpha <- matrix(100, nrow=K_val, ncol=K_imp)
+  diag(alpha) <- 500 # couldn't find great match with 2/3 species here to 
+  #diag(alpha) <- 75 #AIS used to be 2/200, 2/75 and 2/40 had similar results
   Theta <- matrix(NA, nrow=K_val, ncol=K_imp)
   for (k in 1:K_val) {
     Theta[k,1:K_imp] <- rdirichlet(1,alpha[k,1:K_imp])
@@ -91,14 +95,20 @@ sim_1dataset <- function(iter, fracs) {
   # k (validated species for an individual)
   # y (imperfectly observed state for an individual)
   Ltot <- sum(L)
-  site <- sample(1:nsite, Ltot, replace=TRUE) #AIS is this workaround ok for initializing site?
+  site <- sample(1:nsite, Ltot, replace=TRUE)             #AIS is this workaround ok for initializing site?
   pi <- matrix(NA, nrow=Ltot, ncol=K_val)
   k <- y <- rep(NA, Ltot)
   for (l in 1:Ltot) {
     pi[l, 1:K_val] <- zlam[site[l], 1:K_val] / sum(zlam[site[l], 1:K_val])
-    if (is.na(pi[l,1])) { #arbitrary column since all in a row would be NA
-      pi[l, ] <- rep(1/K_val,K_val)
-    } #AIS is this an ok workaround? When pi has a row of NA's, then k is NA for that row, which we don't want. Instead, I give each K_val the same weight
+    #if (is.na(pi[l,1])) { #arbitrary column since all in a row would be NA
+    #pi[l, ] <- rep(0,K_val)
+    
+    #pi[l, ] <- rep(0,K_val) #assign all values to 0
+    #random_ind <- sample(K_val,1)
+    #pi[l, random_ind] <- 1 #but assign one of them 1 randomly
+    
+    #pi[l, ] <- rep(1/K_val,K_val)
+    #} #AIS is this an ok workaround? When pi has a row of NA's, then k is NA for that row, which we don't want. Instead, I give each K_val the same weight
     k[l] <- rcat(1, pi[l, 1:K_val])
     y[l] <- rcat(1, Theta[k[l], 1:K_imp])
   }
@@ -113,8 +123,8 @@ sim_1dataset <- function(iter, fracs) {
   
   k_mat <- matrix(data=k, nrow=Ltot, ncol=length(fracs))
   colnames(k_mat) <- paste0("k",fracs)
-  for (j in 2:ncol(k_mat)) {
-    k_mat[,j] <- k_mat[,j-1]
+  for (j in 1:ncol(k_mat)) {
+    if (j!=1) {k_mat[,j] <- k_mat[,j-1]}
     alreadyNA <- sum(is.na(k_mat[,j]))
     needtobeNA <- round((1-fracs[j])*Ltot)
     ind <- sample(which(!is.na(k_mat[,j])), (needtobeNA - alreadyNA), replace=F)
@@ -166,7 +176,8 @@ sim_1dataset <- function(iter, fracs) {
     
     # Fit model ---------------------------------------------------------------
     nc <- 4
-    ni <- 6000
+    ni <- 30000
+    na <- 5000
     
     # Run full model
     jags_d_full <- list(nsite = dim(L)[1],
@@ -182,18 +193,18 @@ sim_1dataset <- function(iter, fracs) {
                         z = z.dat,
                         R = R)
     jm_full <- jags(data = jags_d_full,
-                    inits = function(){ list(z = z.init) },
+                    inits = function(){ list(z = z.init)},
                     parameters.to.save = c("psi","lambda", "Theta"), 
                     model.file = "sim_full_JAGS.txt",
                     n.chains = nc,
-                    n.adapt = 2000, 
+                    n.adapt = na, 
                     n.iter= ni,
-                    n.burnin = 1500,
+                    n.burnin = na,
                     n.thin = ni/1000)
     # AIS temporary while troubleshooting
     #saveRDS(jm_full, paste0("output/simulations/sim_3_jm_full_0.001.rds"))
     #saveRDS(jm_full, paste0("output/simulations/sim_3_jm_full_0.05.rds"))
-    saveRDS(jm_full, paste0("output/simulations/sim_3_jm_full_1.0.rds"))
+    #saveRDS(jm_full, paste0("output/simulations/sim_3_jm_full_1.0.rds"))
     # now compare posterior
     
     jmsumm_full <- MCMCsummary(jm_full) %>%
@@ -221,9 +232,9 @@ sim_1dataset <- function(iter, fracs) {
                    parameters.to.save = c("Theta"),
                    model.file = "sim_red_JAGS.txt",
                    n.chains = nc,
-                   n.adapt = 1000, 
+                   n.adapt = na, 
                    n.iter= ni,
-                   n.burnin = 1000,
+                   n.burnin = na,
                    n.thin = ni/1000)
     jmsumm_red <- MCMCsummary(jm_red) %>%
       mutate(fraction = fracs[current],
@@ -271,7 +282,7 @@ sim_1dataset <- function(iter, fracs) {
     jmsumm_iter <- rbind(jmsumm_iter, est_true_df_full, est_true_df_red)
     
     # Write cluster status to a txt file
-    write(paste0("Finished dataset ",iter," with ",fracs[current]," samples validated. Took ",(Sys.time() - start_time)," (",Sys.time()," on ",Sys.Date(),")"),file="monitoring.txt",append=TRUE)
+    write(paste0("Finished dataset ",iter," with ",fracs[current]," samples validated. Took ",(Sys.time() - start_time)," (",Sys.time(),")"),file="monitoring.txt",append=TRUE)
   }
   
   # Save true params and estimates together locally 
@@ -297,17 +308,16 @@ clusterEvalQ(cl, "sim_red_JAGS.txt")
 
 # Run simulations
 set.seed(201023923)
-iter_tot <- 1
+iter_tot <- 2
 system.time( 
   clusterApply(cl, 
                1:iter_tot, #iter
                sim_1dataset, 
-               c(0.95,0.5,0.05)) # c(1.0, 0.9, 0.8 , 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05))  #fracs
+               c(0.8, 0.2)) #c(1.0, 0.9, 0.75, 0.5, 0.25, 0.15))  #fracs
 )
 # use top to monitor progress
 
 stopCluster(cl)
-
 
 
 
@@ -317,6 +327,5 @@ stopCluster(cl)
 # Also, save your results now and again so you at least have something if your
 # program crashes after many hours of work.
 # save(myresults,file="results.Rdata")
-
 #start_time <- Sys.time(); end_time <- Sys.time(); total_time <- end_time - start_time
 

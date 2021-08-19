@@ -1,11 +1,5 @@
-
-# library(jagsUI)
-# library(MCMCvis)
-# library(ggmcmc)
 library(dplyr)
 library(ggplot2)
-# library(tibble) #rownames_to_column
-# options(digits = 3)
 
 
 # Assess model results ----------------------------------------------------
@@ -21,7 +15,6 @@ for (i in 1:length(temp)) {
 # full vs reduced
 # by species
 # by various fractions of validation
-
 
 # Plot results ------------------------------------------------------------
 
