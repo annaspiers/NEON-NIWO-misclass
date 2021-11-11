@@ -150,37 +150,37 @@ sims_val %>% distinct(fraction) #by various fractions of validation
 # All metrics together
 sims_val %>%
     pivot_longer(cols=c(accuracy,precision,recall,f1), names_to="metric") %>%
-    ggplot(aes(x=fraction,y=value, col=model)) +
-    geom_point(size=0.5,alpha=0.5) +
+    ggplot(aes(x=fraction,y=value)) +
+    geom_point(size=0.5,alpha=0.02) +
     stat_smooth() +
     facet_grid(cols=vars(metric)) +
     labs(x="Proportion of data labeled", y="Metric Value")
 ggsave("figures/val_all.png")
 # Accuracy
 sims_val %>%
-    ggplot(aes(x=fraction, y=accuracy, col=model)) +
-    geom_point(size=0.5,alpha=0.5) +
+    ggplot(aes(x=fraction, y=accuracy)) +
+    geom_point(size=0.5,alpha=0.03) +
     geom_smooth() +
     labs(x="Proportion of data labeled", y="Accuracy")
 ggsave("figures/val_acc.png")
 # F1
 sims_val %>%
-    ggplot(aes(x=fraction, y=f1, col=model)) +
-    geom_point(size=0.5,alpha=0.5) +
+    ggplot(aes(x=fraction, y=f1)) +
+    geom_point(size=0.5,alpha=0.03) +
     geom_smooth() +
     labs(x="Proportion of data labeled", y="F1 Score")
 ggsave("figures/val_f1.png")
 # Precision
 sims_val %>%
-    ggplot(aes(x=fraction, y=precision, col=model)) +
-    geom_point(size=0.5,alpha=0.5) +
+    ggplot(aes(x=fraction, y=precision)) +
+    geom_point(size=0.5,alpha=0.03) +
     geom_smooth() +
     labs(x="Proportion of data labeled", y="Precision")
 ggsave("figures/val_prec.png")
 # Recall
 sims_val %>%
-    ggplot(aes(x=fraction, y=recall, col=model)) +
-    geom_point(size=0.5,alpha=0.5) +
+    ggplot(aes(x=fraction, y=recall)) +
+    geom_point(size=0.5,alpha=0.03) +
     geom_smooth() +
     labs(x="Proportion of data labeled", y="Recall")
 ggsave("figures/val_recall.png")
