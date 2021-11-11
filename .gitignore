@@ -7,3 +7,4 @@ output/*_jm.rds
 *_AIS.txt
 *.Rout
 Rplots.pdf
+monitoring.txt
