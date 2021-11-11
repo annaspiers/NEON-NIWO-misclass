@@ -75,9 +75,7 @@ if (!file.exists("output/val_full_jm.rds")) {
                     thin = ni/1000,
                     n.iter = ni)
   dir.create("output", showWarnings = FALSE)
-  jm_summ <- MCMCsummary(jm_full)
   saveRDS(jm_full, "output/val_full_jm.rds")
-  saveRDS(jm_summ, "output/val_full_jmsumm.rds")
 }
 
 if (!file.exists("output/val_reduced_jm.rds")) {
@@ -100,17 +98,13 @@ if (!file.exists("output/val_reduced_jm.rds")) {
                          n.update = 2000,
                          thin = ni/1000,
                          n.iter = ni)
-  jm_summ <- MCMCsummary(jm_reduced)
   saveRDS(jm_reduced, "output/val_reduced_jm.rds")
-  saveRDS(jm_summ, "output/val_reduced_jmsumm.rds")
 }
 
 # View JAGS output --------------------------------------------------------
 
 full_val_jm <- readRDS("output/val_full_jm.rds")
-full_val_jmsumm <- readRDS("output/val_full_jmsumm.rds")
 reduced_val_jm <- readRDS("output/val_reduced_jm.rds")
-reduced_val_jmsumm <- readRDS("output/val_reduced_jmsumm.rds")
 
 ### Compare the validation results
 # multiclass classification problem
@@ -122,7 +116,7 @@ holdout <- y_df_val %>%
   rownames_to_column() %>%
   rename(reduced_individual=rowname) %>%
   filter(is.na(parataxID_idx_val)) %>%
-  dplyr::select(full_individual, reduced_individual, trueID_idx=parataxID_idx, trueID=expertID,
+  dplyr::select(full_individual, reduced_individual, trueID_idx=expertID_idx, trueID=expertID,
                 predID_idx=parataxID_idx, predID=parataxID)
 
 # Posterior draws of predicted classifications
@@ -191,7 +185,74 @@ get_metrics <- function(confusion_matrix) {
          f1 = f1)
 }
 
-full_metrics <- apply(full_cm, 1, get_metrics) %>%
+# get_metrics_AIS <- function(confusion_matrix) {
+#   # confusion_matrix is a (true, pred) square matrix
+#   true_positives <- diag(confusion_matrix)
+#   false_positives <- colSums(confusion_matrix) - diag(confusion_matrix)
+#   false_negatives <- rowSums(confusion_matrix) - diag(confusion_matrix)
+#   true_negatives <- sum(confusion_matrix) - true_positives - false_positives - false_negatives
+#   accuracy <- (true_positives + true_negatives) / sum(confusion_matrix)
+#   precision <- true_positives / (true_positives + false_positives)
+#   recall <- true_positives / (true_positives + false_negatives)
+#   f1 <- 2 * (precision * recall) / (precision + recall)
+#   tibble(species = 1:length(f1),
+#          accuracy = accuracy, 
+#          precision = precision,
+#          recall = recall,
+#          f1 = f1)
+# }
+# test_full <- apply(full_cm, 1, get_metrics_AIS) %>%
+#   bind_rows(.id = "draw") %>%
+#   mutate(model = "full")
+# f1_byclass <- test_full %>%
+#   group_by(species, model) %>%
+#   summarize(species_f1 = mean(f1, na.rm = TRUE)) 
+# macro_f1 <- mean(f1_byclass$species_f1, na.rm=T) 
+# # What if we added all 1999 square conf matrices together to make one 77x77 matrix then calculated everything?
+# # 1) create mega_cm
+# mega_full_cm <- apply(full_cm, MARGIN=c(2,3), sum)
+# # 2) calculate each metric for each species
+# get_metrics_by_species <- function(confusion_matrix) {
+#   df <- data.frame(species=numeric(), 
+#                    accuracy=numeric(),
+#                    precision=numeric(), 
+#                    recall=numeric(), 
+#                    f1=numeric())
+#   for (i in 1:dim(confusion_matrix)[1]) {
+#     true_positives <- mega_full_cm[i,i]
+#     false_positives <- sum(confusion_matrix[,i]) - confusion_matrix[i,i]
+#     false_negatives <- sum(confusion_matrix[i,]) - confusion_matrix[i,i] 
+#     true_negatives <- sum(confusion_matrix) - true_positives - false_positives - false_negatives
+#     # precision <- ifelse(true_positives==0 & false_positives==0, 0, true_positives / (true_positives + false_positives))
+#     # recall <- ifelse(true_positives==0 & false_negatives==0, 0, true_positives / (true_positives + false_negatives))
+#     # f1 <- ifelse(precision==0 & recall==0, 0, 2 * (precision * recall) / (precision + recall))
+#     accuracy <- (true_positives + true_negatives) / sum(confusion_matrix)
+#     precision <- true_positives / (true_positives + false_positives)
+#     recall <- true_positives / (true_positives + false_negatives)
+#     f1 <- 2 * (precision * recall) / (precision + recall)
+#     
+#     df <- rbind(df, cbind(species=i, accuracy=accuracy, precision=precision, recall=recall, f1=f1) )
+#   }
+#   return(df)
+# }
+# # 3) calculate macro-avg for each metric
+# metrics_by_species <- get_metrics_by_species(mega_full_cm)
+# metrics_by_species %>%
+#   summarize(accuracy=mean(accuracy, na.rm=T), precision=mean(precision, na.rm=T), 
+#             recall=mean(recall, na.rm=T), f1=mean(f1, na.rm=T))
+# # Hmm, This doesn't really look right. 
+# 
+# # Create code to list accuracy and macro-averages in one line
+# full_metrics %>%
+#     summarize(precision=mean(precision, na.rm=T), 
+#               recall=mean(recall, na.rm=T), f1=mean(f1, na.rm=T)) %>%
+#   mutate(accuracy = full_y_out %>% 
+#            count(match) %>%
+#            filter(match==T) %>%
+#            pull(n) / nrow(full_y_out)) %>%
+#   select(accuracy, everything())
+
+full_metrics <- apply(full_cm, 1, get_metrics) %>% # number of species x max_draws (see full_cm dimensions)
   bind_rows(.id = "draw") %>%
   mutate(model = "full")
 reduced_metrics <- apply(reduced_cm, 1, get_metrics) %>%

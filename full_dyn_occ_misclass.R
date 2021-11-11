@@ -47,6 +47,7 @@ if (!file.exists("output/full_jm.rds")) {
                                  "eps_site", "eps_spec", "Tau_spec", "Tau_site",
                                  "log_growth", "turnover"),
                       model = "full_dyn_occ_misclass_JAGS.txt",
+                      inits = JAGSinits, #AIS added this later.
                       n.chains = nc,
                       n.adapt = 2000,
                       n.update = 2000,
