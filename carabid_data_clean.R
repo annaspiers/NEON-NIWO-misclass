@@ -28,15 +28,13 @@ rm(carabid_abund)
 
 all_paratax_df <- bet_sorting %>%
   filter(sampleType == "carabid",
-         #use data through 2018, since 2019 dataset is incomplete
-         collectDate <= "2018-12-31 GMT") %>%
+         # use data through 2019 since this is the last season that the expert taxonomist has ID'ed 
+         collectDate <= "2019-12-31 GMT") %>%
   mutate(#change subspecies to species-level
          scientificName = ifelse(scientificName == "Amara quenseli quenseli", 
                                     "Amara quenseli", scientificName),
-         
          #roll similar parataxonomist IDs into one: Carabidae sp. (1) and Carabidae spp. (215) for 2015-2018
          scientificName = ifelse(scientificName == "Carabidae sp.", "Carabidae spp.", scientificName),
-         
          #create variable that combines parataxonomist ID and morphospecies ID (when present)
          scimorph_combo = ifelse(is.na(morphospeciesID), 
                                  scientificName, 
@@ -49,15 +47,12 @@ all_paratax_df <- all_paratax_df %>%  #index the collection date within each yea
               mutate(col_index = 1:n()))
 
 pinned_df <- bet_parataxonomistID %>%
-  filter(#use data through 2018, since 2019 dataset is incomplete
-         collectDate <= "2018-12-31 GMT") %>%
+  filter( collectDate <= "2019-12-31 GMT") %>%
   mutate(#change subspecies to species-level
     scientificName = ifelse(scientificName == "Amara quenseli quenseli", 
                             "Amara quenseli", scientificName),
-    
     #roll similar parataxonomist IDs into one: Carabidae sp. (1) and Carabidae spp. (215) for 2015-2018
     scientificName = ifelse(scientificName == "Carabidae sp.", "Carabidae spp.", scientificName),
-    
     #create variable that combines parataxonomist ID and morphospecies ID (when present)
     scimorph_combo = ifelse(is.na(morphospeciesID), 
                             scientificName, 
@@ -70,8 +65,7 @@ pinned_df <- pinned_df %>%  #index the collection date within each year
               mutate(col_index = 1:n()))
 
 expert_df <- bet_expertTaxonomistIDProcessed %>%
-  filter(#use data through 2018, since 2019 dataset is incomplete
-    collectDate <= "2018-12-31 GMT") %>%
+  filter(collectDate <= "2019-12-31 GMT") %>%
   mutate(scientificName = ifelse(taxonRank=="subspecies",
                                     paste0(genus," ",specificEpithet,sep=""), scientificName),
          col_year = lubridate::year(collectDate)) 
