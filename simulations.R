@@ -128,7 +128,6 @@ sim_1dataset <- function(iter) {
     val_perc <- 0.1 #fraction of samples to select to calculate validation metrics
     # Prepare input data for calculating validation metrics
     # To validate models, withhold imperfect IDs from individuals that have been validated
-    #perc_withld <- 0.2 #percent individuals that have been validated that will have imperfect ID withheld
     num_withld <- ifelse(round(val_perc*Ltot)==0,1,round(val_perc*Ltot)) #take 10% of the total dataset to have imperfect IDs set to NA
     # Select first fracs index that has at least num_withld NAs
     first_frac_for_val <- min(which(round((1-fracs)*Ltot) >= num_withld,arr.ind=TRUE)) #index of first fraction < 1-frac_val

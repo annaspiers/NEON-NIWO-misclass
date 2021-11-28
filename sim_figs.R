@@ -1,3 +1,5 @@
+# Generate figures for simulations results
+
 library(dplyr)
 library(ggplot2)
 library(viridis)
@@ -14,15 +16,6 @@ rm(temp, sims_jm_list)
 
 # remaining <- setdiff(1:max(sims_jm$dataset),sims_jm$dataset) 
 
-range(sims_jm$dataset) #number of iterations
-length(unique(sims_jm$dataset))
-sims_jm %>% distinct(model) #full vs reduced
-sims_jm %>% distinct(fraction) #by various fractions of validation
-sims_jm %>% group_by(param,model) %>% summarize(n=n()) 
-sims_jm %>% group_by(param,model, fraction) %>% summarize(n=n()) %>% filter(param=="Theta") #why is n=60 for lambda/psi? 2species x 30 sites
-
-# Plot results ------------------------------------------------------------
-
 # Create new columns for plotting 
 # binary column specifying whether estimate 95% CI captures true value
 # numeric column specifying how far estimate median is from true value
@@ -31,6 +24,16 @@ sims_jm_plot <- sims_jm %>%
            diff = `50%` - true, # positive means estimated median is greater than true value
            ci95_width = `97.5%` - `2.5%`) # 95% CI width
 rm(sims_jm)
+
+# EDA
+range(sims_jm$dataset) #number of iterations
+length(unique(sims_jm$dataset))
+sims_jm %>% distinct(model) #full vs reduced
+sims_jm %>% distinct(fraction) #by various fractions of validation
+sims_jm %>% group_by(param,model) %>% summarize(n=n()) 
+sims_jm %>% group_by(param,model,fraction) %>% summarize(n=n()) %>% filter(param=="Theta") #why is n=60 for lambda/psi? 2species x 30 sites
+
+# Plot results ------------------------------------------------------------
 
 # 1) Coverage
 # % of runs where 95% CI captures the true value
@@ -58,7 +61,7 @@ sims_jm_plot %>%
     geom_smooth() +
     facet_wrap(vars(param_model)) +
     labs(y="% of Estimates within 95% CI", x="Proportion of data validated")
-ggsave("figures/coverage.png")
+ggsave("figures/simulations/coverage.png")
 # Just Theta plot
 sims_jm_plot %>%
     filter(param=="Theta") %>%
@@ -71,19 +74,38 @@ sims_jm_plot %>%
     geom_smooth() +
     facet_wrap(vars(param_model)) +
     labs(y="% of Estimates within 95% CI", x="Proportion of data validated")
-ggsave("figures/coverage_theta.png")
+ggsave("figures/simulations/coverage_theta.png")
 
 
 # 2) Distance from true value
 # Difference between estimate median and true value
 sims_jm_plot %>%
     filter(param=="Theta") %>%
+    head(1000) %>%
+    ggplot(aes(x=fraction, y=abs(diff))) + 
+    geom_point(size=0.1,alpha=0.3) +
+    #geom_smooth() +
+    facet_grid(cols=vars(model)) +
+    labs(y="Estimated Median - True Value", x="Proportion of data validated")
+ggsave("figures/simulations/dist_from_true_value_theta.png")
+
+sims_jm_plot %>%
+    filter(param=="psi") %>%
+    head(5000000) %>%
+    ggplot(aes(x=fraction, y=abs(diff))) + 
+    geom_point(size=0.1,alpha=0.01) +
+    geom_smooth() +
+    labs(y="Estimated Median - True Value", x="Proportion of data validated")
+ggsave("figures/simulations/dist_from_true_value_psi.png")
+
+sims_jm_plot %>%
+    filter(param=="lambda") %>%
     ggplot(aes(x=fraction, y=abs(diff))) + 
     geom_point(size=0.1,alpha=0.01) +
     geom_smooth() +
     facet_grid(cols=vars(model)) +
     labs(y="Estimated Median - True Value", x="Proportion of data validated")
-ggsave("figures/dist_from_true_value.png")
+ggsave("figures/simulations/dist_from_true_value_lambda.png")
 
 
 # 3) Plot proportion of data labeled vs 95% CI width - plot full vs reduced model
@@ -97,7 +119,7 @@ sims_jm_plot %>%
     geom_smooth() +
     facet_wrap(vars(param_name)) +
     labs(x="Proportion of data labeled", y="95% CI width")
-ggsave("figures/95CIwidth_theta.png")
+ggsave("figures/simulations/95CIwidth_theta.png")
 # Psi
 sims_jm_plot %>%
     filter(param=="psi") %>% #filter(param=="psi" & fraction==pull(sims_jm_plot[1,"fraction"])) %>% 
@@ -105,15 +127,15 @@ sims_jm_plot %>%
     geom_point(size=.5, alpha=0.05) +
     geom_smooth()  +
     labs(x="Proportion of data labeled", y="95% CI width",title="Psi")
-ggsave("figures/95CIwidth_psi.png")
+ggsave("figures/simulations/95CIwidth_psi.png")
 # Lambda
 sims_jm_plot %>%
     filter(param=="lambda") %>% 
     ggplot(aes(x=fraction, y=ci95_width)) +
-    geom_point(size=.5, alpha=0.5) +
+    geom_point(size=.5, alpha=0.05) +
     geom_smooth()  +
     labs(x="Proportion of data labeled", y="95% CI width",title="Lambda")
-ggsave("figures/95CIwidth_lambda.png")
+ggsave("figures/simulations/95CIwidth_lambda.png")
 
 
 
@@ -125,10 +147,24 @@ sims_jm_plot %>%
     pivot_wider(names_from=model, values_from=ci95_width) %>%
     ggplot(aes(x=reduced, y=full)) +
     geom_point(aes(col=fraction),size=0.5) +
-    scale_color_viridis(alpha=0.8) +
+    scale_color_viridis(alpha=0.6) +
     geom_abline(aes(intercept=0, slope=1)) +
-    labs(x="95% CI width: misclassification only", y="95% CI width: occupancy misclassification") 
-ggsave("figures/95CI_fullvred.png")
+    coord_cartesian(xlim=c(0,.08), ylim=c(0,.08)) +
+    labs(x="misclassification only 95% CI width", y="occupancy-classification 95% CI width",
+         col="Fraction Validated") 
+ggsave("figures/simulations/95CI_fullvred.png")
+
+
+# Ecological inference
+# How did estimates of psi and lambda change across k values?
+
+# To what degree does partial supervision improve estimation of psi, lambda with
+# varying levels of confirmation effort? Do the same for accuracy, recall, etc.
+# Consider how sensitive the model output is to the fraction validated - Maybe
+# the # IDed by the expert doesn’t affect the occupancy estimate when the
+# occupancy is high, but does when occupancy is low….
+
+
 
 
 
@@ -155,35 +191,36 @@ sims_val %>%
     stat_smooth() +
     facet_grid(cols=vars(metric)) +
     labs(x="Proportion of data labeled", y="Metric Value")
-ggsave("figures/val_all.png")
+ggsave("figures/simulations/val_all.png")
 # Accuracy
 sims_val %>%
     ggplot(aes(x=fraction, y=accuracy)) +
     geom_point(size=0.5,alpha=0.03) +
     geom_smooth() +
     labs(x="Proportion of data labeled", y="Accuracy")
-ggsave("figures/val_acc.png")
+ggsave("figures/simulations/val_acc.png")
 # F1
 sims_val %>%
     ggplot(aes(x=fraction, y=f1)) +
     geom_point(size=0.5,alpha=0.03) +
     geom_smooth() +
     labs(x="Proportion of data labeled", y="F1 Score")
-ggsave("figures/val_f1.png")
+ggsave("figures/simulations/val_f1.png")
 # Precision
 sims_val %>%
     ggplot(aes(x=fraction, y=precision)) +
     geom_point(size=0.5,alpha=0.03) +
     geom_smooth() +
     labs(x="Proportion of data labeled", y="Precision")
-ggsave("figures/val_prec.png")
+ggsave("figures/simulations/val_prec.png")
 # Recall
 sims_val %>%
     ggplot(aes(x=fraction, y=recall)) +
     geom_point(size=0.5,alpha=0.03) +
     geom_smooth() +
     labs(x="Proportion of data labeled", y="Recall")
-ggsave("figures/val_recall.png")
+ggsave("figures/simulations/val_recall.png")
+
 
 
 # # 1) Plot occupancy estimate with CI's along with true parameter value as a line for each 
