@@ -7,7 +7,7 @@ model {
   }
   
   Tau_spec[1:4, 1:4] ~ dwish(R[1:4, 1:4], 10)
-  for ( i in 1:K_exp) {
+  for (i in 1:K_exp) {
     eps_spec[i, 1:4] ~ dmnorm(mu_spec, Tau_spec)
   }
   
@@ -17,35 +17,35 @@ model {
   }
   
   for (i in 1:nsite){
-    for (k in 1:K_exp) {
+    for (j in 1:K_exp) {
    
-      logit_psi1[i, k]  = eps_site[i, 1] + eps_spec[k, 1]
-      psi1[i, k]  = ilogit(logit_psi1[i, k])
+      logit_psi1[i, j]  = eps_site[i, 1] + eps_spec[j, 1]
+      psi1[i, j]  = ilogit(logit_psi1[i, j])
       
-      logit_phi[i, k]   = eps_site[i, 2] + eps_spec[k, 2]
-      phi[i, k]  = ilogit(logit_phi[i, k])
+      logit_phi[i, j]   = eps_site[i, 2] + eps_spec[j, 2]
+      phi[i, j]  = ilogit(logit_phi[i, j])
       
-      logit_gamma[i, k] = eps_site[i, 3] + eps_spec[k, 3]
-      gamma[i, k]  = ilogit(logit_gamma[i, k])
+      logit_gamma[i, j] = eps_site[i, 3] + eps_spec[j, 3]
+      gamma[i, j]  = ilogit(logit_gamma[i, j])
       
-      log_lambda[i, k] = eps_site[i, 4] + eps_spec[k, 4]
-      lambda[i, k] = exp(log_lambda[i, k])
+      log_lambda[i, j] = eps_site[i, 4] + eps_spec[j, 4]
+      lambda[i, j] = exp(log_lambda[i, j])
     }
   }
   
-  for (k in 1:K_exp) {
-    Theta[k,1:K_para] ~ ddirch(alpha[k,1:K_para])
+  for (j in 1:K_exp) {
+    Theta[j,1:K_para] ~ ddirch(alpha[j,1:K_para])
   }
 
   for (i in 1:nsite) {
-    for (k in 1:K_exp) {
-      z[i, k, 1] ~ dbern(psi1[i, k])
+    for (j in 1:K_exp) {
+      z[i, j, 1] ~ dbern(psi1[i, j])
       for (t in 2:nyear) {
-        z[i, k, t]  ~ dbern(z[i,k,t-1]*phi[i, k] + 
-                        (1 - z[i,k,t-1])*gamma[i, k]) 
+        z[i, j, t]  ~ dbern(z[i,j,t-1]*phi[i, j] + 
+                        (1 - z[i,j,t-1])*gamma[i, j]) 
       }
       for (t in 1:nyear) {
-        zlam[i, k, t] = z[i, k, t] * lambda[i, k]
+        zlam[i, j, t] = z[i, j, t] * lambda[i, j]
       }
     }
   }
@@ -61,7 +61,7 @@ model {
   for (l in 1:Ltot) {
     pi[l, 1:K_exp] = zlam[site[l], 1:K_exp, year[l]] / sum(zlam[site[l], 1:K_exp, year[l]])
     k[l] ~ dcat(pi[l, 1:K_exp])
-    y[l] ~ dcat(Theta[k[l], 1:K_para])
+    y[l] ~ dcat(Theta[k[l], 1:K_para]) 
   }
   
   # Derived parameters
