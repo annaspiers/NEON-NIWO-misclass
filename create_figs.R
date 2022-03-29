@@ -8,6 +8,7 @@ library(patchwork)
 library(ggmcmc)
 library(readr)
 library(ggplot2)
+theme_set(theme_minimal())
 
 source("source/jags_input.R")
 
@@ -92,12 +93,14 @@ psi_full_summary %>%
          year = dimnames(z.init)[[3]][year]) %>%
   ggplot(aes(year, mean, group = site)) + 
   geom_line() + 
-  facet_wrap(~species) + 
+  facet_wrap(~species, ncol=5) + 
   geom_ribbon(aes(ymin = `2.5%`, ymax = `97.5%`), color = NA, alpha = .05) +
   xlab("Year") + 
   ylab("Occupancy probability") + 
-  theme_minimal()
-ggsave("figures/occthroughtime.png", width=11, height=8)
+  #theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 75, vjust = 0.5))
+
+ggsave("figures/occthroughtime.png", width=10, height=10)
 
 psi_red_summary <- MCMCsummary(red_jm, params = 'psi', round=2) %>%
   rownames_to_column()
@@ -460,13 +463,13 @@ theta_CIwidth %>%
   left_join(y_df_full %>%
               count(parataxID_idx) ) %>%
   as_tibble() %>%
-  ggplot(aes(x=fullCIwidth, y=redCIwidth)) +
-  geom_point(alpha = 0.5) +
+  ggplot(aes(x=redCIwidth, y=fullCIwidth)) +
+  geom_point(alpha = 0.4) +
   scale_color_gradient(low = "orange", high = "darkblue")  +
-  xlab("Full Model CI width") + ylab("Reduced Model CI width") +
-  xlim(c(0,0.11)) + ylim(c(0,0.11)) +
+  xlab("Classification-only 95% CI width") + ylab("Classification-occupancy 95% CI width") + 
+  xlim(c(0,0.12)) + ylim(c(0,0.12)) +
   geom_abline(intercept=0,slope=1)
-ggsave("figures/CIwidthcomparison.png")
+ggsave("figures/CIwidthcomparison.png",width=6.5,height=6.5)
 
 
 
