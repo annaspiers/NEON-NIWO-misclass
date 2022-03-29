@@ -71,28 +71,9 @@ if (!file.exists("output/val_full_jm.rds")) {
                     n.update = na,
                     thin = ni/1000,
                     n.iter = ni)
-  #jm_full <- jags(data = jags_full,
-  #                       inits = JAGSinits,
-  #                       parameters.to.save = c("Theta", "k"), #we only need these two outputs for validation
-  #                       model.file = "full_dyn_occ_misclass_JAGS.txt",
-  #                       n.chains = nc,
-  #                       n.adapt = na,
-  #                       #n.update = 2000,
-  #                       #thin = ni/1000,
-  #                       n.iter = ni,
-  #                       n.burnin = na)
-  #jm_full <- jags(data = jags_d_full,
-  #                inits = function(){ list(z = z.init) },
-  #                parameters.to.save = c("psi","lambda", "Theta", "k"),
-  #                model.file = "sim_full_JAGS.txt",
-  #                n.chains = nc,
-  #                n.adapt = na,
-  #                n.iter= ni,
-  #                n.burnin = na)
   
   dir.create("output", showWarnings = FALSE)
   saveRDS(jm_full, "output/val_full_jm.rds")
-  saveRDS(jm_full, "val_full_jm.rds")
 }
 
 # View JAGS output --------------------------------------------------------
@@ -105,33 +86,33 @@ full_val_jm <- readRDS("output/val_full_jm.rds")
 # Filter to validation data
 holdout <- y_df_val %>% 
   rename(full_individual=rowname) %>%
-  filter(!is.na(expertID_idx)) %>%
+  #filter to validation data
+  filter(full_individual%in% rows_withld) %>%
   dplyr::select(full_individual, trueID_idx=expertID_idx, trueID=expertID,
-                predID_idx=parataxID_idx, predID=parataxID)
+                parataxID_idx=parataxID_idx)
 
 # Posterior draws of predicted classifications
-full_y_out <- MCMCchains(full_val_jm, params = 'y') %>%
+full_y_out <- MCMCchains(full_val_jm, params = 'k') %>%
   as_tibble() %>%
-  dplyr::select(matches(paste0("y\\[",holdout$full_individual,"\\]"))) %>%
+  dplyr::select(matches(paste0("k\\[",holdout$full_individual,"\\]"))) %>%
   mutate(draw=1:n()) %>%
-  pivot_longer(cols=-draw,names_to="full_individual",values_to="predID_idx") %>%
+  pivot_longer(cols=-draw,names_to="full_individual",values_to="est_trueID_idx") %>%
   mutate_at(c('full_individual'), readr::parse_number) %>%
   mutate(full_individual=as.character(full_individual)) %>%
   left_join(holdout %>% dplyr::select(full_individual, trueID_idx)) %>%
-  mutate(match = (predID_idx==trueID_idx))
+  mutate(match = (est_trueID_idx==trueID_idx))
 
 # Generate confusion matrices for each posterior draw ---------------------
 all_combos <- expand.grid(draw = 1:max(full_y_out$draw), 
-                          est_impID_idx = 1:max(y_df_full$parataxID_idx), #predID_idx to est_impID_idx
-                          trueID_idx = 1:max(y_df_full$parataxID_idx, 
-                                             na.rm = TRUE))  %>%
+                          est_trueID_idx = 1:max(y_df_full$expertID_idx, na.rm=T), 
+                          trueID_idx = 1:max(y_df_full$expertID_idx, na.rm=T))  %>%
   as_tibble 
 
 full_cm <- full_y_out %>%
-  filter(draw < max_draw) %>%
-  count(draw, predID_idx, trueID_idx) %>%
+  #filter(draw < max_draw) %>%
+  count(draw, est_trueID_idx, trueID_idx) %>%
   full_join(all_combos) %>% # fill in implicit zeros
-  reshape2::acast(draw ~ trueID_idx ~ predID_idx, 
+  reshape2::acast(draw ~ trueID_idx ~ est_trueID_idx, 
                   value.var = "n", 
                   fill = 0)
 
@@ -146,7 +127,7 @@ get_metrics <- function(confusion_matrix) {
   precision <- true_positives / (true_positives + false_positives)
   recall <- true_positives / (true_positives + false_negatives)
   f1 <- 2 * (precision * recall) / (precision + recall)
-  tibble(parataxID_idx = 1:length(f1),
+  tibble(idx = 1:length(f1),
          precision = precision, 
          recall = recall, 
          f1 = f1)
@@ -159,7 +140,8 @@ full_metrics <- apply(full_cm, 1, get_metrics) %>% # number of species x max_dra
 full_metrics %>%
   group_by(draw) %>%
   summarize(macro_f1 = mean(f1, na.rm = TRUE)) %>%
-  ggplot(aes(macro_f1, fill = model)) + 
+  ggplot(aes(macro_f1)) +
+  #ggplot(aes(macro_f1, fill = model)) + 
   geom_density(alpha = .5)
   
 
@@ -169,11 +151,6 @@ full_y_out %>%
   count(match) %>%
   filter(match==T) %>%
   pull(n) / nrow(full_y_out)
-
-reduced_y_out %>% 
-  count(match) %>%
-  filter(match==T) %>%
-  pull(n) / nrow(reduced_y_out)
 
 full_y_out %>% 
   group_by(draw) %>%
@@ -194,7 +171,7 @@ full_y_out %>%
   mutate(trueID = rownames[trueID_idx]) %>%
   ggplot(aes(x=accuracy)) +
   geom_density() +
-  facet_wrap(~trueID)
+  facet_wrap(~trueID, scales="free_y")
 
 
 # Holdout log likelihood (log probabilities from the categorical distribution) 
@@ -203,15 +180,14 @@ theta_summ_full_val <- MCMCchains(full_val_jm, params = 'Theta') %>%
   as_tibble() %>%
   mutate(draw=1:n()) %>%
   pivot_longer(cols=-draw,names_to="index",values_to="value") %>%
-  separate("index", into = c("trueID_idx", "predID_idx"), sep = ",") %>%
-  mutate_at(c('trueID_idx', 'predID_idx'), readr::parse_number) 
+  separate("index", into = c("trueID_idx", "parataxID_idx"), sep = ",") %>%
+  mutate_at(c('trueID_idx', 'parataxID_idx'), readr::parse_number) 
 
 full_loglik <- holdout %>%
-  count(trueID_idx, predID_idx) %>%
+  count(trueID_idx, parataxID_idx) %>%
   left_join(theta_summ_full_val) %>%
   group_by(draw) %>%
   summarize(log_lik = sum(n * log(value)))
-
 
 full_loglik %>%
   ggplot(aes(log_lik)) + 
@@ -246,14 +222,27 @@ hll <- full_loglik %>%
   ylab(NULL) + 
   theme(legend.position = "none")   
 
-legend <- get_legend( full_loglik %>%
-  ggplot(aes(log_lik)) + 
-  geom_density(alpha=0.6) +
-    theme(legend.key.size = unit(0.8, 'cm'),
-          legend.title = element_blank(),
-          legend.text = element_text(size=10)) )
+#legend <- get_legend( full_loglik %>%
+#  ggplot(aes(log_lik)) + 
+#  geom_density(alpha=0.6) +
+#    theme(legend.key.size = unit(0.8, 'cm'),
+#          legend.title = element_blank(),
+#          legend.text = element_text(size=10)) )
 
-grid.arrange(acc, f1, hll, legend, ncol = 4) 
-val <- arrangeGrob(acc, f1, hll, legend, ncol = 4)
+#grid.arrange(acc, f1, hll, legend, ncol = 4) 
+grid.arrange(acc, f1, hll, ncol = 3) 
+val <- arrangeGrob(acc, f1, hll, ncol = 3)
 ggsave("figures/validation.png", val, width = 8)
 
+# Calculate metric macro-averages for table
+full_metrics %>%
+  summarize(precision=mean(precision, na.rm=T), 
+            recall=mean(recall, na.rm=T), f1=mean(f1, na.rm=T)) %>%
+  mutate(accuracy = full_y_out %>% 
+           count(match) %>%
+           filter(match==T) %>%
+           pull(n) / nrow(full_y_out)) %>%
+  select(accuracy, everything())
+# Holdout log-likelihood
+mean(full_loglik$log_lik)
+  
