@@ -9,5 +9,5 @@ output/*_jm.rds
 *.Rproj
 Rplots.pdf
 monitoring.txt
-reduced_occ_JAGS.txt
-reduced_occ.R
+validation_old.R
+
