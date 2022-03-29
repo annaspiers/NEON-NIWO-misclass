@@ -50,4 +50,3 @@ if (!file.exists("output/reduced_jm.rds")) {
   saveRDS(jm_summ, "output/reduced_jmsumm.rds")
   saveRDS(red_theta_summ, "output/reduced_theta_summ.rds")
 }
-
