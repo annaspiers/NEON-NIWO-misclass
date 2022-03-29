@@ -53,18 +53,10 @@ theta_df <- data.frame(expert_index = rep(1:dim(alpha)[1], dim(alpha)[2]) ,
 theta_df$para_sciname = factor(theta_df$para_sciname, levels=colnames) 
 
 # Plot heatmap of theta values
-#cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442") #, "#0072B2", "#D55E00", "#CC79A7")
 theta_df %>%
   mutate(theta_med_NA=ifelse(theta_median<.04,NA,theta_median)) %>%
-  #mutate(theta_med_disc = as.factor(floor(theta_median*10)/10)) %>% 
   ggplot(aes(x=para_sciname, y=expert_sciname, fill= theta_median)) + 
   geom_tile() +
-  #scale_fill_manual(values=c("#999999", "#E69F00", "#56B4E9", "#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442")) + #, "#0072B2", "#D55E00", "#CC79A7")) +
-  #scale_fill_brewer(palette = "Set1") +
-  #scale_fill_fermenter(type="div") +
-  #scale_fill_stepsn("Posterior\nmedian", colours=c("#999999", "#E69F00"),
-  #                  values=c(0,0.1,0.3,0.5,0.7,0.9,1),
-  #                   breaks=c(0,0.1,0.3,0.5,0.7,0.9,1)) +
   scale_fill_binned("Posterior\nmedian",type="viridis", option="plasma",
                     breaks=c(0,0.1,0.3,0.5,0.7,0.9),
                     guide = guide_coloursteps(even.steps = FALSE)) +
@@ -401,9 +393,6 @@ theta_df %>%
          names = paste0("[",exp_abbr,", ",para_abbr,"]")) %>%
   ggplot(aes(x=value, y=..scaled.., fill=model)) +
   geom_density( alpha=0.5 ) + 
-  #facet_wrap(exp_abbr ~ para_abbr, scales="free_x") +
-  #facet_grid(rows=vars(exp), cols=vars(para), scales="free") +
-  #facet_wrap( ~ index, scales="free_x") +
   facet_wrap( ~ names, scales="free_x") +
   xlab("Theta") + ylab("Density") + scale_y_continuous(breaks=seq(0, 1, 0.5))
 ggsave("figures/comparedensities.png")
@@ -472,8 +461,6 @@ theta_CIwidth %>%
 ggsave("figures/CIwidthcomparison.png",width=6.5,height=6.5)
 
 
-
-
 ### Table in Appendix S2
 all_paratax_by_ind <- readRDS("data/all_paratax_df.rds") %>%
   mutate(parataxID = ifelse(is.na(morphospeciesID), scientificName, morphospeciesID)) %>% 
@@ -528,26 +515,3 @@ para_new %>%
   arrange(exp_sciname,parataxID) %>%
   mutate(match=ifelse(parataxID==exp_sciname,1,0)) %>%
   data.frame()
-
-
-
-# # Compare theta median between reduced and full model
-# red_theta_summ <- readRDS("output/reduced_theta_summ.rds") %>%
-#   mutate(model="reduced")
-# theta_medians <- readRDS("output/full_theta_summ.rds") %>%
-#   mutate(model="full") %>%
-#   full_join(red_theta_summ) %>%
-#   as_tibble()
-# #AIS bring these up top
-# 
-# theta_medians %>%
-#   dplyr::select(rowname, model, "50%") %>%
-#   pivot_wider(names_from=model, values_from="50%") %>%
-#   separate("rowname", into = c("expertID_idx", "parataxID_idx"), sep = ",", remove=F) %>%
-#   mutate_at(c('expertID_idx', 'parataxID_idx'), readr::parse_number) %>%
-#   left_join(y_df_full %>%
-#             count(parataxID_idx) ) %>%
-#   ggplot(aes(x=full, y=reduced, col=log(n))) +
-#   geom_point() +
-#   geom_text(aes(label=ifelse(log(n)>4,rowname,"")),hjust=0,vjust=0) +
-#   scale_color_gradient(
