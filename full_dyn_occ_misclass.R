@@ -29,10 +29,8 @@ if (!file.exists("output/full_jm.rds")) {
                    Ltot = sum(L), 
                    site = y_df$plotID_idx, #needs to be numeric
                    year = as.numeric(as.factor(y_df$col_year)), #needs to be numeric starting from 1
-                   # if the individual was labeled by the expert, true ID is known
-                   k = y_df$expertID_idx,
-                   # for all individuals, we get paratxonomist IDs
-                   y = y_df$parataxID_idx,
+                   k = y_df$expertID_idx, #if  individual was labeled by the expert, true ID is known            
+                   y = y_df$parataxID_idx, #for all individuals, we get paratxonomist IDs
                    z = z.dat,
                    R = diag(rep(1, 4)))
     JAGSinits <- function(){ list(z = z.init) }
@@ -47,7 +45,7 @@ if (!file.exists("output/full_jm.rds")) {
                                  "eps_site", "eps_spec", "Tau_spec", "Tau_site",
                                  "log_growth", "turnover"),
                       model = "full_dyn_occ_misclass_JAGS.txt",
-                      inits = JAGSinits, #AIS added this later.
+                      inits = JAGSinits, 
                       n.chains = nc,
                       n.adapt = 2000,
                       n.update = 2000,
