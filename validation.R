@@ -222,12 +222,6 @@ hll <- full_loglik %>%
   ylab(NULL) + 
   theme(legend.position = "none")   
 
-#legend <- get_legend( full_loglik %>%
-#  ggplot(aes(log_lik)) + 
-#  geom_density(alpha=0.6) +
-#    theme(legend.key.size = unit(0.8, 'cm'),
-#          legend.title = element_blank(),
-#          legend.text = element_text(size=10)) )
 
 #grid.arrange(acc, f1, hll, legend, ncol = 4) 
 grid.arrange(acc, f1, hll, ncol = 3) 
