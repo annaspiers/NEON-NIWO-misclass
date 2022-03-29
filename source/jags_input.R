@@ -105,6 +105,8 @@ return_jags_input <- function(model, alpha_nondiag = 2, alpha_diag = 200) {
         # Keep only expert IDed individuals for reduced model
         para_new <- para_new %>%
             filter(!is.na(exp_sciname))
+        
+        L <- reshape2::acast(para_new, plotID ~ collectDate ~ col_year)
     }
     
     if (model == "reduced_occ") {
