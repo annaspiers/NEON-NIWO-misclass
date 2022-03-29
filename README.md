@@ -1,14 +1,20 @@
 # NEON-NIWO-misclass
 
-Here we develop a joint classification-occupancy model for multispecies datasets. We illustrate the model using carabid pitfall trap data from the National Ecological Observatory Network (NEON).
+Here we develop a joint classification-occupancy model for multispecies survey datasets. We illustrate the model using carabid pitfall trap data from the National Ecological Observatory Network (NEON) collected at Niwot Ridge, CO, USA.
+
+The manuscript is *in press* at Methods in Ecology & Evolution.
+
+Code is archived on Zenodo at https://doi.org/10.5281/zenodo.6394878
 
 ## Prerequisites
 
-To run this compendium, you'll need R installed
+To run this compendium, you'll need R installed/
 
 ## Quickstart
 
-This compendium produces the article's main figures. It does not produce the paper.
+This compendium produces the article's figures based off of the carabid case study results. 
+
+It does not produce the paper nor simulation output. For simulation output, run ```simulations.R```. This will take a long time depending on your CPU bandwidth. For simulation figures, run ```sim_figs.R```
 
 ### Navigate to repository
 
@@ -28,7 +34,7 @@ Here's what's inside:
 
 ### `data/`
 
-A place for `raw/` and `clean/` data. Cleaned data are ignored by version control.
+A place for local storage of publicly available NEON data. Data are ignored by version control.
 
 ### `figures/` 
 
