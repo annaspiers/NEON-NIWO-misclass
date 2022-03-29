@@ -10,4 +10,5 @@ output/*_jm.rds
 Rplots.pdf
 monitoring.txt
 validation_old.R
-
+_targets.R
+docs/*
