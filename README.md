@@ -2,7 +2,7 @@
 
 Here we develop a joint classification-occupancy model for multispecies survey datasets. We illustrate the model using carabid pitfall trap data from the National Ecological Observatory Network (NEON) collected at Niwot Ridge, CO, USA.
 
-The manuscript is *in press* at Methods in Ecology & Evolution.
+The associated manuscript has been accepted at Methods in Ecology & Evolution.
 
 Code is archived on Zenodo at https://doi.org/10.5281/zenodo.6394878
 
